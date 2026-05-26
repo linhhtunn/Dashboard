@@ -1,3 +1,5 @@
+### Họ và tên: Nguyễn Trọng Thiên Khôi
+
 ## Background & Interests
 
 Em hiện có nền tảng về Python, SQL, Machine Learning, Deep Learning, NLP, Computer Vision, data preprocessing, feature engineering, cùng kiến thức cơ bản về Spark và Docker. Trong quá trình học và làm project, em đã tham gia xây dựng các AI applications, đặc biệt ở mảng LLM application engineering và AI systems như RAG, agent workflows,  LLM evaluation và AI pipeline development. Ngoài nền tảng kỹ thuật, em cũng có kiến thức cơ bản về kinh tế và hứng thú với cách các hệ thống công nghệ, dữ liệu và hành vi con người tương tác với nhau trong các bài toán thực tế.
