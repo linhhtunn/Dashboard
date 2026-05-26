@@ -10,4 +10,4 @@ Về định hướng dài hạn, em thấy mình phù hợp hơn với hướng
 
 ## Skills & Areas Willing to Learn Further
 
-Trong quá trình tham gia dự án, em sẵn sàng học thêm các kỹ năng cần thiết để có thể phát triển hệ thống AI end-to-end, bao gồm multimodal ai,backend infrastructure, distributed systems, MLOps/LLMOps, observability, evaluation workflows và production AI deployment với sự support của các a ạ
+Trong quá trình tham gia dự án, em sẵn sàng học thêm các kỹ năng cần thiết để có thể phát triển hệ thống AI end-to-end.
