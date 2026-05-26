@@ -6,7 +6,7 @@ Em hiện có nền tảng về Python, SQL, Machine Learning, Deep Learning, NL
 
 ## Long-term Career Direction
 
-Về định hướng dài hạn, em thấy mình phù hợp hơn với hướng AI Engineer / Research Engineer thiên về systems và applied AI hơn là pure software engineering hoặc pure academic research. Em hứng thú với những bài toán cần kết hợp giữa reasoning, architecture thinking, systems thinking và khả năng triển khai hệ thống thực tế. Điều em muốn phát triển lâu dài không chỉ là khả năng train model hay xây dựng feature, mà là khả năng hiểu và thiết kế các complex AI systems có thể hoạt động ổn định, đáng tin cậy và hữu ích trong môi trường thực tế.
+Về định hướng dài hạn, em thấy mình phù hợp hơn với hướng AI Engineer / Research Engineer thiên về systems và applied AI hơn là pure software engineering hoặc pure academic research. Em hứng thú với những bài toán cần kết hợp giữa reasoning, architecture thinking, systems thinking và khả năng xây dựng mô hình để triển khai hệ thống thực tế. Điều em muốn phát triển lâu dài không chỉ là khả năng train model hay xây dựng feature, mà là khả năng hiểu và thiết kế các complex AI systems có thể hoạt động ổn định, đáng tin cậy và hữu ích trong môi trường thực tế.
 
 ## Skills & Areas Willing to Learn Further
 
