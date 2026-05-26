@@ -8,7 +8,7 @@ Về AI, tập trung tìm hiểu về:
 - Computer Vision, Machine Learning
 - Human Activity Recognition
 - Bài toán Fall Detection
-- Xử lý dữ liệu hình ảnh từ camera phục vụ bài toán giám sát và hỗ trợ chăm sóc sức khỏe
+- Xử lý dữ liệu hình ảnh từ camera 
 
 Ngoài ra, em có khả năng research công nghệ, tìm hiểu các mô hình AI mới để áp dụng vào các bài toán thực tế. Tư duy phân tích và khả năng tìm hiểu workflow của hệ thống AI từ thu thập dữ liệu đến xử lý và triển khai ứng dụng.  
 
