@@ -114,3 +114,76 @@ Các dấu hiệu lâm sàng quan trọng cần nhớ: **méo mặt, yếu một
 
 ---
 
+## 6. Định nghĩa Chi tiết & Mở rộng các Giá trị Metric theo Trạng thái Sức khỏe
+
+Dưới đây là bảng đặc tả chi tiết các ngưỡng giá trị của các chỉ số sinh trắc học và vận động tương ứng với từng trạng thái sức khỏe của người dùng đeo thiết bị. Các thông số này là cơ sở để lập trình cho **Team 1 (Simulator)** phát sinh dữ liệu và **Team 3 (Anomaly Detection)** huấn luyện mô hình/xây dựng bộ quy tắc phát hiện bất thường.
+
+### 6.1. Trạng thái bình thường & Hoạt động thường nhật (Normal Baseline)
+
+#### A. Nghỉ ngơi bình thường (Normal Resting)
+Trạng thái người dùng đang ngồi, nằm đọc sách, xem TV hoặc ngủ nhẹ không có biến cố sinh lý.
+*   **HR (Nhịp tim):** `60 – 90 bpm` (Nhịp xoang đều đặn khi nghỉ ngơi).
+*   **SpO₂ (Độ bão hòa oxy máu):** `96% – 99%` (Mức oxy máu tối ưu của người khỏe mạnh).
+*   **SBP (Huyết áp tâm thu):** `110 – 140 mmHg` (Mức huyết áp tối ưu đến bình thường).
+*   **DBP (Huyết áp tâm trương):** `70 – 90 mmHg`.
+*   **acc_rms (Cường độ gia tốc tổng hợp):** Rất thấp (`< 0.15g`).
+*   **posture (Tư thế cơ thể):** `sitting` (ngồi) hoặc `lying` (nằm).
+*   **HRV (Biến thiên nhịp tim):** Cao (`30 – 100 ms`), thể hiện hệ thần kinh tự chủ khỏe mạnh, ít stress.
+
+#### B. Đi bộ / Vận động nhẹ (Walking)
+Trạng thái di chuyển chủ động, nhịp nhàng.
+*   **HR (Nhịp tim):** `resting_HR + (10 – 30) bpm` (Tăng sinh lý nhẹ do cơ bắp tiêu thụ năng lượng).
+*   **SpO₂:** `95% – 99%` (Duy trì ổn định nhờ thông khí tốt).
+*   **SBP / DBP:** SBP tăng nhẹ (`120 – 150 mmHg`), DBP ổn định hoặc giảm nhẹ (`65 – 85 mmHg`).
+*   **acc_rms:** `1.0g – 1.8g` (Biến thiên tuần hoàn đều đặn theo nhịp bước chân).
+*   **step_count:** Tăng đều liên tục theo thời gian (`~1 – 2.5 bước/giây`).
+*   **gyro_peak (Vận tốc góc đỉnh):** `Vừa phải (50 – 150 deg/s)` theo dao động tự nhiên của tay/chân.
+*   **gait_instability_score (Chỉ số loạng choạng dáng đi):** Thấp (`< 0.2`), dáng đi đều và vững chãi.
+*   **posture:** `standing/walking` (đứng/đi).
+
+---
+
+### 6.2. Các Kịch bản Biến cố & Bệnh lý Cấp tính (Abnormal Scenarios)
+
+#### A. Biến cố Ngã đột ngột (Fall Event)
+Biến cố ngã cơ học tự do, va đập mạnh và mất khả năng di chuyển hoặc bất tỉnh sau đó. Tiến trình gồm 3 giai đoạn:
+
+1.  **Trước biến cố (Pre-impact):**
+    *   **Trạng thái:** Đang đi bộ (`walking`) hoặc đứng tĩnh (`standing`).
+    *   **acc_rms:** Dao động bình thường của đi bộ (`1.0g – 1.8g`) hoặc đứng tĩnh (`~0.1g`).
+2.  **Tại thời điểm biến cố (Impact/Collision):**
+    *   **acc_peak_g (Gia tốc đỉnh):** Tăng vọt cực đại đột ngột (`> 3.0g` đến `5.0g` hoặc cao hơn) do lực va đập trực tiếp xuống mặt sàn.
+    *   **jerk_peak (Tốc độ thay đổi gia tốc):** Tăng cực mạnh (`> 20g/s`) thể hiện quán tính rơi tự do và dừng đột ngột.
+    *   **gyro_peak (Vận tốc góc đỉnh):** Tăng mạnh (`> 300 – 500 deg/s`) do cơ thể xoay chuyển nhanh ngoài tầm kiểm soát khi ngã.
+3.  **Sau biến cố (Post-impact):**
+    *   **posture_after (Tư thế sau ngã):** Nghiêng hẳn so với trục đứng (`lying` - nằm ngửa, nằm sấp hoặc nằm nghiêng một góc `> 60°`).
+    *   **no_motion_duration (Thời gian bất động):** Tăng liên tục (`> 5 – 10 giây`) do người bệnh bị choáng, đau đớn hoặc ngất đi.
+    *   **HR (Nhịp tim):** Tăng vọt nhanh (`> 100 bpm`) phản ứng hoảng sợ (fight-or-flight) hoặc chấn thương đau đớn.
+
+#### B. Cảnh báo Đột quỵ cấp (Stroke Warning)
+Không phải một sự kiện va chạm tức thời như ngã mà là chuỗi biến đổi sinh lý và suy giảm chức năng thần kinh/vận động tích tụ:
+*   **Huyết áp kịch phát (Hypertension Crisis):** SBP tăng rất cao (`> 160 mmHg`, thậm chí `> 180 mmHg`) hoặc DBP `> 100 mmHg` (Yếu tố nguy cơ vỡ hoặc tắc mạch máu não hàng đầu).
+*   **Rung nhĩ & Nhịp tim bất ổn (AFib & Arrhythmia):**
+    *   **AFib probability (Xác suất rung nhĩ):** Tăng cao (`> 0.6 – 0.9`). Rung nhĩ tạo huyết khối gây tắc mạch não.
+    *   **HR irregular:** Khoảng cách các nhịp tim biến thiên cực kỳ hỗn loạn (HRV giảm sâu hoặc biến đổi phi quy luật).
+*   **Mất thăng bằng & Liệt vận động (Motor Impairment):**
+    *   **gait_instability_score (Chỉ số loạng choạng):** Tăng mạnh (`> 0.6`) khi di chuyển (do yếu nửa người, đi kéo lê chân hoặc ảnh hưởng tiểu não).
+    *   **activity_drop_score (Suy giảm vận động):** Tăng cao (`> 0.7`) ở một bên tay đeo thiết bị (giảm biên độ vung tay tự nhiên khi đi lại).
+*   **Tín hiệu tự báo cáo (Self-report BE FAST):**
+    *   Hệ thống hỏi nhanh trên màn hình hoặc giọng nói, ghi nhận phản hồi tích cực về méo mặt (**F**ace), yếu tay (**A**rm), khó nói (**S**peech), mờ mắt (**E**ye) -> Kích hoạt cảnh báo khẩn cấp cấp độ cao nhất.
+
+#### C. Hạ đường huyết cấp (Hypoglycemia Warning) - *Mở rộng đặc biệt*
+Tình trạng thiếu hụt glucose cung cấp cho tế bào não, gây suy nhược thần kinh và kích thích giao cảm mạnh mẽ:
+*   **Glucose (Đường huyết giả định):** Giảm sâu dưới mức an toàn (`< 70 mg/dL` - mức cảnh báo, hoặc `< 55 mg/dL` - mức nguy kịch cần cấp cứu).
+*   **HR (Nhịp tim):** Tăng nhanh phản ứng giao cảm (`90 – 120 bpm` khi đang nghỉ ngơi), tạo cảm giác hồi hộp trống ngực dữ dội.
+*   **Gia tốc vi mô / Run tay (Micro-tremor):**
+    *   **acc_tremor_rms:** Xuất hiện dao động gia tốc biên độ cực nhỏ nhưng tần số cao (`8 – 12 Hz`) ở cổ tay do run cơ học vô thức.
+*   **Hoạt động chung:** Suy giảm nhanh, người bệnh lơ mơ, nằm nghỉ đột ngột hoặc ngồi bệt xuống (`activity_drop_score` tăng, `posture` chuyển sang nằm/ngồi).
+
+#### D. Ngưng thở khi ngủ / Giảm oxy máu (Hypoxia Event) - *Mở rộng đặc biệt*
+*   **SpO₂:** Giảm sâu đột ngột dưới mức sinh lý thông thường (`< 90%` hoặc tụt dốc `> 4%` trong vòng 30 giây).
+*   **HR (Nhịp tim):** Biến thiên hình chữ U (nhịp tim chậm lại lúc thiếu oxy, sau đó tăng vọt `> 100 bpm` khi cơ thể giật mình tỉnh giấc để lấy lại nhịp thở).
+*   **Motion:** Kèm theo các cú giật mình chuyển động mạnh đột ngột trong khi ngủ (gia tốc đỉnh ngắn sau giai đoạn bất động hoàn toàn).
+*   **posture:** `lying` (nằm).
+
+---
