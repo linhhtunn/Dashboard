@@ -8,13 +8,13 @@ Tài liệu này chia các công việc của Team 5 trong Sprint 1 thành 4 Git
 ### ISSUE 1: [Team 5] Setup FastAPI Project, LLM Integration & Prompt Engineering
 *   **Start - End date:** Day 1 - Day 2 (Thứ Hai - Thứ Ba)
 *   **Scope:**
-    *   Khởi tạo cấu trúc thư mục dự án FastAPI (`backend/Cuong_Nguyen/ai_agent/`).
+    *   Khởi tạo cấu trúc thư mục dự án FastAPI (`backend/ai_agent/`).
     *   Cấu hình file `requirements.txt` cài đặt các thư viện cần thiết (FastAPI, uvicorn, openai/google-generativeai, pydantic, python-dotenv).
     *   Tạo file cấu hình môi trường `.env.example` (cổng PORT, khóa API của LLM).
     *   Thiết kế prompt cơ sở `SYSTEM_PROMPT` trong `prompts.py` định hình vai trò trợ lý lâm sàng AI (AI Clinical Assistant) và quy định trả về định dạng **Hybrid JSON Output** (chứa narrative markdown + tọa độ vẽ biểu đồ/bảng).
 *   **Output:**
     *   Project FastAPI chạy được ở local.
-    *   File `backend/Cuong_Nguyen/ai_agent/prompts.py` hoàn chỉnh chứa các prompt thô.
+    *   File `backend/ai_agent/prompts.py` hoàn chỉnh chứa các prompt thô.
     *   File `.env.example` cấu hình khóa API.
 
 ---
@@ -54,7 +54,7 @@ Tài liệu này chia các công việc của Team 5 trong Sprint 1 thành 4 Git
     *   Tích hợp thư viện kết nối cơ sở dữ liệu (như SQLAlchemy/asyncpg) để kết nối trực tiếp với Supabase Database của Team 1 người 1.
     *   Lập trình các hàm truy vấn dữ liệu từ bảng `patients`, `clean_vitals` (lịch sử nhịp tim, HRV, huyết áp, SpO2) và `health_alerts` (danh sách cảnh báo).
     *   Viết logic **Dynamic Prompting** (Tự động chèn dữ liệu vừa SELECT từ Database vào các tham số `{vitals_data}`, `{alerts_data}` trong templates prompt).
-    *   Viết `Dockerfile` để đóng gói dịch vụ AI Agent.
+    *   Viết `Dockerfile` để đóng gói dịch vụ AI Agent (`backend/ai_agent/Dockerfile`).
     *   Hỗ trợ Team 2 viết file orchestrator `docker-compose.yml` tích hợp chạy E2E cho toàn bộ hệ thống ở local.
 *   **Output:**
     *   AI Agent đưa ra phản hồi thực tế dựa trên dữ liệu bệnh nhân thực trong Supabase.
