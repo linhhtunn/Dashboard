@@ -19,15 +19,12 @@ Sprint 1 được rút ngắn còn **6 ngày (làm việc từ Thứ Hai đến 
 
 | Thành viên | Ngày | Tác vụ chi tiết | Sản phẩm đầu ra (Deliverables) |
 | :--- | :--- | :--- | :--- |
-| **Team 1 người 1** | **Day 1** | Đăng ký các tài khoản Cloud (Supabase, CloudAMQP). Viết file Pydantic Schema định dạng dữ liệu đầu vào. | Tài khoản hoạt động + File `backend/contracts/sensor_data.py`. |
-| | **Day 2** | Thiết lập cấu trúc các bảng DB Schema v1 trên Supabase và viết script seeding 10 bệnh nhân mẫu. | **[Bàn giao DB]** Các bảng DB đã tạo kèm dữ liệu mẫu. |
-| | **Day 3** | Cấu hình Exchange, Queue và Routing key trên CloudAMQP. | **[Bàn giao Broker]** Thông tin kết nối queue trực tuyến sẵn sàng. |
-| | **Day 4 - Day 5** | Hỗ trợ viết script Simulator bắn dữ liệu thô nhịp tim/huyết áp lên RabbitMQ. | Code Simulator kết nối thành công RabbitMQ qua giao thức `amqps://`. |
-| | **Day 6** | Hỗ trợ Team 2 & 4 tích hợp luồng dữ liệu thô liên tục và debug kết nối. | Luồng dữ liệu chạy ổn định từ Simulator lên Broker. |
-| **Team 1 người 2** | **Day 1 - Day 2** | Nghiên cứu y học, viết tài liệu sinh lý học chốt dải chỉ số nhịp tim, huyết áp, SpO2 làm gốc cho Simulator. | Tài liệu `docs/dataset_review.md` (Team 3 người 1 và Team 2 người 1 sẽ dùng chung). |
-| | **Day 3** | Xây dựng logic Simulator sinh dữ liệu sinh hiệu bình thường (Normal Stream). | Module Simulator sinh dữ liệu ngẫu nhiên có kiểm soát sinh lý. |
-| | **Day 4 - Day 5** | Tích hợp cơ chế sinh nhiễu sinh lý học ngẫu nhiên vào dữ liệu Simulator. | Simulator hoàn chỉnh bắn tin nhắn định kỳ tần suất 1 Hz. |
-| | **Day 6** | Viết file cấu hình chạy Docker và phối hợp chạy thử nghiệm E2E. | Dockerfile của Simulator hoạt động ổn định. |
+| **Team 1 (2 người)** <br>*(Đồng hành)* | **Day 1** | Cùng nghiên cứu y học, thống nhất dải chỉ số sinh hiệu (nhịp tim, huyết áp, SpO2). Đăng ký tài khoản Cloud (Supabase, CloudAMQP) và viết file Pydantic Schema cho dữ liệu đầu vào. | Tài khoản hoạt động + File `backend/contracts/sensor_data.py`. |
+| | **Day 2** | Thiết lập cấu trúc các bảng DB Schema v1 trên Supabase, viết script seeding 10 bệnh nhân mẫu, đồng thời hoàn thiện tài liệu sinh lý học. | **[Bàn giao DB]** Các bảng DB đã tạo kèm dữ liệu mẫu + Tài liệu `docs/dataset_review.md` (Team 3 người 1 và Team 2 người 1 sẽ dùng chung). |
+| | **Day 3** | Cấu hình Exchange, Queue, Routing key trên CloudAMQP và xây dựng logic cốt lõi của Simulator sinh dữ liệu sinh hiệu bình thường (Normal Stream). | **[Bàn giao Broker]** Thông tin kết nối queue trực tuyến sẵn sàng + Module Simulator sinh dữ liệu ngẫu nhiên có kiểm soát sinh lý. |
+| | **Day 4** | Phát triển module Simulator: tích hợp cơ chế sinh nhiễu sinh lý học ngẫu nhiên và viết logic kết nối gửi dữ liệu qua giao thức `amqps://` lên CloudAMQP. | Code Simulator kết nối thành công RabbitMQ qua giao thức `amqps://` và phát tín hiệu thô có nhiễu. |
+| | **Day 5** | Tối ưu hóa bộ sinh dữ liệu Simulator (phát định kỳ tần suất 5 Hz), kiểm thử việc gửi tin nhắn liên tục ổn định và xử lý lỗi kết nối Broker. | Simulator hoàn chỉnh bắn tin nhắn định kỳ tần suất 5 Hz. |
+| | **Day 6** | Viết file cấu hình Docker cho Simulator; đồng hành cùng Team 2, 4 tích hợp luồng dữ liệu thô liên tục và hỗ trợ debug chạy thử nghiệm E2E toàn hệ thống. | Dockerfile của Simulator hoạt động ổn định + Luồng dữ liệu chạy ổn định từ Simulator lên Broker. |
 
 ---
 
@@ -37,8 +34,8 @@ Sprint 1 được rút ngắn còn **6 ngày (làm việc từ Thứ Hai đến 
 | Thành viên | Ngày | Tác vụ chi tiết | Sản phẩm đầu ra (Deliverables) |
 | :--- | :--- | :--- | :--- |
 | **Team 2 người 1** | **Day 1 - Day 2** | Tập trung viết module logic xử lý, kiểm tra dữ liệu thô và lọc lỗi sensor (Cleaning logic). Viết unit test chạy bằng dữ liệu JSON mẫu offline. | File `cleaner.py` + Bộ unit test offline thành công. |
-| | **Day 3** | Tiếp nhận DB kết nối từ Team 1 người 1. Viết code Database Connector để lưu dữ liệu sạch vào Supabase. | Module Database Connector chèn dữ liệu sạch thành công vào Supabase DB. |
-| | **Day 4** | Tiếp nhận CloudAMQP từ Team 1 người 1. Viết code Consumer kết nối tới CloudAMQP chốt queue đọc tin nhắn. | Worker Consumer kết nối thành công hàng đợi trực tuyến để đọc tin. |
+| | **Day 3** | Tiếp nhận DB kết nối từ Team 1. Viết code Database Connector để lưu dữ liệu sạch vào Supabase. | Module Database Connector chèn dữ liệu sạch thành công vào Supabase DB. |
+| | **Day 4** | Tiếp nhận CloudAMQP từ Team 1. Viết code Consumer kết nối tới CloudAMQP chốt queue đọc tin nhắn. | Worker Consumer kết nối thành công hàng đợi trực tuyến để đọc tin. |
 | | **Day 5** | Ghép nối hoàn chỉnh luồng Consumer (Đọc Broker -> Dọn dẹp -> Ghi DB) và chạy thử nghiệm. | Dữ liệu thô và sạch được ghi tự động vào các bảng Supabase. |
 | | **Day 6** | Phối hợp tích hợp E2E toàn hệ thống, đo đạc tốc độ insert dữ liệu vào database. | Toàn bộ đường ống dẫn dữ liệu chạy ổn định thời gian thực. |
 
@@ -49,7 +46,7 @@ Sprint 1 được rút ngắn còn **6 ngày (làm việc từ Thứ Hai đến 
 
 | Thành viên | Ngày | Tác vụ chi tiết | Sản phẩm đầu ra (Deliverables) |
 | :--- | :--- | :--- | :--- |
-| **Team 3 người 1** | **Day 1 - Day 2** | Tiếp nhận tài liệu `docs/dataset_review.md` từ Team 1 người 2 để lấy dải sinh lý học. Dựng khung xương Rule Engine. | File cấu hình `thresholds_config.py` chứa các ngưỡng sinh lý động/tĩnh. |
+| **Team 3 người 1** | **Day 1 - Day 2** | Tiếp nhận tài liệu `docs/dataset_review.md` từ Team 1 để lấy dải sinh lý học. Dựng khung xương Rule Engine. | File cấu hình `thresholds_config.py` chứa các ngưỡng sinh lý động/tĩnh. |
 | | **Day 3** | Thiết lập cấu trúc dữ liệu và kết nối DB để chuẩn bị ghi nhận cảnh báo bất thường. | Kết nối Database từ module Rule Engine được thiết lập thành công. |
 | | **Day 4 - Day 5** | Viết logic Rule-based Engine v1 phát hiện vượt ngưỡng tĩnh (nhịp tim, huyết áp) và chèn alert y sinh vào DB. | Script Rule Worker chạy ngầm, tự động tạo alert vào bảng `health_alerts` khi có chỉ số vượt ngưỡng. |
 | | **Day 6** | Chạy thử nghiệm phát hiện bất thường với luồng dữ liệu của Simulator gửi lên DB. | Alert được kích hoạt tự động đúng logic y tế. |
