@@ -9,11 +9,14 @@ Tài liệu này chia các công việc của Team 5 trong Sprint 1 thành 4 Git
 *   **Start - End date:** Day 1 - Day 2 (Thứ Hai - Thứ Ba)
 *   **Scope:**
     *   Khởi tạo cấu trúc thư mục dự án FastAPI (`backend/ai_agent/`).
-    *   Cấu hình file `requirements.txt` cài đặt các thư viện cần thiết (FastAPI, uvicorn, openai/google-generativeai, pydantic, python-dotenv).
+    *   Cấu hình file `requirements.txt` cài đặt các thư viện cần thiết (FastAPI, uvicorn, openai/google-generativeai, pydantic, python-dotenv, tenacity, pytest, pytest-asyncio).
     *   Tạo file cấu hình môi trường `.env.example` (cổng PORT, khóa API của LLM).
+    *   Thiết lập cơ chế gọi LLM bất đồng bộ (`async`/`await` với `AsyncOpenAI` hoặc Gemini Async client) để tránh block luồng xử lý của server khi có nhiều request đồng thời.
+    *   Thiết kế hệ thống Logging ghi nhận chi tiết cuộc gọi LLM (thời gian phản hồi, số token tiêu thụ, chi phí ước tính, log lỗi).
+    *   Cấu hình framework kiểm thử `pytest` và `pytest-asyncio` chuẩn bị cho việc viết unit test.
     *   Thiết kế prompt cơ sở `SYSTEM_PROMPT` trong `prompts.py` định hình vai trò trợ lý lâm sàng AI (AI Clinical Assistant) và quy định trả về định dạng **Hybrid JSON Output** (chứa narrative markdown + tọa độ vẽ biểu đồ/bảng).
 *   **Output:**
-    *   Project FastAPI chạy được ở local.
+    *   Project FastAPI chạy được ở local với cấu trúc Logger và Pytest hoạt động tốt.
     *   File `backend/ai_agent/prompts.py` hoàn chỉnh chứa các prompt thô.
     *   File `.env.example` cấu hình khóa API.
 
@@ -25,10 +28,12 @@ Tài liệu này chia các công việc của Team 5 trong Sprint 1 thành 4 Git
     *   Thiết lập các lớp Pydantic Model để ép kiểu cấu trúc dữ liệu trả về từ LLM (Structured Output) đúng khớp với định dạng Hybrid JSON đã quy định trong Data Contract.
     *   Lập trình logic xác thực JSON trả về từ LLM.
     *   Xây dựng cơ chế xử lý lỗi (fallback/retry) tự động khi LLM sinh JSON lỗi cú pháp hoặc sai cấu trúc thuộc tính.
+    *   Lập trình cơ chế thử lại tự động với độ trễ tăng dần (Retry with Exponential Backoff) khi gặp lỗi mạng hoặc lỗi Rate Limit (HTTP 429) bằng thư viện `tenacity`.
+    *   Xây dựng bộ tiền lọc (Pre-filter) tin nhắn người dùng đầu vào để phát hiện và ngăn chặn các hành vi tấn công Prompt Injection (ví dụ: người dùng cố tình ghi đè hướng dẫn hệ thống).
     *   Bổ sung các lớp kiểm duyệt nội dung an toàn y khoa (**Clinical Guardrails**) ngay trong Prompt (ví dụ: cấm kê đơn thuốc tự ý, bắt buộc đính kèm disclaimer cảnh báo y khoa, chống ảo tưởng thông tin khi thiếu dữ liệu).
 *   **Output:**
-    *   Code validation đầu ra chạy thành công.
-    *   Bộ lọc prompt ngăn chặn AI đưa ra các chỉ định y khoa ngoài thẩm quyền.
+    *   Code validation đầu ra chạy thành công, tích hợp module xử lý retry của `tenacity`.
+    *   Bộ lọc prompt ngăn chặn AI đưa ra các chỉ định y khoa ngoài thẩm quyền và chống tấn công Prompt Injection thành công.
 
 ---
 
