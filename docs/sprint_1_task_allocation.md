@@ -72,12 +72,13 @@ Sprint 1 được rút ngắn còn **6 ngày (làm việc từ Thứ Hai đến 
 
 ---
 
-### 2.5. TEAM 5: AI AGENT & VALIDATION SUPPORT (1 nhân sự)
-*   **Vai trò:** Phát triển trợ lý AI Agent, tóm tắt bệnh án y sinh và giải thích nguyên nhân cảnh báo.
+### 2.5. TEAM 5: AI AGENT & VALIDATION SUPPORT (1 nhân sự - Nguyễn Đức Cường)
+*   **Vai trò:** Phát triển trợ lý AI Agent, tóm tắt bệnh án y sinh, giải thích nguyên nhân cảnh báo và hỗ trợ đóng gói E2E.
 
 | Thành viên | Ngày | Tác vụ chi tiết | Sản phẩm đầu ra (Deliverables) |
 | :--- | :--- | :--- | :--- |
-| **Team 5 người 1** | **Day 1 - Day 2** | Setup project FastAPI cho AI Agent, cấu hình kết nối API của LLM (OpenAI/Gemini). | Server FastAPI AI Agent chạy được cục bộ. |
-| | **Day 3** | Thiết lập System Prompt y khoa chuẩn và cơ chế bảo mật (Guardrails) cơ bản cho Agent. | System Prompt chốt vai trò trợ lý y khoa hạn chế ảo tưởng thông tin. |
-| | **Day 4 - Day 5** | Viết logic API endpoints `/api/agent/summary` và `/explain-alert` sinh dữ liệu JSON tĩnh theo Data Contract. | Phản hồi của Agent chứa cấu trúc JSON chuẩn (bao gồm Markdown giải thích + mảng vẽ chart). |
-| | **Day 6** | Kết nối FastAPI AI Agent với Database thực tế để lấy dữ liệu sinh hiệu điền vào Context của Prompt. | AI Agent tóm tắt và giải thích được dựa trên số liệu thực tế trong DB. |
+| **Team 5 người 1** | **Day 1 - Day 2** | Setup project FastAPI cho AI Agent. Cấu hình kết nối API của LLM (OpenAI/Gemini) qua thư viện chính thức. Hoàn thiện prompt cơ sở (`SYSTEM_PROMPT` với cơ chế Hybrid Output định dạng JSON chứa text Markdown + mảng dữ liệu vẽ đồ thị). | Khung dự án FastAPI chạy được local + file `.env.example` cấu hình khóa API + tệp `prompts.py` định nghĩa sẵn các mẫu prompt y khoa. |
+| | **Day 3** | Thiết lập cơ chế Structured Output để ép LLM trả về đúng định dạng JSON Schema mong muốn. Triển khai logic bắt lỗi (fallback/retry) khi LLM sinh JSON sai cấu trúc. Cài đặt các cơ chế bảo mật (Guardrails) cơ bản trong System Prompt để ngăn chặn AI tư vấn thuốc hoặc đưa ra chẩn đoán xác định mà không có chỉ định trực tiếp. | Class validation bằng Pydantic kiểm chứng cấu trúc JSON trả về + Logic xử lý lỗi JSON an toàn. |
+| | **Day 4 - Day 5** | Xây dựng các router API chính gồm: `POST /api/agent/chat` (hỗ trợ lưu lịch sử chat In-Memory theo `patient_id` để đàm thoại nhiều lượt), `POST /api/agent/summary` (tóm tắt trạng thái sinh hiệu), và `POST /api/agent/explain-alert` (giải thích cảnh báo). Viết logic sinh dữ liệu Mock JSON tĩnh khớp chuẩn Data Contract cho các endpoint này để bàn giao sớm cho Team 4 Frontend làm màn hình dashboard. | 3 API endpoints hoạt động hoàn chỉnh chạy bằng dữ liệu mock. Tài liệu/Postman collection test API. |
+| | **Day 6** | Kết nối FastAPI AI Agent với Supabase Database thực tế để truy vấn dữ liệu từ bảng `patients`, `clean_vitals` và `health_alerts`. Viết hàm tự động chèn dữ liệu truy vấn từ DB vào prompt template để LLM trả lời dựa trên chỉ số thực tế. Đồng hành cùng Team 2 viết Dockerfile cho AI Agent và cấu hình file điều phối toàn hệ thống `docker-compose.yml`. | AI Agent hoạt động E2E bằng dữ liệu thật trong DB + File `Dockerfile` của Agent và file `docker-compose.yml` tích hợp toàn hệ thống. |
+
