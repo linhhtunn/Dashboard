@@ -159,7 +159,7 @@ gantt
 
 ##### **Team 1: Data & DB Setup Support (Hiền, Khôi)**
 *   **Task 1.1:** Nghiên cứu public datasets và viết tài liệu `dataset_review.md` làm nền tảng sinh lý học cho Simulator.
-*   **Task 1.2:** Định nghĩa file Pydantic Models dùng chung `shared/schemas/sensor_data.py` để thống nhất định dạng dữ liệu đầu vào.
+*   **Task 1.2:** Định nghĩa file Pydantic Models dùng chung `backend/contracts/sensor_data.py` để thống nhất định dạng dữ liệu đầu vào.
 *   **Task 1.3:** **[Hạ tầng Cloud & Hỗ trợ DB chéo]** Đăng ký các tài khoản Cloud: Supabase/Neon.tech (PostgreSQL) và CloudAMQP (RabbitMQ).
     *   *Database (Thiết lập hộ Team 2):* Thiết kế Database Schema v1, tạo các bảng `patients`, `raw_vitals`, `clean_vitals`, `vital_features`, `scenario_ground_truth` và `health_alerts`. Viết script seeding đẩy thông tin 10 bệnh nhân mẫu lên.
     *   *Broker:* Tạo exchange `health.events`, các queue `q.team2.raw_vitals` (binding key: `vitals.raw`), và queue lỗi `q.dead_letter` (binding key: `dead.*`).
