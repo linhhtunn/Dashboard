@@ -12,20 +12,20 @@ export function AIWorkspaceHeader() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-[1.85rem] font-semibold leading-none text-[color:var(--cs-heading)]">
-                AI Clinical Assistant
+                Tro ly AI lam sang
               </h2>
             </div>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--cs-text-soft)]">
-              Summary-first workspace de dat cau hoi, nhan ket luan ngan gon,
-              roi doi chieu evidence ben patient summary panel.
+              Khong gian uu tien tom tat de dat cau hoi, nhan ket luan ngan
+              gon, roi doi chieu evidence ben panel tong quan benh nhan.
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.06)] px-3 py-1.5 text-sm text-[color:var(--cs-teal)]">
           <Dot className="h-5 w-5" />
-          <span className="-ml-1 font-medium">Online</span>
+          <span className="-ml-1 font-medium">Dang hoat dong</span>
         </div>
       </div>
     </div>
