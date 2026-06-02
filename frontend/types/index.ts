@@ -15,6 +15,12 @@ export type PatientStatus =
   | 'critical'       // Critical / Cần xử lý ngay
   | 'recent_symptom'; // Recent Symptom / Gần đây có triệu chứng
 
+export type ActivityState =
+  | "sleeping"
+  | "sitting"
+  | "standing"
+  | "walking"
+  | "exercise";
 
 // CẦN XIN LẠI BE DANH SÁCH
 export type VitalMetric =
