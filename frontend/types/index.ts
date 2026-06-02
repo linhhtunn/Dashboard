@@ -1,13 +1,22 @@
-// ---------- Enums / Unions ----------
 
+// i18n
+export type Locale = "vi" | "en";
+
+export interface LocalizedString {
+  vi: string;
+  en: string;
+}
+
+// ---------- Enums / Unions ----------
+export type Gender = 'male' | 'female' | 'other';
 export type PatientStatus =
-  | 'healthy'        // Healthy / Khỏe mạnh  (header có thể hiển thị "Stable")
-  | 'at_risk'        // At Risk / Có nguy cơ
+  | 'healthy'        // Healthy / Khỏe mạnh ổn định
+  | 'at_risk'        // At Risk / Cần theo dõi
   | 'critical'       // Critical / Cần xử lý ngay
   | 'recent_symptom'; // Recent Symptom / Gần đây có triệu chứng
 
-export type Gender = 'male' | 'female' | 'other';
 
+// CẦN XIN LẠI BE DANH SÁCH
 export type VitalMetric =
   | 'heart_rate'
   | 'respiratory_rate'
@@ -26,26 +35,34 @@ export type AlertType =
   | 'fall'
   | 'high_blood_pressure'
   | 'low_blood_pressure'
-  | 'abnormal_glucose'
-  | 'high_heart_rate'
-  | 'low_heart_rate'
-  | 'abnormal_respiratory'
-  | 'low_oxygen'          // NEW — Low Oxygen Saturation
-  | 'deterioration_risk'; // NEW — framing an toàn cho "sepsis risk" (flag #5)
+  | "stroke"
+
 
 export type AISummaryStatus = 'pending' | 'ready' | 'error';
 
 export type AIConfidence = 'low' | 'medium' | 'high';
 
+export type UserRole = "clinician" | "admin";
 // ---------- Evidence ----------
+export type EvidenceKind =
+  | "metric_threshold"
+  | "trend_change"
+  | "recent_alert"
+  | "symptom_report"
+  | "patient_context";
 
 export interface Evidence {
+  kind: EvidenceKind;
   metric?: VitalMetric;
+  conditionCode?: ConditionCode;
+  symptomCode?: SymptomCode;
+  alertType?: AlertType;
   value?: number;
   unit?: string;
   timestamp?: string;
-  /** Wording an toàn: "dấu hiệu bất thường", "cần theo dõi thêm". */
-  note: string;
+  comparisonValue?: number;
+  comparisonWindow?: "15m" | "30m" | "1h" | "6h";
+  noteKey?: string;
 }
 
 // ---------- Medication ----------
@@ -59,26 +76,36 @@ export interface MedicationCycle {
 }
 
 // ---------- Core entities ----------
+export type ConditionCode = string;
+export type SymptomCode = string;
+export type WardCode = string;
+export type DepartmentCode = string;
+export type HospitalCode = string;
+
+export interface CodeLabel {
+  code: string;
+  label: LocalizedString;
+}
 
 export interface Patient {
   id: string;
-  /** Medical Record Number (hiển thị ở header/list). */
   mrn: string;
   name: string;
   age: number;
   gender: Gender;
   status: PatientStatus;
-  /** Phòng/khoa, vd "Cardiology Ward", "ICU". */
-  ward: string;
-  department?: string;
-  /** Giường, vd "Bed 12A". */
+  wardCode: WardCode;
+  wardLabel?: LocalizedString;
+  departmentCode?: DepartmentCode;
+  departmentLabel?: LocalizedString;
   bed?: string;
-  underlyingConditions: string[];
+  underlyingConditionCodes: ConditionCode[];
   medicationCycle: MedicationCycle[];
-  recentSymptoms: string[];
-  lastUpdated: string; // ISO 8601
+  recentSymptomCodes: SymptomCode[];
+  lastUpdated: string;
 }
 
+//CHECK LẠI THEO LIST CỦA BE, CÓ THỂ CẦN THÊM HOẶC BỚT TRƯỜNG
 export interface VitalSign {
   patientId: string;
   timestamp: string;
@@ -109,7 +136,6 @@ export interface Alert {
   patientId: string;
   type: AlertType;
   severity: AlertSeverity;
-  message: string;
   /** Điểm số mô hình (UI: "Score 8.4") — luôn kèm disclaimer, KHÔNG phải chẩn đoán (flag #5). */
   score?: number;
   evidence: Evidence[];
@@ -119,15 +145,17 @@ export interface Alert {
 
 export interface AISummary {
   patientId: string;
+  locale: Locale;
   question: string;
   answer: string;
   keyFindings: string[];
   status: AISummaryStatus;
-  confidence: AIConfidence; // UI: "Confidence: High"
-  evidence: Evidence[];     // bắt buộc — không trả lời tự do
+  confidence: AIConfidence;
+  evidence: Evidence[];
   generatedAt: string;
-  disclaimer: string;      
+  disclaimerKey: "ai_support_only";
 }
+
 
 // ---------- User / tenant ----------
 
@@ -141,5 +169,58 @@ export interface Clinician {
 
 export interface Hospital {
   id: string;
-  name: string;            // "Vinmec International Hospital"
+  code: HospitalCode;
+  name: LocalizedString; 
+             // "Vinmec International Hospital"
+}
+
+// -----------------------------
+// auth / session
+// -----------------------------
+
+export interface SessionUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  hospitalId: string;
+  preferredLocale: Locale;
+}
+
+export interface SessionResponse {
+  user: SessionUser;
+}
+
+export interface UpdatePreferencesRequest {
+  preferredLocale: Locale;
+}
+
+export interface UpdatePreferencesResponse {
+  success: boolean;
+  preferredLocale: Locale;
+}
+
+// -----------------------------
+// AI ask
+// -----------------------------
+
+export interface AskAIRequest {
+  patientId: string;
+  locale: Locale;
+  question: string;
+}
+
+// -----------------------------
+// optional frontend-only helpers
+// -----------------------------
+
+export interface StatusLabelMap {
+  healthy: LocalizedString;
+  at_risk: LocalizedString;
+  critical: LocalizedString;
+  recent_symptom: LocalizedString;
+}
+
+export interface DisclaimerMap {
+  ai_support_only: LocalizedString;
 }
