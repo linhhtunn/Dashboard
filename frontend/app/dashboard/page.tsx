@@ -12,12 +12,13 @@ export default function DashboardPage() {
         <DashboardPanelPlaceholder
           eyebrow="Patient context"
           title="Patient Summary Panel"
-          description="Panel phai se giu toan bo ngu canh lam sang de bac si doi chieu nhanh: profile, conditions, medication, alerts, va vitals snapshot."
+          description="Panel phai se giu toan bo ngu canh lam sang de bac si doi chieu nhanh: profile, conditions, medication, alerts, vitals snapshot, va evidence cho AI summary."
           items={[
             "Patient profile header",
             "Underlying conditions",
             "Top alerts",
             "Vitals overview",
+            "Evidence for AI summary",
           ]}
           tone="secondary"
         />

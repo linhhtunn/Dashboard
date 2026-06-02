@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CareSignal AI Frontend
 
-## Getting Started
+Frontend cho CareSignal AI - he thong monitoring va AI-assisted summary cho bai toan healthcare simulation.
 
-First, run the development server:
+## Product Direction
+
+- AI-first clinical dashboard
+- Frontend song ngu `vi/en`
+- Locale mac dinh la `vi`
+- User co the switch locale o moi man
+- `preferredLocale` can duoc luu de giu lai sau reload va login lai
+- AI support only. Not a diagnosis.
+
+## Core Stack
+
+- Next.js App Router
+- TypeScript strict
+- Tailwind CSS
+- `lucide-react` cho icon
+- `recharts` cho chart
+
+## Routes
+
+- `/dashboard`
+- `/patients`
+- `/patients/[patientId]`
+
+Sprint 2+:
+
+- `/login`
+- `/register`
+- `/settings`
+
+## Dashboard Architecture
+
+Dashboard duoc thiet ke theo layout 2 panel:
+
+- Panel trai: `AI workspace`
+- Panel phai: `Patient summary panel`
+
+### Left Panel Rules
+
+Panel trai chi dong vai tro hoi thoai va tom tat:
+
+- user prompt
+- AI summary response
+- summary highlights
+- confidence
+- disclaimer
+
+Khong hien thi evidence chi tiet o panel trai.
+
+### Right Panel Rules
+
+Panel phai la noi doi chieu clinical context:
+
+- patient profile
+- conditions
+- medication
+- recent symptoms
+- alerts
+- vitals snapshot
+- evidence cho AI summary
+
+Quyet dinh nay la bat buoc cho cac commit tiep theo:
+
+- `AI chi tra loi summary`
+- `Evidence hien thi o patient summary panel`
+
+## Clinical Wording Rules
+
+Khong dung:
+
+- chan doan
+- ket luan benh
+- AI khuyen nghi dieu tri
+
+Nen dung:
+
+- dau hieu bat thuong
+- can theo doi them
+- co nguy co
+- can bac si xac nhan
+
+Disclaimer chuan:
+
+`AI support only. Not a diagnosis. Always use clinical judgment.`
+
+## Data Contract Principles
+
+- Domain APIs uu tien tra `code`, khong tra label da dich
+- FE map glossary EN/VI
+- Unit giu nguyen: `bpm`, `ms`, `%`, `mmHg`
+- Vital metrics hien tai chi nhan 5 chi so:
+  - `heart_rate`
+  - `hrv_rmssd`
+  - `spo2`
+  - `systolic_bp`
+  - `diastolic_bp`
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open `http://localhost:3000`.
