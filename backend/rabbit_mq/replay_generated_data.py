@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from backend.rabbit_mq.rabbitmq import (
+from rabbit_mq.rabbitmq import (
     RabbitMQSettings,
     connect,
     declare_team1_topology,
