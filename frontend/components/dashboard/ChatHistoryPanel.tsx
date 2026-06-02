@@ -4,77 +4,100 @@ type ChatHistoryItem = {
   id: string;
   title: string;
   timestamp: string;
-  note: string;
+  issue: string;
 };
 
 const historyItems: ChatHistoryItem[] = [
   {
     id: "overnight-summary",
-    title: "Tom tat ca dem",
-    timestamp: "Hom nay · 08:20",
-    note: "AI uu tien xu huong SpO2 va huyet ap tam thu khi tong hop.",
+    title: "Tóm tắt ca đêm",
+    timestamp: "Hôm nay · 08:20",
+    issue: "SpO₂ thấp",
   },
   {
     id: "medication-check",
-    title: "Tac dong cua thuoc",
-    timestamp: "Hom qua · 17:40",
-    note: "Ngu canh hoi dap nghieng ve lich thuoc va thay doi trong 1 gio.",
+    title: "Tác động của thuốc",
+    timestamp: "Hôm qua · 17:40",
+    issue: "Huyết áp",
   },
   {
     id: "risk-review",
-    title: "Ra soat nguy co dien tien xau",
-    timestamp: "Hom qua · 11:05",
-    note: "AI uu tien cau hoi co huong hanh dong va tom tat ngan gon.",
+    title: "Rà soát nguy cơ diễn tiến xấu",
+    timestamp: "Hôm qua · 11:05",
+    issue: "HRV - RMSSD",
   },
 ];
 
 export function ChatHistoryPanel() {
   return (
-    <details className="dashboard-details border-b dashboard-subtle-divider px-6 py-4">
-      <summary className="flex cursor-pointer items-center justify-between gap-3">
-        <div>
+    <section className="mt-8 min-h-0">
+      <div className="flex items-center justify-between gap-3 px-2">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-            Lich su hoi dap
+            Lịch sử chat
           </p>
           <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
-            Giup ca nhan hoa cach AI uu tien context va mau tom tat.
+            Gợi nhớ ngữ cảnh gần đây để cá nhân hóa câu trả lời.
           </p>
         </div>
 
-        <span className="inline-flex items-center gap-2 rounded-full bg-[color:rgba(13,71,161,0.06)] px-3 py-1 text-xs font-medium text-[color:var(--cs-primary)]">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:rgba(13,71,161,0.06)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--cs-primary)]">
           <History className="h-3.5 w-3.5" />
-          3 phien gan day
+          3 phiên
         </span>
-      </summary>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {historyItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="dashboard-glass-soft rounded-[1.1rem] px-4 py-3 text-left transition hover:border-[color:rgba(13,71,161,0.24)]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-                  {item.title}
-                </p>
-                <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
-                  {item.timestamp}
-                </p>
-              </div>
-
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[color:rgba(13,71,161,0.08)] text-[color:var(--cs-primary)]">
-                <Sparkles className="h-4 w-4" />
-              </div>
-            </div>
-
-            <p className="mt-3 text-sm leading-6 text-[color:var(--cs-text-soft)]">
-              {item.note}
-            </p>
-          </button>
-        ))}
       </div>
-    </details>
+
+      <div className="mt-3 space-y-2">
+        {historyItems.map((item, index) => {
+          const active = index === 0;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={[
+                "group w-full rounded-[1.15rem] border px-3.5 py-3 text-left transition",
+                active
+                  ? "border-[color:rgba(13,71,161,0.16)] bg-white/85 shadow-[0_10px_24px_rgba(13,71,161,0.08)]"
+                  : "border-transparent bg-white/55 hover:border-[color:rgba(13,71,161,0.12)] hover:bg-white/80",
+              ].join(" ")}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[color:var(--cs-heading)]">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
+                    {item.timestamp}
+                  </p>
+                </div>
+
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[color:rgba(13,71,161,0.08)] text-[color:var(--cs-primary)]">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="inline-flex max-w-full truncate rounded-full border border-[color:rgba(0,150,136,0.16)] bg-[color:rgba(0,150,136,0.08)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--cs-teal)]">
+                  {item.issue}
+                </span>
+                {active ? (
+                  <span className="text-[11px] font-medium text-[color:var(--cs-primary)]">
+                    Đang xem
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        className="mt-3 px-2 text-xs font-medium text-[color:var(--cs-primary)] transition hover:text-[color:var(--cs-primary-strong)]"
+      >
+        Xem thêm lịch sử
+      </button>
+    </section>
   );
 }

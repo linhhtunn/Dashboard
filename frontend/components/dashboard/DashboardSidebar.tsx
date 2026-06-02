@@ -7,6 +7,8 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { ChatHistoryPanel } from "@/components/dashboard/ChatHistoryPanel";
+
 type DashboardSidebarProps = {
   activeItem?: "dashboard" | "patients" | "alerts" | "settings";
 };
@@ -22,26 +24,26 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     key: "dashboard",
-    label: "Tong quan",
+    label: "Tổng quan",
     href: "/dashboard",
     icon: LayoutGrid,
   },
   {
     key: "patients",
-    label: "Benh nhan",
+    label: "Bệnh nhân",
     href: "/patients",
     icon: UserRound,
   },
   {
     key: "alerts",
-    label: "Canh bao",
+    label: "Cảnh báo",
     href: "/alerts",
     icon: Bell,
     badge: "3",
   },
   {
     key: "settings",
-    label: "Cai dat",
+    label: "Cài đặt",
     href: "/settings",
     icon: Settings,
   },
@@ -59,7 +61,7 @@ function BrandLockup() {
           CareSignal<span className="text-[color:var(--cs-teal)]">AI</span>
         </p>
         <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
-          Khong gian giam sat lam sang
+          Không gian giám sát lâm sàng
         </p>
       </div>
     </div>
@@ -119,7 +121,7 @@ function SidebarNav({ activeItem = "dashboard" }: DashboardSidebarProps) {
 
 function DoctorStatusCard() {
   return (
-    <div className="dashboard-surface mt-auto rounded-[1.6rem] p-4">
+    <div className="dashboard-surface mt-6 rounded-[1.6rem] p-4">
       <div className="flex items-center gap-3">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0D47A1_0%,#8ED3E6_100%)] text-base font-semibold text-white">
           LN
@@ -129,18 +131,13 @@ function DoctorStatusCard() {
           <p className="truncate text-base font-semibold text-[color:var(--cs-heading)]">
             Dr. Linh Nguyen
           </p>
-          <p className="text-sm text-[color:var(--cs-text-soft)]">Tim mach</p>
+          <p className="text-sm text-[color:var(--cs-text-soft)]">Tim mạch</p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-[1rem] border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3 py-3 text-sm text-[color:var(--cs-text)]">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--cs-teal)]" />
-          <span className="font-medium text-[color:var(--cs-heading)]">Dang truc</span>
-        </div>
-        <p className="mt-2 leading-6 text-[color:var(--cs-text-soft)]">
-          Dang theo doi benh nhan hien tai va ra soat cac ban tom tat AI.
-        </p>
+      <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3 py-2 text-sm font-medium text-[color:var(--cs-heading)]">
+        <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--cs-teal)]" />
+        <span>Đang trực</span>
       </div>
     </div>
   );
@@ -151,6 +148,7 @@ export function DashboardSidebar({ activeItem }: DashboardSidebarProps) {
     <aside className="dashboard-glass hidden h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-[2rem] p-5 lg:flex">
       <BrandLockup />
       <SidebarNav activeItem={activeItem} />
+      <ChatHistoryPanel />
       <DoctorStatusCard />
     </aside>
   );
