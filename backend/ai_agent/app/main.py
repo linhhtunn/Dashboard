@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.logging_config import configure_logging
+from app.routers.agent import router as agent_router
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -11,6 +12,7 @@ app = FastAPI(
     version="0.1.0",
     description="FastAPI foundation for the Team 5 AI Agent service.",
 )
+app.include_router(agent_router)
 
 
 @app.get("/health")
