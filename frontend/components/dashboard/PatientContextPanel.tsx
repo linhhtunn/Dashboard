@@ -1,17 +1,18 @@
-import { ConditionMedicationCard } from "@/components/dashboard/ConditionMedicationCard";
-import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
-import { RecentSymptomCard } from "@/components/dashboard/RecentSymptomCard";
-import { TopAlertsCard } from "@/components/dashboard/TopAlertsCard";
-import { VitalsOverviewCard } from "@/components/dashboard/VitalsOverviewCard";
+import { DashboardPanelPlaceholder } from "@/components/dashboard/DashboardPanelPlaceholder";
 
 export function PatientContextPanel() {
   return (
-    <div className="flex h-full flex-col gap-4">
-      <PatientSummaryHeader />
-      <ConditionMedicationCard />
-      <RecentSymptomCard />
-      <TopAlertsCard />
-      <VitalsOverviewCard />
-    </div>
+    <DashboardPanelPlaceholder
+      eyebrow="Patient context"
+      title="Patient Summary Panel"
+      description="Panel phai se duoc tach thanh profile, conditions, alerts, va vitals overview o commit tiep theo."
+      items={[
+        "Patient profile header",
+        "Underlying conditions",
+        "Top alerts",
+        "Vitals overview",
+      ]}
+      tone="secondary"
+    />
   );
 }

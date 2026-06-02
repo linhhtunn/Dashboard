@@ -5,23 +5,23 @@ import { SuggestedPromptList } from "@/components/dashboard/SuggestedPromptList"
 import { PanelCard } from "@/components/common/PanelCard";
 
 const prompts = [
-  "Tóm tắt tình trạng hiện tại",
-  "Có thay đổi gì trong 1 giờ qua?",
-  "Rủi ro diễn tiến xấu?",
-  "Thuốc sắp tới là gì?",
-  "Các dấu hiệu cần theo dõi thêm?",
+  "Tom tat tinh trang hien tai",
+  "Co thay doi gi trong 1 gio qua?",
+  "Rui ro dien tien xau?",
+  "Thuoc sap toi la gi?",
+  "Cac dau hieu can theo doi them?",
 ];
 
 export function AIWorkspacePanel() {
   return (
-    <PanelCard className="flex h-full min-h-[70vh] flex-col overflow-hidden">
+    <PanelCard className="flex h-full min-h-[72vh] flex-col overflow-hidden">
       <AIWorkspaceHeader />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-5 pt-5">
         <ConversationThread />
       </div>
 
-      <div className="border-t border-slate-200 px-5 py-4">
+      <div className="border-t border-slate-200 bg-white px-5 py-4">
         <SuggestedPromptList prompts={prompts} />
         <div className="mt-4">
           <AIComposer />
