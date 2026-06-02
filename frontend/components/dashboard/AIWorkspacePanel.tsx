@@ -1,4 +1,5 @@
 import { AIComposer } from "@/components/dashboard/AIComposer";
+import { ChatHistoryPanel } from "@/components/dashboard/ChatHistoryPanel";
 import { AIWorkspaceHeader } from "@/components/dashboard/AIWorkspaceHeader";
 import { ConversationThread } from "@/components/dashboard/ConversationThread";
 import { SuggestedPromptList } from "@/components/dashboard/SuggestedPromptList";
@@ -14,14 +15,15 @@ const prompts = [
 
 export function AIWorkspacePanel() {
   return (
-    <PanelCard className="flex h-full min-h-[72vh] flex-col overflow-hidden">
+    <PanelCard className="flex h-full min-h-0 flex-col overflow-hidden">
       <AIWorkspaceHeader />
+      <ChatHistoryPanel />
 
-      <div className="flex-1 overflow-y-auto px-6 pb-5 pt-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5 pt-5">
         <ConversationThread />
       </div>
 
-      <div className="border-t dashboard-subtle-divider bg-white px-6 py-5">
+      <div className="dashboard-glass-soft shrink-0 border-t dashboard-subtle-divider px-6 py-5">
         <SuggestedPromptList prompts={prompts} />
         <div className="mt-4">
           <AIComposer />

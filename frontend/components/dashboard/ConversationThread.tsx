@@ -13,7 +13,7 @@ function EmptyThreadCard() {
 
         <div>
           <h3 className="text-base font-semibold text-[color:var(--cs-heading)]">
-            Suggested interaction flow
+            Cach trao doi de xuat
           </h3>
           <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--cs-text-soft)]">
             Dat cau hoi ngan, nhan summary co huong hanh dong, sau do kiem chung
@@ -35,10 +35,10 @@ function StarterSystemNote() {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-            CareSignal AI workspace
+            Khong gian AI CareSignal
           </p>
           <span className="rounded-full bg-[color:rgba(13,71,161,0.06)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--cs-primary)]">
-            Summary mode
+            Che do tom tat
           </span>
         </div>
 
@@ -55,8 +55,8 @@ function StarterSystemNote() {
 function UserPromptBubble() {
   return (
     <div className="ml-auto max-w-[78%] rounded-[1.15rem] border border-[color:rgba(13,71,161,0.12)] bg-[color:rgba(13,71,161,0.07)] px-4 py-3 text-[color:var(--cs-heading)]">
-      <p className="text-sm font-medium">Patient A co dang on dinh khong?</p>
-      <p className="mt-2 text-xs text-[color:var(--cs-text-soft)]">You - 09:41 AM</p>
+      <p className="text-sm font-medium">Benh nhan A co dang on dinh khong?</p>
+      <p className="mt-2 text-xs text-[color:var(--cs-text-soft)]">Ban - 09:41</p>
     </div>
   );
 }
@@ -64,9 +64,9 @@ function UserPromptBubble() {
 const demoSummary: AISummary = {
   patientId: "patient-a",
   locale: "vi",
-  question: "Patient A co dang on dinh khong?",
+  question: "Benh nhan A co dang on dinh khong?",
   answer:
-    "Patient A hien chua co dau hieu can thiep khan, nhung van nen tiep tuc theo doi do SpO2 thap hon baseline nhe va huyet ap tam thu dang o dau tren cua nguong du kien khi nghi.",
+    "Benh nhan A hien chua co dau hieu can can thiep khan, nhung van nen tiep tuc theo doi do SpO2 thap hon baseline nhe va huyet ap tam thu dang o dau tren cua nguong du kien khi nghi.",
   keyFindings: [
     "Khong co bang chung cua alert critical moi trong 15 phut gan day.",
     "SpO2 dang thap hon baseline gan day nhung chua xuong duoi nguong can thiep.",
@@ -118,7 +118,7 @@ function AIAnswerBlock() {
             CareSignal AI
           </p>
           <p className="text-xs text-[color:var(--cs-text-soft)]">
-            Summary-only response
+            Chi tra loi tom tat
           </p>
         </div>
       </div>
@@ -137,7 +137,7 @@ function WorkspaceFooterNote() {
 
       <div>
         <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-          Clinical reminder
+          Luu y lam sang
         </p>
         <p className="mt-1 text-sm leading-6 text-[color:var(--cs-text-soft)]">
           Dung AI nhu lop tong hop thong tin dau tien, sau do kiem chung context
@@ -150,7 +150,7 @@ function WorkspaceFooterNote() {
 
 export function ConversationThread() {
   return (
-    <div className="flex min-h-full flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-4">
       <StarterSystemNote />
       <UserPromptBubble />
       <AIAnswerBlock />

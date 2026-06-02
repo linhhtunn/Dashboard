@@ -9,19 +9,22 @@ type AIAnswerCardProps = {
 function getConfidenceLabel(confidence: AISummary["confidence"]) {
   switch (confidence) {
     case "high":
-      return "High confidence";
+      return "Do tin cay cao";
     case "medium":
-      return "Medium confidence";
+      return "Do tin cay trung binh";
     case "low":
-      return "Low confidence";
+      return "Do tin cay thap";
     default:
-      return "Confidence unavailable";
+      return "Chua co do tin cay";
   }
 }
 
 export function AIAnswerCard({ summary }: AIAnswerCardProps) {
+  const primaryFindings = summary.keyFindings.slice(0, 2);
+  const secondaryFindings = summary.keyFindings.slice(2);
+
   return (
-    <div className="rounded-[1.35rem] border border-[color:var(--cs-border)] bg-white shadow-[0_16px_34px_rgba(13,71,161,0.06)]">
+    <div className="dashboard-glass-soft rounded-[1.35rem]">
       <div className="border-b dashboard-subtle-divider px-4 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -31,7 +34,7 @@ export function AIAnswerCard({ summary }: AIAnswerCardProps) {
 
             <div>
               <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-                AI clinical response
+                Tom tat tu AI lam sang
               </p>
               <p className="text-xs text-[color:var(--cs-text-soft)]">
                 {summary.generatedAt}
@@ -54,10 +57,10 @@ export function AIAnswerCard({ summary }: AIAnswerCardProps) {
 
         <div>
           <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-            Summary highlights
+            Diem chinh can luu y
           </p>
           <div className="mt-3 space-y-2">
-            {summary.keyFindings.map((finding) => (
+            {primaryFindings.map((finding) => (
               <div
                 key={finding}
                 className="flex items-start gap-2 text-sm text-[color:var(--cs-text)]"
@@ -67,29 +70,49 @@ export function AIAnswerCard({ summary }: AIAnswerCardProps) {
               </div>
             ))}
           </div>
+
+          {secondaryFindings.length > 0 ? (
+            <details className="dashboard-details mt-3 rounded-[1rem] border border-[color:rgba(13,71,161,0.12)] bg-[color:rgba(255,255,255,0.45)] px-3 py-3">
+              <summary className="cursor-pointer text-sm font-medium text-[color:var(--cs-primary)]">
+                Xem them {secondaryFindings.length} nhan dinh
+              </summary>
+              <div className="mt-3 space-y-2">
+                {secondaryFindings.map((finding) => (
+                  <div
+                    key={finding}
+                    className="flex items-start gap-2 text-sm text-[color:var(--cs-text)]"
+                  >
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--cs-teal)]" />
+                    <span>{finding}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
 
-        <div className="rounded-[1.15rem] border border-[color:var(--cs-border)] bg-[color:rgba(248,250,252,0.85)] px-4 py-3">
+        <div className="dashboard-glass-soft rounded-[1.15rem] px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--cs-text-soft)]">
-            Evidence routing
+            Vi tri doi chieu bang chung
           </p>
           <p className="mt-1 text-sm text-[color:var(--cs-text)]">
-            Evidence chi tiet se duoc hien thi o patient summary panel ben phai
-            de doi chieu cung vitals, alerts, va clinical context.
+            Bang chung chi tiet se duoc hien thi o panel tong quan benh nhan ben
+            phai de doi chieu cung chi so sinh ton va boi canh lam sang.
           </p>
         </div>
 
-        <div className="flex items-start gap-3 rounded-[1.15rem] border border-[color:rgba(0,150,136,0.15)] bg-[color:rgba(0,150,136,0.05)] px-4 py-3">
+        <div className="flex items-start gap-3 rounded-[1.15rem] border border-[color:rgba(0,150,136,0.15)] bg-[color:rgba(255,255,255,0.44)] px-4 py-3 backdrop-blur-[16px]">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[color:var(--cs-teal)]">
             <ShieldCheck className="h-4 w-4" />
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--cs-text-soft)]">
-              Disclaimer
+              Luu y
             </p>
             <p className="mt-1 text-sm text-[color:var(--cs-text)]">
-              AI support only. Not a diagnosis. Always use clinical judgment.
+              Chi ho tro tham khao. Khong phai chan doan. Luon can danh gia
+              lam sang cua bac si.
             </p>
           </div>
         </div>

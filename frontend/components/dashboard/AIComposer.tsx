@@ -4,7 +4,7 @@ export function AIComposer() {
   return (
     <div className="rounded-[1.35rem] border border-[color:var(--cs-border)] bg-[color:rgba(248,250,252,0.75)] p-3">
       <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-text-soft)]">
-        Ask CareSignal AI
+        Hoi CareSignal AI
       </label>
 
       <div className="flex items-end gap-3">
@@ -17,7 +17,7 @@ export function AIComposer() {
         <button
           type="button"
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_12px_24px_rgba(13,71,161,0.2)] transition hover:scale-[1.02]"
-          aria-label="Send prompt"
+          aria-label="Gui cau hoi"
         >
           <SendHorizonal className="h-5 w-5" />
         </button>

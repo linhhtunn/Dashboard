@@ -6,7 +6,10 @@ type PanelCardProps = HTMLAttributes<HTMLDivElement>;
 export function PanelCard({ className, ...props }: PanelCardProps) {
   return (
     <div
-      className={clsx("dashboard-surface rounded-[1.5rem]", className)}
+      className={clsx(
+        "dashboard-surface relative overflow-hidden rounded-[1.5rem]",
+        className,
+      )}
       {...props}
     />
   );

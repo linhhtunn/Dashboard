@@ -22,26 +22,26 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     key: "dashboard",
-    label: "Dashboard",
+    label: "Tong quan",
     href: "/dashboard",
     icon: LayoutGrid,
   },
   {
     key: "patients",
-    label: "Patients",
+    label: "Benh nhan",
     href: "/patients",
     icon: UserRound,
   },
   {
     key: "alerts",
-    label: "Alerts",
+    label: "Canh bao",
     href: "/alerts",
     icon: Bell,
     badge: "3",
   },
   {
     key: "settings",
-    label: "Settings",
+    label: "Cai dat",
     href: "/settings",
     icon: Settings,
   },
@@ -59,7 +59,7 @@ function BrandLockup() {
           CareSignal<span className="text-[color:var(--cs-teal)]">AI</span>
         </p>
         <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
-          Clinical monitoring workspace
+          Khong gian giam sat lam sang
         </p>
       </div>
     </div>
@@ -129,17 +129,17 @@ function DoctorStatusCard() {
           <p className="truncate text-base font-semibold text-[color:var(--cs-heading)]">
             Dr. Linh Nguyen
           </p>
-          <p className="text-sm text-[color:var(--cs-text-soft)]">Cardiology</p>
+          <p className="text-sm text-[color:var(--cs-text-soft)]">Tim mach</p>
         </div>
       </div>
 
       <div className="mt-4 rounded-[1rem] border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3 py-3 text-sm text-[color:var(--cs-text)]">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--cs-teal)]" />
-          <span className="font-medium text-[color:var(--cs-heading)]">On Duty</span>
+          <span className="font-medium text-[color:var(--cs-heading)]">Dang truc</span>
         </div>
         <p className="mt-2 leading-6 text-[color:var(--cs-text-soft)]">
-          Monitoring current patients and reviewing AI summaries.
+          Dang theo doi benh nhan hien tai va ra soat cac ban tom tat AI.
         </p>
       </div>
     </div>
@@ -148,7 +148,7 @@ function DoctorStatusCard() {
 
 export function DashboardSidebar({ activeItem }: DashboardSidebarProps) {
   return (
-    <aside className="dashboard-glass hidden min-h-[calc(100vh-3rem)] flex-col rounded-[2rem] p-5 lg:flex">
+    <aside className="dashboard-glass hidden h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-[2rem] p-5 lg:flex">
       <BrandLockup />
       <SidebarNav activeItem={activeItem} />
       <DoctorStatusCard />

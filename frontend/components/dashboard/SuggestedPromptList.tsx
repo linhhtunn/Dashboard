@@ -8,10 +8,10 @@ export function SuggestedPromptList({ prompts }: SuggestedPromptListProps) {
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-            Suggested prompts
+            Goi y hoi nhanh
           </p>
           <p className="text-xs text-[color:var(--cs-text-soft)]">
-            Chon nhanh de bat dau hoi dap theo clinical workflow.
+            Chon nhanh de bat dau hoi dap, phan thread se cuon doc lap o ben tren.
           </p>
         </div>
 

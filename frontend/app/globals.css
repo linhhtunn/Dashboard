@@ -92,6 +92,8 @@
   --cs-surface: #f2f5f8;
   --cs-surface-strong: #edf2f7;
   --cs-card: rgba(255, 255, 255, 0.96);
+  --cs-card-glass: rgba(255, 255, 255, 0.7);
+  --cs-card-glass-strong: rgba(255, 255, 255, 0.82);
   --cs-border: #d9e2ec;
   --cs-border-strong: #c7d4e3;
   --cs-heading: #172554;
@@ -138,6 +140,12 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
   }
 
   html {
@@ -145,10 +153,13 @@
   }
 
   body {
-    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
     background:
-      radial-gradient(circle at top left, rgba(142, 211, 230, 0.12), transparent 24%),
-      radial-gradient(circle at top right, rgba(13, 71, 161, 0.08), transparent 22%),
+      radial-gradient(circle at 10% 8%, rgba(142, 211, 230, 0.22), transparent 22%),
+      radial-gradient(circle at 88% 6%, rgba(13, 71, 161, 0.14), transparent 18%),
+      radial-gradient(circle at 85% 82%, rgba(0, 150, 136, 0.12), transparent 20%),
+      radial-gradient(circle at 18% 78%, rgba(245, 179, 0, 0.08), transparent 16%),
       linear-gradient(180deg, #f8fbfd 0%, var(--cs-surface) 100%);
     color: var(--cs-text);
     text-rendering: optimizeLegibility;
@@ -172,23 +183,41 @@
 @layer components {
   .dashboard-canvas {
     background:
-      radial-gradient(circle at top left, rgba(142, 211, 230, 0.1), transparent 28%),
-      radial-gradient(circle at top right, rgba(13, 71, 161, 0.06), transparent 24%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(242, 245, 248, 0.96));
+      radial-gradient(circle at 8% 6%, rgba(142, 211, 230, 0.18), transparent 18%),
+      radial-gradient(circle at 92% 4%, rgba(13, 71, 161, 0.14), transparent 18%),
+      radial-gradient(circle at 88% 72%, rgba(0, 150, 136, 0.1), transparent 22%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(242, 245, 248, 0.98));
   }
 
   .dashboard-surface {
-    background: var(--cs-card);
-    border: 1px solid var(--cs-border);
-    box-shadow: var(--cs-shadow-card);
-    backdrop-filter: blur(12px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.66)),
+      var(--cs-card-glass);
+    border: 1px solid rgba(217, 226, 236, 0.82);
+    box-shadow:
+      0 18px 45px rgba(13, 71, 161, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    backdrop-filter: blur(18px);
   }
 
   .dashboard-glass {
-    background: rgba(255, 255, 255, 0.88);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.6)),
+      rgba(255, 255, 255, 0.62);
     border: 1px solid rgba(217, 226, 236, 0.9);
     box-shadow: var(--cs-shadow-soft);
-    backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+  }
+
+  .dashboard-glass-soft {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.56)),
+      var(--cs-card-glass-strong);
+    border: 1px solid rgba(217, 226, 236, 0.75);
+    box-shadow:
+      0 14px 36px rgba(13, 71, 161, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(18px);
   }
 
   .dashboard-input {
@@ -205,5 +234,21 @@
     border-color: rgba(13, 71, 161, 0.4);
     box-shadow: 0 0 0 4px rgba(13, 71, 161, 0.1);
     outline: none;
+  }
+
+  .dashboard-glow-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(52px);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .dashboard-details > summary {
+    list-style: none;
+  }
+
+  .dashboard-details > summary::-webkit-details-marker {
+    display: none;
   }
 }
