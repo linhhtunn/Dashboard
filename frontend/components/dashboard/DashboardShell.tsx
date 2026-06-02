@@ -5,6 +5,8 @@ import { useState, type ReactNode } from "react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
 
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+
 type DashboardShellProps = {
   topBar: ReactNode;
   leftPanel: ReactNode;
