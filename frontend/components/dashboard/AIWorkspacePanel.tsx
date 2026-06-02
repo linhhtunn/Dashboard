@@ -17,11 +17,11 @@ export function AIWorkspacePanel() {
     <PanelCard className="flex h-full min-h-[72vh] flex-col overflow-hidden">
       <AIWorkspaceHeader />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-5 pt-5">
+      <div className="flex-1 overflow-y-auto px-6 pb-5 pt-5">
         <ConversationThread />
       </div>
 
-      <div className="border-t border-slate-200 bg-white px-5 py-4">
+      <div className="border-t dashboard-subtle-divider bg-white px-6 py-5">
         <SuggestedPromptList prompts={prompts} />
         <div className="mt-4">
           <AIComposer />

@@ -6,6 +6,7 @@ import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 export default function DashboardPage() {
   return (
     <DashboardShell
+      activeNav="dashboard"
       topBar={<DashboardTopBar />}
       leftPanel={<AIWorkspacePanel />}
       rightPanel={
