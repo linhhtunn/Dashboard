@@ -1,27 +1,82 @@
-import { SendHorizonal } from "lucide-react";
+"use client";
 
-export function AIComposer() {
+import { useLayoutEffect, useRef } from "react";
+import { SendHorizontal } from "lucide-react";
+
+type AIComposerProps = {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+  className?: string;
+};
+
+const MIN_HEIGHT = 40;
+const MAX_HEIGHT = 80;
+
+export function AIComposer({
+  value,
+  onChange,
+  onSubmit,
+  placeholder = "Đặt câu hỏi về tình trạng bệnh nhân, cảnh báo hoặc xu hướng gần đây...",
+  autoFocus = false,
+  className,
+}: AIComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasValue = value.trim().length > 0;
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = `${MIN_HEIGHT}px`;
+    const nextHeight = Math.min(
+      Math.max(textarea.scrollHeight, MIN_HEIGHT),
+      MAX_HEIGHT,
+    );
+    textarea.style.height = `${nextHeight}px`;
+  }, [value]);
+
   return (
-    <div className="rounded-[1.35rem] border border-[color:var(--cs-border)] bg-[color:rgba(248,250,252,0.75)] p-3">
-      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-text-soft)]">
-        Hoi CareSignal AI
-      </label>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!hasValue) return;
+        onSubmit();
+      }}
+      className={[
+        "dashboard-glass relative rounded-[1.35rem] border border-[color:rgba(217,226,236,0.72)] bg-white/80 px-5 py-3.5 backdrop-blur-[22px]",
+        className ?? "",
+      ]
+        .join(" ")
+        .trim()}
+    >
+      <textarea
+        ref={textareaRef}
+        value={value}
+        autoFocus={autoFocus}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            if (!hasValue) return;
+            onSubmit();
+          }
+        }}
+        placeholder={placeholder}
+        className="max-h-[80px] min-h-[40px] w-full resize-none bg-transparent pr-14 text-[17px] font-medium leading-7 text-slate-800 outline-none placeholder:text-[rgba(51,65,85,0.72)]"
+      />
 
-      <div className="flex items-end gap-3">
-        <textarea
-          rows={3}
-          placeholder="Dat cau hoi ve tinh trang benh nhan, alert, xu huong 15 phut gan day..."
-          className="dashboard-input min-h-[82px] flex-1 resize-none rounded-[1.15rem] bg-white px-4 py-3 text-sm text-[color:var(--cs-text)] outline-none transition placeholder:text-[color:var(--cs-text-soft)]"
-        />
-
+      {hasValue ? (
         <button
-          type="button"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_12px_24px_rgba(13,71,161,0.2)] transition hover:scale-[1.02]"
-          aria-label="Gui cau hoi"
+          type="submit"
+          className="absolute bottom-3.5 right-3.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_12px_24px_rgba(13,71,161,0.2)] transition hover:scale-[1.02]"
+          aria-label="Gửi câu hỏi"
         >
-          <SendHorizonal className="h-5 w-5" />
+          <SendHorizontal className="h-4.5 w-4.5" />
         </button>
-      </div>
-    </div>
+      ) : null}
+    </form>
   );
 }

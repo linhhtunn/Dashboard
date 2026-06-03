@@ -1,103 +1,114 @@
-import { History, Sparkles } from "lucide-react";
+import { History } from "lucide-react";
 
-type ChatHistoryItem = {
-  id: string;
-  title: string;
-  timestamp: string;
-  issue: string;
+import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
+
+type ChatHistoryPanelProps = {
+  collapsed?: boolean;
+  disabled?: boolean;
+  items: SidebarHistoryItem[];
 };
 
-const historyItems: ChatHistoryItem[] = [
-  {
-    id: "overnight-summary",
-    title: "Tóm tắt ca đêm",
-    timestamp: "Hôm nay · 08:20",
-    issue: "SpO₂ thấp",
-  },
-  {
-    id: "medication-check",
-    title: "Tác động của thuốc",
-    timestamp: "Hôm qua · 17:40",
-    issue: "Huyết áp",
-  },
-  {
-    id: "risk-review",
-    title: "Rà soát nguy cơ diễn tiến xấu",
-    timestamp: "Hôm qua · 11:05",
-    issue: "HRV - RMSSD",
-  },
-];
-
-export function ChatHistoryPanel() {
+function HistoryGroup({
+  title,
+  items,
+  disabled,
+}: {
+  title: string;
+  items: SidebarHistoryItem[];
+  disabled: boolean;
+}) {
   return (
-    <section className="mt-8 min-h-0">
-      <div className="flex items-center justify-between gap-3 px-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-            Lịch sử chat
-          </p>
-          <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
-            Gợi nhớ ngữ cảnh gần đây để cá nhân hóa câu trả lời.
-          </p>
-        </div>
+    <div className="space-y-1.5">
+      <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--cs-text-soft)]">
+        {title}
+      </p>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:rgba(13,71,161,0.06)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--cs-primary)]">
-          <History className="h-3.5 w-3.5" />
-          3 phiên
-        </span>
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {historyItems.map((item, index) => {
-          const active = index === 0;
+      <div className="space-y-1">
+        {items.map((item, index) => {
+          const active = title === "Hôm nay" && index === 0;
 
           return (
             <button
               key={item.id}
               type="button"
+              disabled={disabled}
               className={[
-                "group w-full rounded-[1.15rem] border px-3.5 py-3 text-left transition",
-                active
-                  ? "border-[color:rgba(13,71,161,0.16)] bg-white/85 shadow-[0_10px_24px_rgba(13,71,161,0.08)]"
-                  : "border-transparent bg-white/55 hover:border-[color:rgba(13,71,161,0.12)] hover:bg-white/80",
+                "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left transition-all duration-200",
+                disabled
+                  ? "cursor-default opacity-45"
+                  : active
+                    ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] text-[color:var(--cs-primary)]"
+                    : "text-[color:var(--cs-text)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.08),rgba(0,150,136,0.05))]",
               ].join(" ")}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[color:var(--cs-heading)]">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-xs text-[color:var(--cs-text-soft)]">
-                    {item.timestamp}
-                  </p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{item.title}</p>
+                <div className="mt-1 flex items-center gap-2 text-[11px] text-[color:var(--cs-text-soft)]">
+                  <span>{item.timestamp}</span>
+                  <span className="h-1 w-1 rounded-full bg-[color:var(--cs-border-strong)]" />
+                  <span className="truncate">{item.issue}</span>
                 </div>
-
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[color:rgba(13,71,161,0.08)] text-[color:var(--cs-primary)]">
-                  <Sparkles className="h-4 w-4" />
-                </span>
               </div>
 
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="inline-flex max-w-full truncate rounded-full border border-[color:rgba(0,150,136,0.16)] bg-[color:rgba(0,150,136,0.08)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--cs-teal)]">
-                  {item.issue}
-                </span>
-                {active ? (
-                  <span className="text-[11px] font-medium text-[color:var(--cs-primary)]">
-                    Đang xem
-                  </span>
-                ) : null}
-              </div>
+              {active ? (
+                <span className="ml-3 h-2.5 w-2.5 shrink-0 rounded-full bg-[color:var(--cs-primary)]" />
+              ) : null}
             </button>
           );
         })}
       </div>
+    </div>
+  );
+}
 
+export function ChatHistoryPanel({
+  collapsed = false,
+  disabled = false,
+  items,
+}: ChatHistoryPanelProps) {
+  const todayItems = items.slice(0, 3);
+  const previousItems = items.slice(3);
+
+  if (collapsed) {
+    return (
       <button
         type="button"
-        className="mt-3 px-2 text-xs font-medium text-[color:var(--cs-primary)] transition hover:text-[color:var(--cs-primary-strong)]"
+        disabled={disabled}
+        className={[
+          "flex w-full items-center justify-center rounded-2xl px-2 py-2.5 text-[color:var(--cs-text-soft)] transition",
+          disabled
+            ? "cursor-default opacity-45"
+            : "hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] hover:text-[color:var(--cs-primary)]",
+        ].join(" ")}
+        aria-label="Lịch sử chat gần đây"
+        title="Lịch sử chat gần đây"
       >
-        Xem thêm lịch sử
+        <History className="h-4.5 w-4.5" />
       </button>
+    );
+  }
+
+  return (
+    <section className="flex min-h-0 flex-col">
+      <div className="mb-3 flex items-center justify-between px-2">
+        <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
+          Lịch sử chat
+        </p>
+        <span className="text-[11px] text-[color:var(--cs-text-soft)]">
+          {items.length} phiên
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        <HistoryGroup title="Hôm nay" items={todayItems} disabled={disabled} />
+        {previousItems.length > 0 ? (
+          <HistoryGroup
+            title="Trước đó"
+            items={previousItems}
+            disabled={disabled}
+          />
+        ) : null}
+      </div>
     </section>
   );
 }

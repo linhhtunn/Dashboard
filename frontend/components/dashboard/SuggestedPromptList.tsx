@@ -1,36 +1,24 @@
 type SuggestedPromptListProps = {
   prompts: string[];
+  onSelect?: (prompt: string) => void;
 };
 
-export function SuggestedPromptList({ prompts }: SuggestedPromptListProps) {
+export function SuggestedPromptList({
+  prompts,
+  onSelect,
+}: SuggestedPromptListProps) {
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
-            Goi y hoi nhanh
-          </p>
-          <p className="text-xs text-[color:var(--cs-text-soft)]">
-            Chon nhanh de bat dau hoi dap, phan thread se cuon doc lap o ben tren.
-          </p>
-        </div>
-
-        <span className="rounded-full bg-[color:rgba(13,71,161,0.06)] px-2 py-1 text-[11px] font-medium text-[color:var(--cs-primary)]">
-          Sprint 1
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {prompts.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            className="rounded-full border border-[color:rgba(13,71,161,0.16)] bg-white px-3 py-2 text-left text-sm text-[color:var(--cs-primary)] transition hover:border-[color:rgba(13,71,161,0.28)] hover:bg-[color:rgba(13,71,161,0.04)]"
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-wrap gap-2">
+      {prompts.map((prompt) => (
+        <button
+          key={prompt}
+          type="button"
+          onClick={() => onSelect?.(prompt)}
+          className="rounded-full border border-[color:rgba(13,71,161,0.14)] bg-white/72 px-3 py-1.5 text-left text-[13px] text-[color:var(--cs-primary)] transition hover:border-[color:rgba(13,71,161,0.24)] hover:bg-[color:rgba(255,255,255,0.9)]"
+        >
+          {prompt}
+        </button>
+      ))}
     </div>
   );
 }
