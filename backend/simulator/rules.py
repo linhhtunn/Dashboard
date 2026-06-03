@@ -151,12 +151,16 @@ ACTIVITY_RULES: dict[str, ActivityRule] = {
 
 INTENSITY_MULTIPLIER: dict[str, float] = {
     "deep": 0.75,
+    "light": 0.78,
+    "slow": 0.82,
     "relaxed": 0.85,
     "normal": 1.0,
     "fast": 1.18,
     "medium": 1.0,
     "high": 1.22,
     "working": 0.92,
+    "stressed": 1.08,
+    "animated": 1.04,
 }
 
 
@@ -166,4 +170,3 @@ def get_activity_rule(activity_state: str) -> ActivityRule:
     except KeyError as exc:
         known = ", ".join(sorted(ACTIVITY_RULES))
         raise ValueError(f"Unknown activity_state={activity_state!r}. Known: {known}") from exc
-

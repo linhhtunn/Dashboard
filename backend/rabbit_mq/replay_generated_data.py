@@ -80,6 +80,24 @@ def validate_vitals_message(message: dict) -> None:
     if missing_signals:
         raise ValueError(f"Vitals message missing signals: {sorted(missing_signals)}")
 
+    signals = message["signals"]
+    if not 30 <= signals["heart_rate"] <= 220:
+        raise ValueError("Vitals message has heart_rate outside 30-220.")
+    if not 0 <= signals["spo2"] <= 100:
+        raise ValueError("Vitals message has spo2 outside 0-100.")
+    if signals["systolic_bp"] <= signals["diastolic_bp"]:
+        raise ValueError("Vitals message has systolic_bp <= diastolic_bp.")
+
+
+def count_invalid_vitals_messages(messages: Iterable[dict]) -> int:
+    invalid_count = 0
+    for message in messages:
+        try:
+            validate_vitals_message(message)
+        except ValueError:
+            invalid_count += 1
+    return invalid_count
+
 
 def validate_ground_truth_message(message: dict) -> None:
     required = {
@@ -203,22 +221,27 @@ def replay_vitals_with_matching_ground_truth(
     ground_truth_list = list(ground_truth_messages)
 
     for vitals_message in vitals_messages:
-        vitals_timestamp = parse_utc_timestamp(vitals_message["timestamp"])
-        for ground_truth in ground_truth_list:
-            scenario_id = ground_truth["scenario_id"]
-            if scenario_id in published_ground_truth_ids:
-                continue
-            if not ground_truth_matches_timestamp(ground_truth, vitals_timestamp):
-                continue
+        try:
+            vitals_timestamp = parse_utc_timestamp(vitals_message["timestamp"])
+        except (KeyError, TypeError, ValueError):
+            vitals_timestamp = None
 
-            publisher.publish(
-                exchange=ground_truth_queue["exchange"],
-                routing_key=ground_truth_queue["routing_key"],
-                message=ground_truth,
-                message_type=ground_truth_queue["message_type"],
-            )
-            published_ground_truth_ids.add(scenario_id)
-            ground_truth_count += 1
+        if vitals_timestamp is not None:
+            for ground_truth in ground_truth_list:
+                scenario_id = ground_truth["scenario_id"]
+                if scenario_id in published_ground_truth_ids:
+                    continue
+                if not ground_truth_matches_timestamp(ground_truth, vitals_timestamp):
+                    continue
+
+                publisher.publish(
+                    exchange=ground_truth_queue["exchange"],
+                    routing_key=ground_truth_queue["routing_key"],
+                    message=ground_truth,
+                    message_type=ground_truth_queue["message_type"],
+                )
+                published_ground_truth_ids.add(scenario_id)
+                ground_truth_count += 1
 
         publisher.publish(
             exchange=raw_vitals_queue["exchange"],
@@ -248,6 +271,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-vitals", action="store_true", help="Do not publish vitals.raw.")
     parser.add_argument("--skip-ground-truth", action="store_true", help="Do not publish scenario.ground_truth.")
     parser.add_argument("--dry-run", action="store_true", help="Validate and print samples without RabbitMQ connection.")
+    parser.add_argument("--strict-validation", action="store_true", help="Fail if any vitals message violates schema.")
     parser.add_argument("--declare-only", action="store_true", help="Declare RabbitMQ topology and exit without publishing.")
     parser.add_argument("--no-declare", action="store_true", help="Publish without declaring topology first.")
     parser.add_argument("--env", type=Path, default=None, help="Optional .env path. Defaults to backend/rabbit_mq/.env.")
@@ -260,8 +284,9 @@ def main() -> None:
     vitals_messages = list(iter_jsonl(args.vitals, limit=args.limit, skip=args.skip)) if not args.skip_vitals else []
     ground_truth_messages = list(iter_ground_truth(args.ground_truth)) if not args.skip_ground_truth else []
 
-    for message in vitals_messages:
-        validate_vitals_message(message)
+    invalid_vitals_count = count_invalid_vitals_messages(vitals_messages)
+    if args.strict_validation and invalid_vitals_count:
+        raise ValueError(f"Vitals file contains {invalid_vitals_count} invalid/fault-injected messages.")
     for message in ground_truth_messages:
         validate_ground_truth_message(message)
 
@@ -310,6 +335,8 @@ def main() -> None:
     mode = "Validated" if args.dry_run else "Published"
     print(f"{mode} vitals.raw messages: {vitals_count}")
     print(f"{mode} scenario.ground_truth messages: {ground_truth_count}")
+    if invalid_vitals_count:
+        print(f"{mode} fault-injected/invalid vitals messages: {invalid_vitals_count}")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ class OutputFileConfig:
     activity_timeline: str
     generated_vitals: str
     scenario_ground_truth: str
+    fault_log: str
 
 
 @dataclass(frozen=True)
@@ -26,12 +27,25 @@ class TimelineSegmentConfig:
     event_type: str | None = None
     ground_truth_label: str = "NORMAL"
     expected_severity: str = "LOW"
+    context_event: str | None = None
+    context_effects: dict[str, float] | None = None
+    source: str = "configured"
 
 
 @dataclass(frozen=True)
 class TimelineConfig:
     segments: list[TimelineSegmentConfig]
     scenario_id_template: str = "SCN_NORMAL_{patient_id}_{index:03d}"
+    mode: str = "fixed"
+    generated_rules: dict[str, Any] | None = None
+    micro_event_rules: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class FaultInjectorConfig:
+    enabled: bool
+    probabilities: dict[str, float]
+    max_faults: int | None = None
 
 
 @dataclass(frozen=True)
@@ -47,10 +61,14 @@ class GenerationConfig:
     file_suffix_template: str
     output_files: OutputFileConfig
     timeline: TimelineConfig
+    fault_injector: FaultInjectorConfig
+    behavior_noise: dict[str, Any]
     layers: dict[str, Any]
 
     @property
     def duration_seconds(self) -> int:
+        if self.timeline.mode == "generated" and self.timeline.generated_rules:
+            return int(self.timeline.generated_rules.get("duration_minutes", 120)) * 60
         return max(segment.end_second for segment in self.timeline.segments)
 
     @property
@@ -112,6 +130,9 @@ def _segment_from_dict(data: dict[str, Any]) -> TimelineSegmentConfig:
         end_second=end_second,
         ground_truth_label=data.get("ground_truth_label", "NORMAL"),
         expected_severity=data.get("expected_severity", "LOW"),
+        context_event=data.get("context_event"),
+        context_effects=data.get("context_effects"),
+        source=data.get("source", "configured"),
     )
 
 
@@ -120,6 +141,20 @@ def _load_timeline(data: dict[str, Any]) -> TimelineConfig:
     return TimelineConfig(
         segments=segments,
         scenario_id_template=data.get("scenario_id_template", "SCN_NORMAL_{patient_id}_{index:03d}"),
+        mode=data.get("mode", "fixed"),
+        generated_rules=data.get("generated_rules"),
+        micro_event_rules=data.get("micro_event_rules"),
+    )
+
+
+def _load_fault_injector(module: Any) -> FaultInjectorConfig:
+    config = getattr(module, "FAULT_INJECTOR_CONFIG", None)
+    if not config:
+        return FaultInjectorConfig(enabled=False, probabilities={}, max_faults=None)
+    return FaultInjectorConfig(
+        enabled=bool(config.get("enabled", False)),
+        probabilities=dict(config.get("probabilities", {})),
+        max_faults=config.get("max_faults"),
     )
 
 
@@ -136,13 +171,24 @@ def load_generation_config(path: Path = DEFAULT_CONFIG_PATH) -> GenerationConfig
     config_path = path.resolve()
     module = _load_python_config(config_path)
     timeline_mode = getattr(module, "TIMELINE_MODE", "fixed")
-    if timeline_mode != "fixed":
+    supported_timeline_modes = {"fixed", "template", "generated"}
+    if timeline_mode not in supported_timeline_modes:
+        known = ", ".join(sorted(supported_timeline_modes))
         raise NotImplementedError(
-            f"TIMELINE_MODE={timeline_mode!r} is not implemented yet. "
-            "Use 'fixed' until template/generated timeline layers are added."
+            f"TIMELINE_MODE={timeline_mode!r} is not implemented. Known: {known}"
         )
 
     output_files_data = getattr(module, "OUTPUT_FILES", {})
+    if timeline_mode == "template":
+        template_name = getattr(module, "TIMELINE_TEMPLATE_NAME", None)
+        templates = getattr(module, "TIMELINE_TEMPLATES", {})
+        if not template_name or template_name not in templates:
+            known = ", ".join(sorted(templates))
+            raise ValueError(f"Unknown TIMELINE_TEMPLATE_NAME={template_name!r}. Known: {known}")
+        timeline_segments = templates[template_name]
+    else:
+        timeline_segments = getattr(module, "FIXED_TIMELINE_SEGMENTS", [])
+
     return GenerationConfig(
         config_path=config_path,
         run_name=getattr(module, "RUN_NAME", config_path.stem),
@@ -160,11 +206,17 @@ def load_generation_config(path: Path = DEFAULT_CONFIG_PATH) -> GenerationConfig
                 "scenario_ground_truth",
                 "scenario_ground_truth_{suffix}.json",
             ),
+            fault_log=output_files_data.get("fault_log", "fault_log_{suffix}.json"),
         ),
         timeline=TimelineConfig(
-            segments=[_segment_from_dict(item) for item in module.FIXED_TIMELINE_SEGMENTS],
+            segments=[_segment_from_dict(item) for item in timeline_segments],
             scenario_id_template=getattr(module, "SCENARIO_ID_TEMPLATE", "SCN_NORMAL_{patient_id}_{index:03d}"),
+            mode=timeline_mode,
+            generated_rules=getattr(module, "GENERATED_TIMELINE_RULES", None),
+            micro_event_rules=getattr(module, "MICRO_EVENT_RULES", None),
         ),
+        fault_injector=_load_fault_injector(module),
+        behavior_noise=getattr(module, "BEHAVIOR_NOISE_CONFIG", {}),
         layers=getattr(module, "LAYERS", {}),
     )
 
@@ -189,5 +241,7 @@ def with_overrides(
         file_suffix_template=config.file_suffix_template,
         output_files=config.output_files,
         timeline=config.timeline,
+        fault_injector=config.fault_injector,
+        behavior_noise=config.behavior_noise,
         layers=config.layers,
     )

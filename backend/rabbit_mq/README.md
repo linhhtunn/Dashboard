@@ -129,6 +129,14 @@ Validate generated simulator files without connecting to RabbitMQ:
 uv run --project backend/rabbit_mq python -m backend.rabbit_mq.replay_generated_data --dry-run --limit 5
 ```
 
+Replay validation is non-strict by default so intentionally fault-injected
+messages can reach Team 2. Use strict mode only when you want the vitals file to
+fail on missing fields or invalid ranges:
+
+```bash
+uv run --project backend/rabbit_mq python -m backend.rabbit_mq.replay_generated_data --dry-run --strict-validation --limit 100
+```
+
 The dry-run output shows the actual publish order. For example,
 `--skip 3600 --limit 3` should print the vigorous-activity ground truth once,
 then three `vitals.raw` messages.

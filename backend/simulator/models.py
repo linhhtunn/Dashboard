@@ -55,6 +55,9 @@ class ActivitySegment:
     event_type: str
     ground_truth_label: str = "NORMAL"
     expected_severity: str = "LOW"
+    context_event: str | None = None
+    context_effects: dict[str, float] | None = None
+    source: str = "configured"
 
     def contains(self, second: int) -> bool:
         return self.start_second <= second < self.end_second
@@ -70,4 +73,3 @@ def parse_utc_datetime(value: str) -> datetime:
 
 def format_utc_datetime(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-
