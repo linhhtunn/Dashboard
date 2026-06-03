@@ -47,7 +47,7 @@ export function AIAnswerCard({
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
+            <p className="text-[16px] font-semibold text-[color:var(--cs-heading)]">
               Tóm tắt từ AI lâm sàng
             </p>
             <p className="text-[11px] text-[color:var(--cs-text-soft)]">
@@ -56,12 +56,12 @@ export function AIAnswerCard({
           </div>
         </div>
 
-        <span className="rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.1)] px-2.5 py-1 text-[11px] font-medium text-[color:#0B7A70]">
+        <span className="rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.1)] px-3 py-1.5 text-[13px] font-medium text-[color:#0B7A70]">
           {getConfidenceLabel(summary.confidence)}
         </span>
       </div>
 
-      <p className="text-[15px] leading-7 text-[color:var(--cs-text)]">
+      <p className="text-[17px] leading-8 text-[color:var(--cs-text)]">
         {summary.answer}
       </p>
 
@@ -69,7 +69,7 @@ export function AIAnswerCard({
         {primaryFindings.map((finding, index) => (
           <div
             key={finding}
-            className="dashboard-fade-up flex items-start gap-2 text-sm text-[color:var(--cs-text)]"
+            className="dashboard-fade-up flex items-start gap-2.5 text-[16px] leading-7 text-[color:var(--cs-text)]"
             style={{ animationDelay: `${index * 80}ms` }}
           >
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--cs-teal)]" />
@@ -81,7 +81,7 @@ export function AIAnswerCard({
       <div>
         <div className="mb-2 flex items-center gap-2">
           <Layers3 className="h-4 w-4 text-[color:var(--cs-primary)]" />
-          <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
+          <p className="text-[16px] font-semibold text-[color:var(--cs-heading)]">
             Phác đồ liên quan
           </p>
         </div>
@@ -96,7 +96,7 @@ export function AIAnswerCard({
                 type="button"
                 onClick={() => (active ? onToggleIssue(issue.id) : onOpenIssue(issue.id))}
                 className={[
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition",
+                  "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[15px] transition",
                   active
                     ? "border-[color:rgba(13,71,161,0.22)] bg-[color:rgba(13,71,161,0.12)] text-[color:var(--cs-primary)]"
                     : "border-[color:rgba(13,71,161,0.14)] bg-white/70 text-[color:var(--cs-text)] hover:border-[color:rgba(13,71,161,0.22)] hover:text-[color:var(--cs-primary)]",
@@ -115,7 +115,7 @@ export function AIAnswerCard({
           <button
             type="button"
             onClick={() => router.push("/patients/patient-a")}
-            className="inline-flex items-center gap-2 rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3 py-1.5 text-sm font-medium text-[color:var(--cs-teal)] transition hover:bg-[color:rgba(0,150,136,0.14)]"
+            className="inline-flex items-center gap-2 rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3.5 py-2 text-[15px] font-medium text-[color:var(--cs-teal)] transition hover:bg-[color:rgba(0,150,136,0.14)]"
           >
             Xem toàn bộ chỉ số
           </button>

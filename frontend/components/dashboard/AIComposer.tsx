@@ -65,7 +65,7 @@ export function AIComposer({
           }
         }}
         placeholder={placeholder}
-        className="max-h-[80px] min-h-[40px] w-full resize-none bg-transparent pr-14 text-[17px] font-medium leading-7 text-slate-800 outline-none placeholder:text-[rgba(51,65,85,0.72)]"
+        className="max-h-[80px] min-h-[40px] w-full resize-none bg-transparent pr-14 text-[20px] font-medium leading-8 text-slate-800 outline-none placeholder:text-[rgba(51,65,85,0.72)]"
       />
 
       {hasValue ? (

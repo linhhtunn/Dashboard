@@ -25,7 +25,7 @@ type ConversationThreadProps = {
 function UserPromptBubble({ prompt }: { prompt: string }) {
   return (
     <div className="dashboard-fade-up flex justify-end">
-      <div className="max-w-[78%] rounded-[1rem] rounded-br-md bg-[linear-gradient(135deg,rgba(13,71,161,0.09),rgba(142,211,230,0.12))] px-3.5 py-2.5 text-sm font-medium leading-6 text-[color:var(--cs-heading)]">
+      <div className="max-w-[78%] rounded-[1rem] rounded-br-md bg-[linear-gradient(135deg,rgba(13,71,161,0.09),rgba(142,211,230,0.12))] px-4 py-3 text-[16px] font-medium leading-7 text-[color:var(--cs-heading)]">
         {prompt}
       </div>
     </div>
@@ -41,7 +41,7 @@ function AssistantTextBubble({ content }: { content: string }) {
         </div>
       </div>
 
-      <div className="max-w-[84%] rounded-[1rem] bg-white/34 px-3.5 py-2.5 text-sm leading-6 text-[color:var(--cs-text)] backdrop-blur-[8px]">
+      <div className="max-w-[84%] rounded-[1rem] bg-white/34 px-4 py-3 text-[16px] leading-7 text-[color:var(--cs-text)] backdrop-blur-[8px]">
         {content}
       </div>
     </div>
@@ -58,7 +58,7 @@ function ThinkingBlock() {
       </div>
 
       <div className="dashboard-thinking rounded-[1.15rem] bg-white/45 px-4 py-3 backdrop-blur-[10px]">
-        <div className="flex items-center gap-3 text-sm text-[color:var(--cs-text)]">
+        <div className="flex items-center gap-3 text-[16px] text-[color:var(--cs-text)]">
           <span>Đang tổng hợp diễn biến</span>
           <span className="dashboard-thinking-dots">
             <span />
