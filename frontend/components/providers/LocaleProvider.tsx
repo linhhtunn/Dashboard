@@ -25,14 +25,16 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
-
-  useEffect(() => {
-    const savedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (savedLocale === "vi" || savedLocale === "en") {
-      setLocale(savedLocale);
+  const [locale, setLocale] = useState<Locale>(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_LOCALE;
     }
-  }, []);
+
+    const savedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    return savedLocale === "vi" || savedLocale === "en"
+      ? savedLocale
+      : DEFAULT_LOCALE;
+  });
 
   useEffect(() => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);

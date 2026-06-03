@@ -1,3 +1,5 @@
+"use client";
+
 import type { PatientStatus } from "@/types";
 
 import { useLocale } from "@/components/providers/LocaleProvider";

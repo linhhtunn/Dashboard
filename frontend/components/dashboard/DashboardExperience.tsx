@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { useLocale } from "@/components/providers/LocaleProvider";
 import { AIWorkspacePanel } from "@/components/dashboard/AIWorkspacePanel";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import {
   dashboardIssues,
   type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientContextPanel } from "@/components/dashboard/PatientContextPanel";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { formatShortClockTime, localizeText } from "@/lib/i18n";
 
 export type SidebarHistoryItem = {
@@ -26,15 +26,14 @@ export function DashboardExperience() {
   const [patientPanelOpen, setPatientPanelOpen] = useState(false);
   const [chatSessionId, setChatSessionId] = useState(0);
   const [hasConversation, setHasConversation] = useState(false);
-  const [historyItems, setHistoryItems] = useState<SidebarHistoryItem[]>(() =>
-    buildInitialHistory(locale),
-  );
+  const [sessionHistoryItems, setSessionHistoryItems] = useState<
+    SidebarHistoryItem[]
+  >([]);
 
-  useEffect(() => {
-    if (!hasConversation) {
-      setHistoryItems(buildInitialHistory(locale));
-    }
-  }, [hasConversation, locale]);
+  const historyItems = useMemo(
+    () => [...sessionHistoryItems, ...buildInitialHistory(locale)],
+    [locale, sessionHistoryItems],
+  );
 
   const activeIssue = useMemo(
     () => dashboardIssues.find((issue) => issue.id === activeIssueId) ?? null,
@@ -63,11 +62,12 @@ export function DashboardExperience() {
     setActiveIssueId(null);
     setPatientPanelOpen(false);
     setHasConversation(false);
+    setSessionHistoryItems([]);
   };
 
   const handleStartConversation = (prompt: string) => {
     setHasConversation(true);
-    setHistoryItems((current) => [
+    setSessionHistoryItems((current) => [
       {
         id: `history-${Date.now()}`,
         title: prompt.length > 34 ? `${prompt.slice(0, 34)}…` : prompt,
@@ -102,7 +102,6 @@ export function DashboardExperience() {
           <PatientContextPanel
             activeIssue={activeIssue}
             onClose={handleClosePatientPanel}
-            onToggleIssue={handleToggleIssue}
           />
         ) : null
       }
@@ -120,7 +119,8 @@ function buildInitialHistory(locale: "vi" | "en"): SidebarHistoryItem[] {
     },
     {
       id: "history-2",
-      title: locale === "vi" ? "Đánh giá tác động thuốc" : "Medication impact review",
+      title:
+        locale === "vi" ? "Đánh giá tác động thuốc" : "Medication impact review",
       timestamp: "07:10",
       issue: locale === "vi" ? "Huyết áp" : "Blood pressure",
     },

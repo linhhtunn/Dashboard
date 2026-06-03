@@ -1,15 +1,22 @@
-import type { AISummary, MedicationCycle, MetricSummary, Patient } from "@/types";
+import type {
+  AISummary,
+  Locale,
+  LocalizedString,
+  MedicationCycle,
+  MetricSummary,
+  Patient,
+} from "@/types";
 
 export type IssueId = "spo2" | "blood_pressure" | "heart_rate";
 
 export type DashboardIssue = {
   id: IssueId;
-  title: string;
-  chipLabel: string;
-  actionLabel: string;
-  protocolTitle: string;
-  protocolSummary: string;
-  protocolSteps: string[];
+  title: LocalizedString;
+  chipLabel: LocalizedString;
+  actionLabel: LocalizedString;
+  protocolTitle: LocalizedString;
+  protocolSummary: LocalizedString;
+  protocolSteps: LocalizedString[];
   metricKeys: MetricSummary["metric"][];
   evidenceIndices: number[];
 };
@@ -53,53 +60,63 @@ export const dashboardPatient: Patient = {
   lastUpdated: "2026-06-02T09:41:00Z",
 };
 
-export const dashboardSummary: AISummary = {
-  patientId: "patient-a",
-  locale: "vi",
-  question: "Bệnh nhân A có đang ổn định không?",
-  answer:
-    "Bệnh nhân A chưa có dấu hiệu cần can thiệp khẩn, nhưng vẫn nên tiếp tục theo dõi vì SpO₂ thấp hơn baseline nhẹ và huyết áp tâm thu đang ở vùng đầu trên của ngưỡng nghỉ.",
-  keyFindings: [
-    "Không có cảnh báo critical mới trong 15 phút gần đây.",
-    "SpO₂ thấp hơn baseline gần đây nhưng chưa xuống dưới ngưỡng cần can thiệp.",
-    "Huyết áp tâm thu tăng nhẹ so với cửa sổ 15 phút gần nhất.",
-  ],
-  status: "ready",
-  confidence: "medium",
-  evidence: [
-    {
-      kind: "metric_threshold",
-      metric: "spo2",
-      value: 94,
-      unit: "%",
-      timestamp: "2026-06-02T09:39:00Z",
-      noteKey: "spo2_below_recent_baseline",
-    },
-    {
-      kind: "trend_change",
-      metric: "systolic_bp",
-      value: 124,
-      unit: "mmHg",
-      comparisonValue: 118,
-      comparisonWindow: "15m",
-      timestamp: "2026-06-02T09:40:00Z",
-    },
-    {
-      kind: "trend_change",
-      metric: "heart_rate",
-      value: 82,
-      unit: "bpm",
-      comparisonValue: 76,
-      comparisonWindow: "15m",
-      timestamp: "2026-06-02T09:40:00Z",
-    },
-  ],
-  generatedAt: "09:41 hôm nay",
-  disclaimerKey: "ai_support_only",
-};
-
-export function getDashboardSummary(_locale?: unknown) {
-  return dashboardSummary;
+export function getDashboardSummary(locale: Locale): AISummary {
+  return {
+    patientId: "patient-a",
+    locale,
+    question:
+      locale === "vi"
+        ? "Bệnh nhân A có đang ổn định không?"
+        : "Is Patient A currently stable?",
+    answer:
+      locale === "vi"
+        ? "Bệnh nhân A chưa có dấu hiệu cần can thiệp khẩn, nhưng vẫn nên tiếp tục theo dõi vì SpO₂ thấp hơn baseline nhẹ và huyết áp tâm thu đang ở vùng đầu trên của ngưỡng nghỉ."
+        : "Patient A does not currently show signs requiring urgent intervention, but continued monitoring is recommended because SpO₂ is slightly below baseline and systolic blood pressure is near the upper resting threshold.",
+    keyFindings:
+      locale === "vi"
+        ? [
+            "Không có cảnh báo critical mới trong 15 phút gần đây.",
+            "SpO₂ thấp hơn baseline gần đây nhưng chưa xuống dưới ngưỡng cần can thiệp.",
+            "Huyết áp tâm thu tăng nhẹ so với cửa sổ 15 phút gần nhất.",
+          ]
+        : [
+            "No new critical alerts have appeared in the last 15 minutes.",
+            "SpO₂ is below recent baseline but has not dropped below the intervention threshold.",
+            "Systolic blood pressure is mildly elevated versus the latest 15-minute window.",
+          ],
+    status: "ready",
+    confidence: "medium",
+    evidence: [
+      {
+        kind: "metric_threshold",
+        metric: "spo2",
+        value: 94,
+        unit: "%",
+        timestamp: "2026-06-02T09:39:00Z",
+        noteKey: "spo2_below_recent_baseline",
+      },
+      {
+        kind: "trend_change",
+        metric: "systolic_bp",
+        value: 124,
+        unit: "mmHg",
+        comparisonValue: 118,
+        comparisonWindow: "15m",
+        timestamp: "2026-06-02T09:40:00Z",
+      },
+      {
+        kind: "trend_change",
+        metric: "heart_rate",
+        value: 82,
+        unit: "bpm",
+        comparisonValue: 76,
+        comparisonWindow: "15m",
+        timestamp: "2026-06-02T09:40:00Z",
+      },
+    ],
+    generatedAt: locale === "vi" ? "09:41 hôm nay" : "09:41 today",
+    disclaimerKey: "ai_support_only",
+  };
 }
 
 export const dashboardMetrics: MetricSummary[] = [
@@ -153,48 +170,108 @@ export const dashboardMetrics: MetricSummary[] = [
 export const dashboardIssues: DashboardIssue[] = [
   {
     id: "spo2",
-    title: "SpO₂ thấp hơn baseline",
-    chipLabel: "SpO₂",
-    actionLabel: "Xem phác đồ SpO₂",
-    protocolTitle: "Phác đồ theo dõi SpO₂",
-    protocolSummary:
-      "Ưu tiên xác nhận cảm biến, đối chiếu triệu chứng hô hấp và theo dõi xu hướng SpO₂ trong 15 phút tới.",
+    title: {
+      vi: "SpO₂ thấp hơn baseline",
+      en: "SpO₂ below baseline",
+    },
+    chipLabel: { vi: "SpO₂", en: "SpO₂" },
+    actionLabel: {
+      vi: "Xem phác đồ SpO₂",
+      en: "Open SpO₂ protocol",
+    },
+    protocolTitle: {
+      vi: "Phác đồ theo dõi SpO₂",
+      en: "SpO₂ monitoring protocol",
+    },
+    protocolSummary: {
+      vi: "Ưu tiên xác nhận cảm biến, đối chiếu triệu chứng hô hấp và theo dõi xu hướng SpO₂ trong 15 phút tới.",
+      en: "Prioritize sensor validation, compare respiratory symptoms, and monitor the SpO₂ trend over the next 15 minutes.",
+    },
     protocolSteps: [
-      "Xác nhận cảm biến đặt đúng vị trí và tín hiệu không nhiễu.",
-      "Đối chiếu triệu chứng khó thở, tần số thở và màu sắc da niêm.",
-      "Theo dõi xu hướng SpO₂ trong 15 phút tiếp theo trước khi escalte.",
+      {
+        vi: "Xác nhận cảm biến đặt đúng vị trí và tín hiệu không nhiễu.",
+        en: "Confirm that the sensor is positioned correctly and the signal is free from noise.",
+      },
+      {
+        vi: "Đối chiếu triệu chứng khó thở, tần số thở và màu sắc da niêm.",
+        en: "Cross-check shortness of breath, respiratory rate, and skin or mucosal color.",
+      },
+      {
+        vi: "Theo dõi xu hướng SpO₂ trong 15 phút tiếp theo trước khi escalate.",
+        en: "Observe the SpO₂ trend for the next 15 minutes before escalating.",
+      },
     ],
     metricKeys: ["spo2"],
     evidenceIndices: [0],
   },
   {
     id: "blood_pressure",
-    title: "Huyết áp tâm thu tăng nhẹ",
-    chipLabel: "Huyết áp",
-    actionLabel: "Xem phác đồ huyết áp",
-    protocolTitle: "Phác đồ rà soát huyết áp",
-    protocolSummary:
-      "Kiểm tra lại tư thế đo, thời điểm dùng thuốc và độ dao động huyết áp trước khi đưa ra đánh giá sâu hơn.",
+    title: {
+      vi: "Huyết áp tâm thu tăng nhẹ",
+      en: "Mild systolic blood pressure elevation",
+    },
+    chipLabel: { vi: "Huyết áp", en: "Blood pressure" },
+    actionLabel: {
+      vi: "Xem phác đồ huyết áp",
+      en: "Open blood pressure protocol",
+    },
+    protocolTitle: {
+      vi: "Phác đồ rà soát huyết áp",
+      en: "Blood pressure review protocol",
+    },
+    protocolSummary: {
+      vi: "Kiểm tra lại tư thế đo, thời điểm dùng thuốc và độ dao động huyết áp trước khi đưa ra đánh giá sâu hơn.",
+      en: "Re-check measurement posture, medication timing, and blood pressure variability before making a deeper assessment.",
+    },
     protocolSteps: [
-      "Đối chiếu tư thế đo và khoảng nghỉ trước lần đo gần nhất.",
-      "Kiểm tra lịch thuốc đang dùng và liều gần nhất.",
-      "So sánh huyết áp hiện tại với trung bình 15 phút gần nhất để xác nhận xu hướng.",
+      {
+        vi: "Đối chiếu tư thế đo và khoảng nghỉ trước lần đo gần nhất.",
+        en: "Review the measurement posture and rest period before the latest reading.",
+      },
+      {
+        vi: "Kiểm tra lịch thuốc đang dùng và liều gần nhất.",
+        en: "Check the current medication plan and the most recent dose.",
+      },
+      {
+        vi: "So sánh huyết áp hiện tại với trung bình 15 phút gần nhất để xác nhận xu hướng.",
+        en: "Compare the current blood pressure with the latest 15-minute average to confirm the trend.",
+      },
     ],
     metricKeys: ["systolic_bp", "diastolic_bp"],
     evidenceIndices: [1],
   },
   {
     id: "heart_rate",
-    title: "Nhịp tim cần theo dõi thêm",
-    chipLabel: "Nhịp tim",
-    actionLabel: "Xem phác đồ nhịp tim",
-    protocolTitle: "Phác đồ theo dõi nhịp tim",
-    protocolSummary:
-      "Giữ nhịp tim trong bối cảnh SpO₂ và trạng thái nghỉ ngơi, tránh đánh giá đơn lẻ chỉ dựa trên một điểm đo.",
+    title: {
+      vi: "Nhịp tim cần theo dõi thêm",
+      en: "Heart rate needs closer monitoring",
+    },
+    chipLabel: { vi: "Nhịp tim", en: "Heart rate" },
+    actionLabel: {
+      vi: "Xem phác đồ nhịp tim",
+      en: "Open heart rate protocol",
+    },
+    protocolTitle: {
+      vi: "Phác đồ theo dõi nhịp tim",
+      en: "Heart rate monitoring protocol",
+    },
+    protocolSummary: {
+      vi: "Giữ nhịp tim trong bối cảnh SpO₂ và trạng thái nghỉ ngơi, tránh đánh giá đơn lẻ chỉ dựa trên một điểm đo.",
+      en: "Interpret heart rate alongside SpO₂ and resting state instead of relying on a single isolated reading.",
+    },
     protocolSteps: [
-      "So sánh nhịp tim hiện tại với baseline trong 15 phút gần đây.",
-      "Đối chiếu nhịp tim với SpO₂ và triệu chứng gần đây.",
-      "Tiếp tục theo dõi nếu không có dấu hiệu cảnh báo kèm theo.",
+      {
+        vi: "So sánh nhịp tim hiện tại với baseline trong 15 phút gần đây.",
+        en: "Compare the current heart rate with the recent 15-minute baseline.",
+      },
+      {
+        vi: "Đối chiếu nhịp tim với SpO₂ và triệu chứng gần đây.",
+        en: "Cross-check heart rate with SpO₂ and recent symptoms.",
+      },
+      {
+        vi: "Tiếp tục theo dõi nếu không có dấu hiệu cảnh báo kèm theo.",
+        en: "Continue monitoring if no accompanying warning signs are present.",
+      },
     ],
     metricKeys: ["heart_rate", "hrv_rmssd"],
     evidenceIndices: [2],

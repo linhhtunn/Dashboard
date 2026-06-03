@@ -1,3 +1,14 @@
+"use client";
+
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ReferenceLine,
+} from "recharts";
 import type { VitalMetric, VitalSignalSample } from "@/types";
 
 type VitalChartProps = {
@@ -7,162 +18,136 @@ type VitalChartProps = {
   className?: string;
 };
 
-const chartWidth = 320;
-const chartHeight = 180;
-const paddingX = 34;
-const paddingTop = 16;
-const paddingBottom = 30;
-const yTicks = [0, 40, 80, 120];
-const xTicks = ["09:15", "09:30", "09:45"];
 const metricColors: Record<VitalMetric, string> = {
-  heart_rate: "#0D47A1",
-  hrv_rmssd: "#009688",
-  spo2: "#009688",
-  systolic_bp: "#F5B300",
+  heart_rate:   "#0D47A1",
+  hrv_rmssd:    "#009688",
+  spo2:         "#009688",
+  systolic_bp:  "#F5B300",
   diastolic_bp: "#FB923C",
+};
+
+const metricFloor: Record<VitalMetric, number> = {
+  heart_rate:   40,
+  hrv_rmssd:    0,
+  spo2:         75,
+  systolic_bp:  60,
+  diastolic_bp: 40,
+};
+
+// Alert thresholds — draws a subtle reference line
+const metricAlertThreshold: Partial<Record<VitalMetric, number>> = {
+  heart_rate:  100,
+  spo2:        94,
+  systolic_bp: 140,
 };
 
 function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
   switch (metric) {
-    case "heart_rate":
-      return vital.vitals.heartRate ?? 0;
-    case "hrv_rmssd":
-      return vital.vitals.hrvRmssd ?? 0;
-    case "spo2":
-      return vital.vitals.spo2 ?? 0;
-    case "systolic_bp":
-      return vital.vitals.systolicBp ?? 0;
-    case "diastolic_bp":
-      return vital.vitals.diastolicBp ?? 0;
+    case "heart_rate":    return vital.vitals.heartRate   ?? 0;
+    case "hrv_rmssd":    return vital.vitals.hrvRmssd    ?? 0;
+    case "spo2":         return vital.vitals.spo2         ?? 0;
+    case "systolic_bp":  return vital.vitals.systolicBp  ?? 0;
+    case "diastolic_bp": return vital.vitals.diastolicBp ?? 0;
   }
 }
 
-function buildSmoothPath(points: Array<{ x: number; y: number }>) {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-
-  return points.reduce((path, point, index) => {
-    if (index === 0) {
-      return `M ${point.x} ${point.y}`;
-    }
-
-    const previous = points[index - 1];
-    const controlDistance = (point.x - previous.x) / 2;
-
-    return `${path} C ${previous.x + controlDistance} ${previous.y}, ${
-      point.x - controlDistance
-    } ${point.y}, ${point.x} ${point.y}`;
-  }, "");
+function formatTimestamp(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(
+    d.getUTCMinutes(),
+  ).padStart(2, "0")}`;
 }
 
 export function VitalChart({
   data,
   metric,
-  height = chartHeight,
+  height = 160,
   className = "",
 }: VitalChartProps) {
-  const lineColor = metricColors[metric];
-  const values = data.map((vital) => getMetricValue(vital, metric));
-  const maxValue = Math.max(120, ...values);
-  const domainMax = maxValue > 120 ? maxValue : 120;
-  const plotHeight = chartHeight - paddingTop - paddingBottom;
-  const plotWidth = chartWidth - paddingX * 2;
+  const color = metricColors[metric];
+  const floor = metricFloor[metric];
+  const threshold = metricAlertThreshold[metric];
 
-  function getY(value: number) {
-    const clampedValue = Math.max(0, Math.min(value, domainMax));
-    return paddingTop + (1 - clampedValue / domainMax) * plotHeight;
-  }
+  const chartData = data.map((v) => ({
+    time:  formatTimestamp(v.timestamp),
+    value: getMetricValue(v, metric),
+  }));
 
-  const points = data.map((vital, index) => {
-    const value = getMetricValue(vital, metric);
-    const x =
-      data.length === 1
-        ? chartWidth / 2
-        : paddingX + (index / (data.length - 1)) * plotWidth;
-
-    return { x, y: getY(value) };
-  });
-
-  const path = buildSmoothPath(points);
-  const lastPoint = points.at(-1);
+  const values   = chartData.map((d) => d.value);
+  const dataMin  = values.length ? Math.min(...values) : floor;
+  const dataMax  = values.length ? Math.max(...values) : floor + 60;
+  const pad      = Math.max((dataMax - dataMin) * 0.2, 4);
+  const yMin     = Math.floor(Math.min(dataMin - pad, floor));
+  const yMax     = Math.ceil(dataMax + pad);
 
   return (
     <div
       className={[
-        "w-full overflow-hidden rounded-[1.25rem] bg-white/55 py-2",
+        "w-full overflow-hidden rounded-[var(--radius-lg)] bg-white/60",
+        "backdrop-blur-sm border border-white/70",
         className,
       ].join(" ")}
       style={{ height }}
     >
-      <svg
-        role="img"
-        aria-label={`Biểu đồ ${metric}`}
-        className="h-full w-full"
-        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-        preserveAspectRatio="none"
-      >
-        {points.length > 0 ? (
-          <>
-            {yTicks.map((tick) => (
-              <text
-                key={tick}
-                x={paddingX - 12}
-                y={getY(tick)}
-                fill="#94a3b8"
-                fontSize="10"
-                textAnchor="end"
-                dominantBaseline="middle"
-              >
-                {tick}
-              </text>
-            ))}
-
-            <path
-              d={path}
-              fill="none"
-              stroke={lineColor}
-              strokeLinecap="round"
-              strokeWidth="3"
-              vectorEffect="non-scaling-stroke"
-            />
-
-            {lastPoint ? (
-              <circle
-                cx={lastPoint.x}
-                cy={lastPoint.y}
-                r="3"
-                fill={lineColor}
-                stroke="white"
-                strokeWidth="1.5"
-                vectorEffect="non-scaling-stroke"
-              />
-            ) : null}
-
-            {xTicks.map((tick, index) => (
-              <text
-                key={tick}
-                x={paddingX + (index / (xTicks.length - 1)) * plotWidth}
-                y={chartHeight - 8}
-                fill="#94a3b8"
-                fontSize="10"
-                textAnchor="middle"
-              >
-                {tick}
-              </text>
-            ))}
-          </>
-        ) : (
-          <text
-            x={chartWidth / 2}
-            y={chartHeight / 2}
-            fill="var(--cs-text-soft)"
-            fontSize="12"
-            textAnchor="middle"
+      {chartData.length === 0 ? (
+        <div className="flex h-full items-center justify-center text-[12px] text-slate-400">
+          Chưa có dữ liệu
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 14, right: 16, bottom: 4, left: 28 }}
           >
-            Chưa có dữ liệu chỉ số
-          </text>
-        )}
-      </svg>
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              tickLine={false}
+              axisLine={false}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              domain={[yMin, yMax]}
+              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              tickLine={false}
+              axisLine={false}
+              width={24}
+              tickCount={4}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "rgba(255,255,255,0.92)",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "#172554",
+                boxShadow: "0 4px 12px rgba(13,71,161,0.08)",
+                padding: "6px 10px",
+              }}
+              itemStyle={{ color }}
+              cursor={{ stroke: color, strokeOpacity: 0.2, strokeWidth: 1 }}
+              formatter={(value: number) => [value, metric.replace(/_/g, " ")]}
+            />
+            {threshold !== undefined && (
+              <ReferenceLine
+                y={threshold}
+                stroke={color}
+                strokeDasharray="4 3"
+                strokeOpacity={0.35}
+                strokeWidth={1}
+              />
+            )}
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, fill: color, stroke: "white", strokeWidth: 2 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

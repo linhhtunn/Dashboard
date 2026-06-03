@@ -1,3 +1,5 @@
+"use client";
+
 import { useLocale } from "@/components/providers/LocaleProvider";
 
 export function TimeRangeSelector() {

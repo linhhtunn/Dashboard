@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Bell,
@@ -244,21 +246,23 @@ export function DashboardSidebar({
           <ToggleIcon className="h-4.5 w-4.5" />
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={onCreateNewChat}
-        className={[
-          "mt-4 flex rounded-2xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition-all duration-200 hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary-strong)]",
-          collapsed
-            ? "items-center justify-center px-0 py-2.5"
-            : "items-center gap-2 px-3.5 py-2.5",
-        ].join(" ")}
-      >
-        <Plus className="h-4.5 w-4.5" />
-        {!collapsed ? <span className="text-sm font-medium">{copy.newChat}</span> : null}
-      </button>
-
+      {activeItem === "dashboard" ? (
+        <button
+          type="button"
+          onClick={onCreateNewChat}
+          className={[
+            "mt-4 flex rounded-2xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition-all duration-200 hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary-strong)]",
+            collapsed
+              ? "items-center justify-center px-0 py-2.5"
+              : "items-center gap-2 px-3.5 py-2.5",
+          ].join(" ")}
+        >
+          <Plus className="h-4.5 w-4.5" />
+          {!collapsed ? (
+            <span className="text-sm font-medium">{copy.newChat}</span>
+          ) : null}
+        </button>
+      ) : null}
       <SidebarNav
         activeItem={activeItem}
         collapsed={collapsed}

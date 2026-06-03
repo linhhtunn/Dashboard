@@ -116,7 +116,7 @@ export function PatientTable({ items }: PatientTableProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="sticky top-0 z-20 space-y-3 bg-[linear-gradient(180deg,rgba(242,245,248,0.98)_0%,rgba(242,245,248,0.9)_78%,rgba(242,245,248,0)_100%)] pb-3 backdrop-blur-sm">
+      <div className="sticky top-0 z-20 space-y-3 pb-3 backdrop-blur-sm">
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px]">
           <PatientSearch value={query} onChange={setQuery} />
           <button

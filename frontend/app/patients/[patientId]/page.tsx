@@ -25,7 +25,10 @@ export default function PatientDetailPage() {
     () => patientRepository.findById(patientId),
     [patientId],
   );
-  const vitals = useMemo(() => vitalRepository.listByPatient(patientId), [patientId]);
+  const vitals = useMemo(
+    () => vitalRepository.listByPatient(patientId),
+    [patientId],
+  );
   const summaries = useMemo(
     () => vitalRepository.listMetricSummaries(patientId),
     [patientId],
@@ -39,8 +42,7 @@ export default function PatientDetailPage() {
     () => [
       {
         id: "patient-history-1",
-        title:
-          locale === "vi" ? "Xem lại diễn tiến SpO₂" : "Review SpO₂ trend",
+        title: locale === "vi" ? "Xem lại diễn tiến SpO₂" : "Review SpO₂ trend",
         timestamp: "09:10",
         issue: locale === "vi" ? "SpO₂ thấp" : "Low SpO₂",
       },
@@ -56,9 +58,7 @@ export default function PatientDetailPage() {
       {
         id: "patient-history-3",
         title:
-          locale === "vi"
-            ? "Rà soát cảnh báo đang mở"
-            : "Review open alerts",
+          locale === "vi" ? "Rà soát cảnh báo đang mở" : "Review open alerts",
         timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
         issue: locale === "vi" ? "Cảnh báo" : "Alerts",
       },
@@ -101,11 +101,11 @@ export default function PatientDetailPage() {
       onCreateNewChat={() => undefined}
       topBar={<DashboardTopBar />}
       leftPanel={
-        <section className="dashboard-scroll-area h-full overflow-y-auto px-5 py-5">
-          <div className="mx-auto max-w-6xl space-y-5">
+        <section className="dashboard-scroll-area h-full overflow-y-auto px-3 py-3">
+          <div className="mx-auto max-w-[1800px] space-y-5">
             <PatientSummaryHeader patient={patient} />
 
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,0.6fr)]">
               <PanelCard className="px-5 py-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -156,7 +156,9 @@ export default function PatientDetailPage() {
 
                     <div>
                       <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi" ? "Triệu chứng gần đây" : "Recent symptoms"}
+                        {locale === "vi"
+                          ? "Triệu chứng gần đây"
+                          : "Recent symptoms"}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {patient.recentSymptomCodes.length > 0 ? (
@@ -180,7 +182,9 @@ export default function PatientDetailPage() {
 
                     <div>
                       <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi" ? "Liều thuốc tiếp theo" : "Next medication dose"}
+                        {locale === "vi"
+                          ? "Liều thuốc tiếp theo"
+                          : "Next medication dose"}
                       </p>
                       <div className="mt-2 space-y-2">
                         {patient.medicationCycle.length > 0 ? (
@@ -209,35 +213,38 @@ export default function PatientDetailPage() {
                     </div>
                   </div>
                 </PanelCard>
+                <PanelCard className="px-5 py-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-[color:var(--cs-teal)]">
+                        {locale === "vi"
+                          ? "Cảnh báo theo dõi"
+                          : "Monitoring alerts"}
+                      </p>
+                      <h2 className="mt-2 text-[1.45rem] font-semibold text-[color:var(--cs-heading)]">
+                        {locale === "vi"
+                          ? "Danh sách cảnh báo đang hoạt động"
+                          : "Active alert list"}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    {alerts.length > 0 ? (
+                      alerts.map((alert) => (
+                        <AlertItem key={alert.id} alert={alert} />
+                      ))
+                    ) : (
+                      <div className="rounded-[1.2rem] bg-white/72 px-4 py-5 text-sm text-[color:var(--cs-text-soft)]">
+                        {locale === "vi"
+                          ? "Chưa có cảnh báo nào đang mở cho bệnh nhân này."
+                          : "There are no open alerts for this patient."}
+                      </div>
+                    )}
+                  </div>
+                </PanelCard>
               </div>
             </div>
-
-            <PanelCard className="px-5 py-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-[color:var(--cs-teal)]">
-                    {locale === "vi" ? "Cảnh báo theo dõi" : "Monitoring alerts"}
-                  </p>
-                  <h2 className="mt-2 text-[1.45rem] font-semibold text-[color:var(--cs-heading)]">
-                    {locale === "vi"
-                      ? "Danh sách cảnh báo đang hoạt động"
-                      : "Active alert list"}
-                  </h2>
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {alerts.length > 0 ? (
-                  alerts.map((alert) => <AlertItem key={alert.id} alert={alert} />)
-                ) : (
-                  <div className="rounded-[1.2rem] bg-white/72 px-4 py-5 text-sm text-[color:var(--cs-text-soft)]">
-                    {locale === "vi"
-                      ? "Chưa có cảnh báo nào đang mở cho bệnh nhân này."
-                      : "There are no open alerts for this patient."}
-                  </div>
-                )}
-              </div>
-            </PanelCard>
           </div>
         </section>
       }

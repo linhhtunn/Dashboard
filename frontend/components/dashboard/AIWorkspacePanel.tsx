@@ -46,13 +46,6 @@ export function AIWorkspacePanel({
   }, [onConversationStateChange, sessionId]);
 
   useEffect(() => {
-    setMessages(buildSeededMessages(locale));
-    setDraft("");
-    setHasConversation(false);
-    setIsThinking(false);
-  }, [locale, sessionId]);
-
-  useEffect(() => {
     if (!isThinking) return;
 
     const timer = window.setTimeout(() => {
@@ -130,8 +123,8 @@ export function AIWorkspacePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto px-6 pb-3 pt-2">
+    <div className="flex h-full max-h-full flex-col">
+      <div className="dashboard-scroll-area max-h-full flex-1 overflow-y-auto px-6 pb-3 pt-2">
         <div className="mx-auto flex min-h-full w-full max-w-[820px] flex-col">
           <ConversationThread
             messages={messages}

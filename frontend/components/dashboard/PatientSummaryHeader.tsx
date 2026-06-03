@@ -1,3 +1,5 @@
+"use client";
+
 import { PanelCard } from "@/components/common/PanelCard";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import {

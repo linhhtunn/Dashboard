@@ -8,7 +8,6 @@ import {
   dashboardMetrics,
   dashboardPatient,
   type DashboardIssue,
-  type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
 import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
 import { getMetricLabel, localizeText } from "@/lib/i18n";
@@ -16,7 +15,6 @@ import { getMetricLabel, localizeText } from "@/lib/i18n";
 type PatientContextPanelProps = {
   activeIssue: DashboardIssue;
   onClose: () => void;
-  onToggleIssue: (issueId: IssueId) => void;
 };
 
 type IssueDisplayMetric = {

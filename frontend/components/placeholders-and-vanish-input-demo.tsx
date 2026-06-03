@@ -14,12 +14,12 @@ export default function PlaceholdersAndVanishInputDemo() {
     "Chỉ số nào cần ưu tiên theo dõi ngay lúc này?",
   ];
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setValue(e.target.value);
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(event.target.value);
   };
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     console.log("submitted", value);
   };
 

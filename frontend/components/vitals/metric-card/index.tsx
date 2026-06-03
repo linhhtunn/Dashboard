@@ -1,3 +1,5 @@
+"use client";
+
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { getMetricLabel } from "@/lib/i18n";
 import type { MetricSummary, VitalMetric, VitalSignalSample } from "@/types";
