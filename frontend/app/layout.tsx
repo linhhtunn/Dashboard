@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Manrope } from "next/font/google";
+
+import { LocaleProvider } from "@/components/providers/LocaleProvider";
+
 import "./globals.css";
 
 const manrope = Manrope({
@@ -28,7 +31,9 @@ export default function RootLayout({
       lang="vi"
       className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden">
+        <LocaleProvider>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

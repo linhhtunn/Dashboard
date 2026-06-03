@@ -10,6 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { ChatHistoryPanel } from "@/components/dashboard/ChatHistoryPanel";
 import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
 
@@ -30,14 +31,13 @@ type NavItem = {
   badge?: string;
 };
 
-const navItems: NavItem[] = [
-  { key: "dashboard", label: "Tổng quan", href: "/dashboard", icon: LayoutGrid },
-  { key: "patients", label: "Bệnh nhân", href: "/patients", icon: UserRound },
-  { key: "alerts", label: "Cảnh báo", href: "/alerts", icon: Bell, badge: "3" },
-  { key: "settings", label: "Cài đặt", href: "/settings", icon: Settings },
-];
-
-function BrandLockup({ collapsed = false }: { collapsed?: boolean }) {
+function BrandLockup({
+  collapsed = false,
+  subtitle,
+}: {
+  collapsed?: boolean;
+  subtitle: string;
+}) {
   return (
     <div
       className={[
@@ -55,7 +55,7 @@ function BrandLockup({ collapsed = false }: { collapsed?: boolean }) {
             CareSignal<span className="text-[color:var(--cs-teal)]">AI</span>
           </p>
           <p className="mt-1 text-[11px] text-[color:var(--cs-text-soft)]">
-            Giám sát lâm sàng
+            {subtitle}
           </p>
         </div>
       ) : null}
@@ -66,10 +66,13 @@ function BrandLockup({ collapsed = false }: { collapsed?: boolean }) {
 function SidebarNav({
   activeItem = "dashboard",
   collapsed = false,
-}: Pick<DashboardSidebarProps, "activeItem" | "collapsed">) {
+  items,
+}: Pick<DashboardSidebarProps, "activeItem" | "collapsed"> & {
+  items: NavItem[];
+}) {
   return (
     <nav className="mt-5 shrink-0 space-y-1.5">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         const active = item.key === activeItem;
 
@@ -143,7 +146,78 @@ export function DashboardSidebar({
   onCreateNewChat,
   onToggle,
 }: DashboardSidebarProps) {
+  const { locale } = useLocale();
   const ToggleIcon = collapsed ? ChevronsRight : ChevronsLeft;
+  const copy =
+    locale === "vi"
+      ? {
+          subtitle: "Giám sát lâm sàng",
+          expand: "Mở rộng sidebar",
+          collapse: "Thu gọn sidebar",
+          newChat: "Đoạn chat mới",
+          recentChats: "Trò chuyện gần đây",
+          navItems: [
+            {
+              key: "dashboard",
+              label: "Tổng quan",
+              href: "/dashboard",
+              icon: LayoutGrid,
+            },
+            {
+              key: "patients",
+              label: "Bệnh nhân",
+              href: "/patients",
+              icon: UserRound,
+            },
+            {
+              key: "alerts",
+              label: "Cảnh báo",
+              href: "/alerts",
+              icon: Bell,
+              badge: "3",
+            },
+            {
+              key: "settings",
+              label: "Cài đặt",
+              href: "/settings",
+              icon: Settings,
+            },
+          ] satisfies NavItem[],
+        }
+      : {
+          subtitle: "Clinical monitoring",
+          expand: "Expand sidebar",
+          collapse: "Collapse sidebar",
+          newChat: "New chat",
+          recentChats: "Recent chats",
+          navItems: [
+            {
+              key: "dashboard",
+              label: "Dashboard",
+              href: "/dashboard",
+              icon: LayoutGrid,
+            },
+            {
+              key: "patients",
+              label: "Patients",
+              href: "/patients",
+              icon: UserRound,
+            },
+            {
+              key: "alerts",
+              label: "Alerts",
+              href: "/alerts",
+              icon: Bell,
+              badge: "3",
+            },
+            {
+              key: "settings",
+              label: "Settings",
+              href: "/settings",
+              icon: Settings,
+            },
+          ] satisfies NavItem[],
+        };
 
   return (
     <aside
@@ -158,14 +232,14 @@ export function DashboardSidebar({
           collapsed ? "flex-col justify-center gap-3" : "justify-between",
         ].join(" ")}
       >
-        <BrandLockup collapsed={collapsed} />
+        <BrandLockup collapsed={collapsed} subtitle={copy.subtitle} />
 
         <button
           type="button"
           onClick={onToggle}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.1),rgba(0,150,136,0.08))]"
-          aria-label={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
-          title={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
+          aria-label={collapsed ? copy.expand : copy.collapse}
+          title={collapsed ? copy.expand : copy.collapse}
         >
           <ToggleIcon className="h-4.5 w-4.5" />
         </button>
@@ -182,28 +256,32 @@ export function DashboardSidebar({
         ].join(" ")}
       >
         <Plus className="h-4.5 w-4.5" />
-        {!collapsed ? (
-          <span className="text-sm font-medium">Đoạn chat mới</span>
-        ) : null}
+        {!collapsed ? <span className="text-sm font-medium">{copy.newChat}</span> : null}
       </button>
 
-      <SidebarNav activeItem={activeItem} collapsed={collapsed} />
+      <SidebarNav
+        activeItem={activeItem}
+        collapsed={collapsed}
+        items={copy.navItems}
+      />
 
-      <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        {!collapsed ? (
-          <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--cs-text-soft)]">
-            Trò chuyện gần đây
-          </p>
-        ) : null}
+      {activeItem === "dashboard" ? (
+        <div className="mt-5 flex min-h-0 flex-1 flex-col">
+          {!collapsed ? (
+            <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--cs-text-soft)]">
+              {copy.recentChats}
+            </p>
+          ) : null}
 
-        <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto pr-1">
-          <ChatHistoryPanel
-            collapsed={collapsed}
-            disabled={historyDisabled}
-            items={historyItems}
-          />
+          <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto pr-1">
+            <ChatHistoryPanel
+              collapsed={collapsed}
+              disabled={historyDisabled}
+              items={historyItems}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
     </aside>
   );
 }

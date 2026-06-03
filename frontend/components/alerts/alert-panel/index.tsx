@@ -1,5 +1,5 @@
 import type { Alert } from "@/types";
-import { AlertItem } from "../alert-item";
+import { AlertItem } from "../alert-item/index";
 
 type AlertPanelProps = {
   alerts: Alert[];

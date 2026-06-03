@@ -54,7 +54,7 @@ export function DashboardShell({
             className={[
               "grid min-h-0 min-w-0 flex-1 gap-2.5 overflow-hidden transition-all duration-300",
               patientPanelOpen
-                ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_468px] 2xl:grid-cols-[minmax(0,1fr)_540px]"
+                ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_540px] 2xl:grid-cols-[minmax(0,1fr)_640px]"
                 : "grid-cols-1",
             ].join(" ")}
           >

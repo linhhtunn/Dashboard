@@ -1,9 +1,11 @@
-import type { MetricSummary, VitalSign } from "@/types";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { getMetricLabel } from "@/lib/i18n";
+import type { MetricSummary, VitalMetric, VitalSignalSample } from "@/types";
 import { VitalChart } from "../vital-chart";
 
 type MetricCardProps = {
   summary: MetricSummary;
-  vitals?: VitalSign[];
+  vitals?: VitalSignalSample[];
   className?: string;
 };
 
@@ -12,19 +14,12 @@ type IconProps = {
   style?: React.CSSProperties;
 };
 
-const metricLabels: Record<MetricSummary["metric"], string> = {
-  heart_rate: "Heart rate",
-  respiratory_rate: "Respiratory rate",
-  blood_pressure: "Blood pressure",
-  spo2: "SpO2",
-  glucose: "Glucose",
-  motion: "Motion",
-};
-
-const metricColors: Partial<Record<MetricSummary["metric"], string>> = {
-  heart_rate: "#3B82F6",
-  blood_pressure: "#F59E0B",
-  respiratory_rate: "#10B981",
+const metricColors: Record<VitalMetric, string> = {
+  heart_rate: "#0D47A1",
+  hrv_rmssd: "#009688",
+  spo2: "#009688",
+  systolic_bp: "#F5B300",
+  diastolic_bp: "#FB923C",
 };
 
 function HeartIcon({ className = "", style }: IconProps) {
@@ -45,7 +40,7 @@ function HeartIcon({ className = "", style }: IconProps) {
   );
 }
 
-function BoltIcon({ className = "", style }: IconProps) {
+function PulseIcon({ className = "", style }: IconProps) {
   return (
     <svg
       aria-hidden="true"
@@ -58,12 +53,12 @@ function BoltIcon({ className = "", style }: IconProps) {
       strokeLinejoin="round"
       strokeWidth="1.8"
     >
-      <path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z" />
+      <path d="M3 12h4l2-4 3 8 2-4h7" />
     </svg>
   );
 }
 
-function SlidersIcon({ className = "", style }: IconProps) {
+function ShieldIcon({ className = "", style }: IconProps) {
   return (
     <svg
       aria-hidden="true"
@@ -76,42 +71,30 @@ function SlidersIcon({ className = "", style }: IconProps) {
       strokeLinejoin="round"
       strokeWidth="1.8"
     >
-      <path d="M4 6h10" />
-      <path d="M18 6h2" />
-      <path d="M4 12h2" />
-      <path d="M10 12h10" />
-      <path d="M4 18h10" />
-      <path d="M18 18h2" />
-      <path d="M14 4v4" />
-      <path d="M8 10v4" />
-      <path d="M16 16v4" />
+      <path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6l-7-3Z" />
     </svg>
   );
 }
 
-const metricIcons: Record<
-  MetricSummary["metric"],
-  (props: IconProps) => React.ReactNode
-> = {
+const metricIcons: Record<VitalMetric, (props: IconProps) => React.ReactNode> = {
   heart_rate: HeartIcon,
-  respiratory_rate: BoltIcon,
-  blood_pressure: SlidersIcon,
-  spo2: BoltIcon,
-  glucose: SlidersIcon,
-  motion: SlidersIcon,
+  hrv_rmssd: PulseIcon,
+  spo2: ShieldIcon,
+  systolic_bp: PulseIcon,
+  diastolic_bp: PulseIcon,
 };
 
-function getMetricColor(metric: MetricSummary["metric"]) {
-  return metricColors[metric] ?? "var(--color-primary)";
-}
-
-function formatTrend(summary: MetricSummary) {
+function formatTrend(summary: MetricSummary, locale: "vi" | "en") {
   if (summary.changePct === undefined || summary.trend === "stable") {
-    return "Stable vs 15 min ago";
+    return locale === "vi"
+      ? "Ổn định so với 15 phút trước"
+      : "Stable versus 15 minutes ago";
   }
 
-  const direction = summary.trend === "down" ? "\u2193" : "\u2191";
-  return `${direction} ${Math.abs(summary.changePct)}% vs 15 min ago`;
+  const direction = summary.trend === "down" ? "↓" : "↑";
+  return locale === "vi"
+    ? `${direction} ${Math.abs(summary.changePct)}% so với 15 phút trước`
+    : `${direction} ${Math.abs(summary.changePct)}% vs 15 minutes ago`;
 }
 
 export function MetricCard({
@@ -119,29 +102,39 @@ export function MetricCard({
   vitals = [],
   className = "",
 }: MetricCardProps) {
+  const { locale } = useLocale();
   const Icon = metricIcons[summary.metric];
-  const metricColor = getMetricColor(summary.metric);
+  const metricColor = metricColors[summary.metric];
 
   return (
-    <article className={["bg-transparent", className].join(" ")}>
-      <div className="mb-5 flex items-center justify-between gap-4">
-        <p className="text-sm font-medium text-text-strong">Index</p>
-        <p className="whitespace-nowrap text-sm font-medium text-secondary">
-          {"\u2713"} Stable in last 15 min
-        </p>
-      </div>
-
-      <div className="mb-4 flex min-w-0 items-center gap-3 whitespace-nowrap">
+    <article
+      className={[
+        "dashboard-surface rounded-[1.35rem] px-4 py-4",
+        className,
+      ].join(" ")}
+    >
+      <div className="mb-4 flex min-w-0 items-center gap-3">
         <Icon className="h-5 w-5 shrink-0" style={{ color: metricColor }} />
-        <h3 className="text-lg font-semibold leading-6 text-text-strong">
-          {metricLabels[summary.metric]}
-        </h3>
-        <p className="min-w-0 truncate text-sm font-medium text-text-body sm:text-base">
-          {formatTrend(summary)}
-        </p>
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-[color:var(--cs-heading)]">
+            {getMetricLabel(summary.metric, locale)}
+          </h3>
+          <p className="text-sm text-[color:var(--cs-text-soft)]">
+            {formatTrend(summary, locale)}
+          </p>
+        </div>
       </div>
 
-      <VitalChart data={vitals} metric={summary.metric} height={228} />
+      <div className="mb-4 flex items-end gap-2">
+        <p className="text-[2rem] font-semibold leading-none text-[color:var(--cs-heading)]">
+          {summary.displayValue ?? summary.currentValue}
+        </p>
+        <span className="pb-1 text-sm text-[color:var(--cs-text-soft)]">
+          {summary.unit}
+        </span>
+      </div>
+
+      <VitalChart data={vitals} metric={summary.metric} height={210} />
     </article>
   );
 }

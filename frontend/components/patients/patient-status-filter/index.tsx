@@ -1,5 +1,8 @@
 import type { PatientStatus } from "@/types";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { getPatientStatusLabel } from "@/lib/i18n";
+
 export type PatientStatusFilterValue = "all" | PatientStatus;
 
 type PatientStatusFilterProps = {
@@ -7,39 +10,51 @@ type PatientStatusFilterProps = {
   onChange: (value: PatientStatusFilterValue) => void;
 };
 
-const filters: Array<{
-  value: PatientStatusFilterValue;
-  label: string;
-}> = [
-  { value: "all", label: "All" },
-  { value: "healthy", label: "Healthy" },
-  { value: "at_risk", label: "At Risk" },
-  { value: "critical", label: "Critical" },
-  { value: "recent_symptom", label: "Recent Symptom" },
-];
-
 const filterClasses: Record<PatientStatusFilterValue, string> = {
-  all: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-  healthy: "border-teal-200 bg-teal-50 text-teal-700",
-  at_risk: "border-amber-200 bg-amber-50 text-amber-800",
-  critical: "border-red-200 bg-red-50 text-red-600",
-  recent_symptom: "border-blue-700 bg-blue-700 text-white",
-};
-
-const activeFilterClasses: Record<PatientStatusFilterValue, string> = {
-  all: "border-slate-300 bg-slate-100 text-slate-800",
-  healthy: "border-teal-300 bg-teal-100 text-teal-800",
-  at_risk: "border-amber-300 bg-amber-100 text-amber-900",
-  critical: "border-red-300 bg-red-100 text-red-700",
-  recent_symptom: "border-blue-700 bg-blue-700 text-white",
+  all: "border-[color:rgba(13,71,161,0.12)] bg-white/72 text-[color:var(--cs-heading)]",
+  healthy:
+    "border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] text-[color:var(--cs-teal)]",
+  at_risk:
+    "border-[color:rgba(245,179,0,0.22)] bg-[color:rgba(245,179,0,0.12)] text-[color:#9a6700]",
+  critical:
+    "border-[color:rgba(229,72,77,0.22)] bg-[color:rgba(229,72,77,0.12)] text-[color:var(--cs-danger)]",
+  recent_symptom:
+    "border-[color:rgba(13,71,161,0.18)] bg-[color:rgba(13,71,161,0.1)] text-[color:var(--cs-primary)]",
 };
 
 export function PatientStatusFilter({
   value,
   onChange,
 }: PatientStatusFilterProps) {
+  const { locale } = useLocale();
+  const filters: Array<{
+    value: PatientStatusFilterValue;
+    label: string;
+  }> = [
+    { value: "all", label: locale === "vi" ? "Tất cả" : "All" },
+    {
+      value: "critical",
+      label: getPatientStatusLabel("critical", locale),
+    },
+    {
+      value: "at_risk",
+      label: getPatientStatusLabel("at_risk", locale),
+    },
+    {
+      value: "recent_symptom",
+      label: getPatientStatusLabel("recent_symptom", locale),
+    },
+    {
+      value: "healthy",
+      label: getPatientStatusLabel("healthy", locale),
+    },
+  ];
+
   return (
-    <div className="flex gap-3 overflow-visible" aria-label="Patient status">
+    <div
+      className="flex flex-wrap gap-2.5"
+      aria-label={locale === "vi" ? "Lọc theo trạng thái" : "Filter by status"}
+    >
       {filters.map((filter) => {
         const isActive = value === filter.value;
 
@@ -50,11 +65,11 @@ export function PatientStatusFilter({
             aria-pressed={isActive}
             onClick={() => onChange(isActive ? "all" : filter.value)}
             className={[
-              "box-border inline-flex shrink-0 items-center gap-2 overflow-visible rounded-full border px-5 py-2 text-sm font-medium transition-colors focus:outline-none",
+              "inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition",
+              filterClasses[filter.value],
               isActive
-                ? activeFilterClasses[filter.value]
-                : filterClasses[filter.value],
-              !isActive && filter.value !== "all" ? "hover:brightness-95" : "",
+                ? "shadow-[0_10px_22px_rgba(13,71,161,0.08)] ring-1 ring-white/60"
+                : "hover:brightness-[0.98]",
             ].join(" ")}
           >
             {filter.label}

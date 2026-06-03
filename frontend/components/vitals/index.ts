@@ -1,3 +1,3 @@
-export { MetricCard } from "./metric-card";
-export { TimeRangeSelector } from "./time-range-selector";
-export { VitalChart } from "./vital-chart";
+export { MetricCard } from "./metric-card/index";
+export { TimeRangeSelector } from "./time-range-selector/index";
+export { VitalChart } from "./vital-chart/index";

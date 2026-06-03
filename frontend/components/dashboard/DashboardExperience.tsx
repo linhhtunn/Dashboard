@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { AIWorkspacePanel } from "@/components/dashboard/AIWorkspacePanel";
 import {
   dashboardIssues,
@@ -10,6 +11,7 @@ import {
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientContextPanel } from "@/components/dashboard/PatientContextPanel";
+import { formatShortClockTime, localizeText } from "@/lib/i18n";
 
 export type SidebarHistoryItem = {
   id: string;
@@ -18,60 +20,21 @@ export type SidebarHistoryItem = {
   issue: string;
 };
 
-const initialHistory: SidebarHistoryItem[] = [
-  {
-    id: "history-1",
-    title: "Tóm tắt ca đêm",
-    timestamp: "08:20",
-    issue: "SpO₂ thấp",
-  },
-  {
-    id: "history-2",
-    title: "Đánh giá tác động thuốc",
-    timestamp: "07:10",
-    issue: "Huyết áp",
-  },
-  {
-    id: "history-3",
-    title: "Rà soát nguy cơ diễn tiến xấu",
-    timestamp: "Hôm qua",
-    issue: "HRV - RMSSD",
-  },
-];
-
-function formatNowLabel() {
-  const now = new Date();
-  return now.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function deriveIssueLabel(prompt: string) {
-  const lowerPrompt = prompt.toLowerCase();
-
-  if (lowerPrompt.includes("spo2") || lowerPrompt.includes("oxy")) {
-    return "SpO₂ thấp";
-  }
-
-  if (lowerPrompt.includes("huyết áp")) {
-    return "Huyết áp";
-  }
-
-  if (lowerPrompt.includes("nhịp tim") || lowerPrompt.includes("hrv")) {
-    return "Nhịp tim";
-  }
-
-  return "Theo dõi tổng quát";
-}
-
 export function DashboardExperience() {
+  const { locale } = useLocale();
   const [activeIssueId, setActiveIssueId] = useState<IssueId | null>(null);
   const [patientPanelOpen, setPatientPanelOpen] = useState(false);
   const [chatSessionId, setChatSessionId] = useState(0);
   const [hasConversation, setHasConversation] = useState(false);
-  const [historyItems, setHistoryItems] =
-    useState<SidebarHistoryItem[]>(initialHistory);
+  const [historyItems, setHistoryItems] = useState<SidebarHistoryItem[]>(() =>
+    buildInitialHistory(locale),
+  );
+
+  useEffect(() => {
+    if (!hasConversation) {
+      setHistoryItems(buildInitialHistory(locale));
+    }
+  }, [hasConversation, locale]);
 
   const activeIssue = useMemo(
     () => dashboardIssues.find((issue) => issue.id === activeIssueId) ?? null,
@@ -108,8 +71,8 @@ export function DashboardExperience() {
       {
         id: `history-${Date.now()}`,
         title: prompt.length > 34 ? `${prompt.slice(0, 34)}…` : prompt,
-        timestamp: formatNowLabel(),
-        issue: deriveIssueLabel(prompt),
+        timestamp: formatShortClockTime(new Date(), locale),
+        issue: localizeText(deriveIssueLabel(prompt), locale),
       },
       ...current,
     ]);
@@ -125,6 +88,7 @@ export function DashboardExperience() {
       topBar={<DashboardTopBar />}
       leftPanel={
         <AIWorkspacePanel
+          key={`${locale}-${chatSessionId}`}
           sessionId={chatSessionId}
           activeIssueId={activeIssueId}
           onConversationStateChange={setHasConversation}
@@ -144,4 +108,55 @@ export function DashboardExperience() {
       }
     />
   );
+}
+
+function buildInitialHistory(locale: "vi" | "en"): SidebarHistoryItem[] {
+  return [
+    {
+      id: "history-1",
+      title: locale === "vi" ? "Tóm tắt ca đêm" : "Night shift summary",
+      timestamp: "08:20",
+      issue: locale === "vi" ? "SpO₂ thấp" : "Low SpO₂",
+    },
+    {
+      id: "history-2",
+      title: locale === "vi" ? "Đánh giá tác động thuốc" : "Medication impact review",
+      timestamp: "07:10",
+      issue: locale === "vi" ? "Huyết áp" : "Blood pressure",
+    },
+    {
+      id: "history-3",
+      title:
+        locale === "vi"
+          ? "Rà soát nguy cơ diễn tiến xấu"
+          : "Review deterioration risk",
+      timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
+      issue: "HRV - RMSSD",
+    },
+  ];
+}
+
+function deriveIssueLabel(prompt: string) {
+  const lowerPrompt = prompt.toLowerCase();
+
+  if (lowerPrompt.includes("spo2") || lowerPrompt.includes("oxy")) {
+    return { vi: "SpO₂ thấp", en: "Low SpO₂" };
+  }
+
+  if (
+    lowerPrompt.includes("huyết áp") ||
+    lowerPrompt.includes("blood pressure")
+  ) {
+    return { vi: "Huyết áp", en: "Blood pressure" };
+  }
+
+  if (
+    lowerPrompt.includes("nhịp tim") ||
+    lowerPrompt.includes("heart rate") ||
+    lowerPrompt.includes("hrv")
+  ) {
+    return { vi: "Nhịp tim", en: "Heart rate" };
+  }
+
+  return { vi: "Theo dõi tổng quát", en: "General monitoring" };
 }

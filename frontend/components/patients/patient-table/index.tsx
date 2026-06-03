@@ -1,6 +1,9 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { getPatientStatusLabel } from "@/lib/i18n";
 import type { PatientStatus } from "@/types";
 import { PatientCard, type PatientListItem } from "../patient-card";
 import { PatientSearch } from "../patient-search";
@@ -20,22 +23,12 @@ const statusPriority: Record<PatientStatus, number> = {
   healthy: 3,
 };
 
-const summaryStatuses: Array<{
-  label: string;
-  status?: PatientStatus;
-}> = [
-  { label: "Total Patients" },
-  { label: "Healthy", status: "healthy" },
-  { label: "At Risk", status: "at_risk" },
-  { label: "Critical", status: "critical" },
-];
-
 const summaryAccentClasses: Record<"total" | PatientStatus, string> = {
-  total: "bg-primary",
-  healthy: "bg-teal-600",
-  at_risk: "bg-amber-500",
-  critical: "bg-red-600",
-  recent_symptom: "bg-blue-700",
+  total: "bg-[color:var(--cs-primary)]",
+  healthy: "bg-[color:var(--cs-teal)]",
+  at_risk: "bg-[color:var(--cs-gold)]",
+  critical: "bg-[color:var(--cs-danger)]",
+  recent_symptom: "bg-[color:var(--cs-aqua)]",
 };
 
 function sortByPriority(items: PatientListItem[]) {
@@ -67,6 +60,7 @@ function matchesSearch(item: PatientListItem, query: string) {
 }
 
 export function PatientTable({ items }: PatientTableProps) {
+  const { locale } = useLocale();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<PatientStatusFilterValue>("all");
   const deferredQuery = useDeferredValue(query);
@@ -84,7 +78,22 @@ export function PatientTable({ items }: PatientTableProps) {
     [deferredQuery, sortedItems, status],
   );
 
-  const summary = useMemo<Array<{ label: string; count: number; status?: PatientStatus }>>(
+  const summaryStatuses: Array<{
+    label: string;
+    status?: PatientStatus;
+  }> = useMemo(
+    () => [
+      { label: locale === "vi" ? "Tổng bệnh nhân" : "Total patients" },
+      { label: getPatientStatusLabel("healthy", locale), status: "healthy" },
+      { label: getPatientStatusLabel("at_risk", locale), status: "at_risk" },
+      { label: getPatientStatusLabel("critical", locale), status: "critical" },
+    ],
+    [locale],
+  );
+
+  const summary = useMemo<
+    Array<{ label: string; count: number; status?: PatientStatus }>
+  >(
     () =>
       summaryStatuses.map((summaryStatus) => ({
         label: summaryStatus.label,
@@ -92,58 +101,74 @@ export function PatientTable({ items }: PatientTableProps) {
           ? items.filter((item) => item.patient.status === summaryStatus.status)
               .length
           : items.length,
+        status: summaryStatus.status,
       })),
-    [items],
+    [items, summaryStatuses],
   );
 
   const emptyMessage = trimmedQuery
-    ? "No patients found"
-    : "No patients match this filter";
+    ? locale === "vi"
+      ? "Không tìm thấy bệnh nhân phù hợp"
+      : "No matching patients found"
+    : locale === "vi"
+      ? "Không có bệnh nhân khớp bộ lọc hiện tại"
+      : "No patients match the current filters";
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {summary.map((item) => (
-          <article
-            key={item.label}
-            className="rounded-lg border border-border bg-panel p-4 shadow-sm"
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="sticky top-0 z-20 space-y-3 bg-[linear-gradient(180deg,rgba(242,245,248,0.98)_0%,rgba(242,245,248,0.9)_78%,rgba(242,245,248,0)_100%)] pb-3 backdrop-blur-sm">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px]">
+          <PatientSearch value={query} onChange={setQuery} />
+          <button
+            type="button"
+            className="dashboard-input inline-flex h-12 items-center justify-center rounded-full bg-white/72 px-4 text-sm font-medium text-[color:var(--cs-heading)]"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm text-text-body">{item.label}</p>
-                <p className="mt-2 text-3xl font-semibold text-text-strong">
-                  {item.count}
-                </p>
-              </div>
-              <span
-                className={[
-                  "mt-1 h-2.5 w-2.5 rounded-full",
-                  summaryAccentClasses[item.status ?? "total"],
-                ].join(" ")}
-                aria-hidden="true"
-              />
-            </div>
-          </article>
-        ))}
-      </div>
+            {locale === "vi" ? "Bộ lọc" : "Filters"}
+          </button>
+        </div>
 
-      <div className="space-y-6 pb-2">
-        <PatientSearch value={query} onChange={setQuery} />
         <PatientStatusFilter value={status} onChange={setStatus} />
+
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {summary.map((item) => (
+            <article
+              key={item.label}
+              className="dashboard-surface rounded-[1.15rem] px-3 py-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[0.82rem] text-[color:var(--cs-text-soft)]">
+                    {item.label}
+                  </p>
+                  <p className="mt-1.5 text-[1.7rem] font-semibold text-[color:var(--cs-heading)]">
+                    {item.count}
+                  </p>
+                </div>
+                <span
+                  className={[
+                    "mt-1 h-2.5 w-2.5 rounded-full",
+                    summaryAccentClasses[item.status ?? "total"],
+                  ].join(" ")}
+                  aria-hidden="true"
+                />
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {visibleItems.length > 0 ? (
-          visibleItems.map((item) => (
-            <PatientCard key={item.patient.id} item={item} />
-          ))
+          visibleItems.map((item) => <PatientCard key={item.patient.id} item={item} />)
         ) : (
-          <div className="rounded-lg border border-dashed border-border bg-panel px-4 py-10 text-center">
-            <p className="text-sm font-medium text-text-strong">
+          <div className="dashboard-surface rounded-[1.15rem] px-4 py-8 text-center">
+            <p className="text-base font-semibold text-[color:var(--cs-heading)]">
               {emptyMessage}
             </p>
-            <p className="mt-1 text-sm text-text-body">
-              Adjust search or status filters
+            <p className="mt-2 text-sm text-[color:var(--cs-text-soft)]">
+              {locale === "vi"
+                ? "Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái."
+                : "Try adjusting the search keyword or the status filters."}
             </p>
           </div>
         )}

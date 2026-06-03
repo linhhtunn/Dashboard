@@ -2,9 +2,10 @@
 
 import { Sparkles } from "lucide-react";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { AIAnswerCard } from "@/components/dashboard/AIAnswerCard";
 import {
-  dashboardSummary,
+  getDashboardSummary,
   type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
 
@@ -48,7 +49,7 @@ function AssistantTextBubble({ content }: { content: string }) {
   );
 }
 
-function ThinkingBlock() {
+function ThinkingBlock({ label }: { label: string }) {
   return (
     <div className="dashboard-fade-up flex gap-3">
       <div className="hidden pt-1 sm:block">
@@ -59,7 +60,7 @@ function ThinkingBlock() {
 
       <div className="dashboard-thinking rounded-[1.15rem] bg-white/45 px-4 py-3 backdrop-blur-[10px]">
         <div className="flex items-center gap-3 text-[16px] text-[color:var(--cs-text)]">
-          <span>Đang tổng hợp diễn biến</span>
+          <span>{label}</span>
           <span className="dashboard-thinking-dots">
             <span />
             <span />
@@ -78,6 +79,11 @@ export function ConversationThread({
   onOpenIssue,
   onToggleIssue,
 }: ConversationThreadProps) {
+  const { locale } = useLocale();
+  const summary = getDashboardSummary(locale);
+  const thinkingLabel =
+    locale === "vi" ? "Đang tổng hợp diễn biến" : "Summarizing the latest changes";
+
   return (
     <div className="flex min-h-full flex-col gap-4 pb-4">
       {messages.map((message) =>
@@ -89,7 +95,7 @@ export function ConversationThread({
       )}
 
       {isThinking ? (
-        <ThinkingBlock />
+        <ThinkingBlock label={thinkingLabel} />
       ) : messages.length > 0 ? (
         <div className="dashboard-fade-up flex gap-3">
           <div className="hidden pt-1 sm:block">
@@ -100,7 +106,7 @@ export function ConversationThread({
 
           <div className="min-w-0 flex-1">
             <AIAnswerCard
-              summary={dashboardSummary}
+              summary={summary}
               activeIssueId={activeIssueId}
               onOpenIssue={onOpenIssue}
               onToggleIssue={onToggleIssue}

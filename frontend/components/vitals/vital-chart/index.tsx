@@ -1,7 +1,7 @@
-import type { VitalMetric, VitalSign } from "@/types";
+import type { VitalMetric, VitalSignalSample } from "@/types";
 
 type VitalChartProps = {
-  data: VitalSign[];
+  data: VitalSignalSample[];
   metric: VitalMetric;
   height?: number;
   className?: string;
@@ -14,47 +14,32 @@ const paddingTop = 16;
 const paddingBottom = 30;
 const yTicks = [0, 40, 80, 120];
 const xTicks = ["09:15", "09:30", "09:45"];
-const metricColors: Partial<Record<VitalMetric, string>> = {
-  heart_rate: "#3B82F6",
-  blood_pressure: "#F59E0B",
-  respiratory_rate: "#10B981",
+const metricColors: Record<VitalMetric, string> = {
+  heart_rate: "#0D47A1",
+  hrv_rmssd: "#009688",
+  spo2: "#009688",
+  systolic_bp: "#F5B300",
+  diastolic_bp: "#FB923C",
 };
 
-function getMetricColor(metric: VitalMetric) {
-  return metricColors[metric] ?? "var(--color-primary)";
-}
-
-function getMetricValue(vital: VitalSign, metric: VitalMetric) {
+function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
   switch (metric) {
     case "heart_rate":
-      return vital.heartRate;
-    case "respiratory_rate":
-      return vital.respiratoryRate;
-    case "blood_pressure":
-      return vital.systolicBp;
+      return vital.vitals.heartRate ?? 0;
+    case "hrv_rmssd":
+      return vital.vitals.hrvRmssd ?? 0;
     case "spo2":
-      return vital.spo2;
-    case "glucose":
-      return vital.glucoseLevel;
-    case "motion":
-      return {
-        still: 0,
-        walking: 1,
-        running: 2,
-        fall_detected: 3,
-      }[vital.motionStatus];
+      return vital.vitals.spo2 ?? 0;
+    case "systolic_bp":
+      return vital.vitals.systolicBp ?? 0;
+    case "diastolic_bp":
+      return vital.vitals.diastolicBp ?? 0;
   }
 }
 
 function buildSmoothPath(points: Array<{ x: number; y: number }>) {
-  if (points.length === 0) {
-    return "";
-  }
-
-  if (points.length === 1) {
-    const point = points[0];
-    return `M ${point.x} ${point.y}`;
-  }
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
 
   return points.reduce((path, point, index) => {
     if (index === 0) {
@@ -76,7 +61,7 @@ export function VitalChart({
   height = chartHeight,
   className = "",
 }: VitalChartProps) {
-  const lineColor = getMetricColor(metric);
+  const lineColor = metricColors[metric];
   const values = data.map((vital) => getMetricValue(vital, metric));
   const maxValue = Math.max(120, ...values);
   const domainMax = maxValue > 120 ? maxValue : 120;
@@ -94,12 +79,8 @@ export function VitalChart({
       data.length === 1
         ? chartWidth / 2
         : paddingX + (index / (data.length - 1)) * plotWidth;
-    const y = getY(value);
 
-    return {
-      x,
-      y,
-    };
+    return { x, y: getY(value) };
   });
 
   const path = buildSmoothPath(points);
@@ -108,14 +89,14 @@ export function VitalChart({
   return (
     <div
       className={[
-        "w-full overflow-hidden rounded-3xl bg-slate-50 py-2",
+        "w-full overflow-hidden rounded-[1.25rem] bg-white/55 py-2",
         className,
       ].join(" ")}
       style={{ height }}
     >
       <svg
         role="img"
-        aria-label={`${metric.replaceAll("_", " ")} trend chart`}
+        aria-label={`Biểu đồ ${metric}`}
         className="h-full w-full"
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         preserveAspectRatio="none"
@@ -174,11 +155,11 @@ export function VitalChart({
           <text
             x={chartWidth / 2}
             y={chartHeight / 2}
-            fill="var(--color-text-body)"
+            fill="var(--cs-text-soft)"
             fontSize="12"
             textAnchor="middle"
           >
-            No vitals
+            Chưa có dữ liệu chỉ số
           </text>
         )}
       </svg>

@@ -1,10 +1,15 @@
+"use client";
+
+import { useMemo } from "react";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { AppLayout } from "../app-layout";
+import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
+import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientTable, type PatientListItem } from "@/components/patients";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
-import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 
 function getLatestVital(patientId: string) {
   const vitals = vitalRepository.listByPatient(patientId);
@@ -18,46 +23,73 @@ function getLatestVital(patientId: string) {
 }
 
 export default function PatientsPage() {
-  const openAlerts = alertRepository.listOpen();
-  const items: PatientListItem[] = patientRepository.list().map((patient) => ({
-    patient,
-    latestVital: getLatestVital(patient.id),
-    openAlertCount: openAlerts.filter((alert) => alert.patientId === patient.id)
-      .length,
-  }));
-  const handleCreateNewChat = () => {
-    setChatSessionId((current) => current + 1);
-    setActiveIssueId(null);
-    setPatientPanelOpen(false);
-    setHasConversation(false);
-  };
+  const { locale } = useLocale();
+  const items: PatientListItem[] = useMemo(() => {
+    const openAlerts = alertRepository.listOpen();
 
+    return patientRepository.list().map((patient) => ({
+      patient,
+      latestVital: getLatestVital(patient.id),
+      openAlertCount: openAlerts.filter((alert) => alert.patientId === patient.id)
+        .length,
+    }));
+  }, []);
+
+  const historyItems: SidebarHistoryItem[] = useMemo(
+    () => [
+      {
+        id: "patients-history-1",
+        title:
+          locale === "vi"
+            ? "Tóm tắt SpO₂ trong ca sáng"
+            : "Morning shift SpO₂ summary",
+        timestamp: "08:20",
+        issue: locale === "vi" ? "SpO₂ thấp" : "Low SpO₂",
+      },
+      {
+        id: "patients-history-2",
+        title:
+          locale === "vi"
+            ? "Danh sách bệnh nhân cần theo dõi"
+            : "Patients requiring monitoring",
+        timestamp: "07:45",
+        issue: locale === "vi" ? "Ưu tiên lâm sàng" : "Clinical priority",
+      },
+      {
+        id: "patients-history-3",
+        title:
+          locale === "vi"
+            ? "Rà soát hồ sơ trước giao ca"
+            : "Review records before handoff",
+        timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
+        issue: locale === "vi" ? "Tổng quan" : "Overview",
+      },
+    ],
+    [locale],
+  );
 
   return (
     <DashboardShell
       activeNav="patients"
-      patientPanelOpen={patientPanelOpen}
       historyItems={historyItems}
-      historyDisabled={!hasConversation}
-      onCreateNewChat={handleCreateNewChat}
+      onCreateNewChat={() => undefined}
       topBar={<DashboardTopBar />}
       leftPanel={
-        <section className="space-y-6">
-          <div>
-            <p className="text-sm font-medium text-secondary">Patients</p>
-            <h1 className="mt-1 text-2xl font-semibold leading-8 text-text-strong">
-              Priority patient list
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-text-body">
-              Review patients by care priority, recent vitals, and monitoring
-              signals.
-            </p>
-          </div>
+        <section className="dashboard-scroll-area h-full overflow-y-auto px-3 py-3">
+          <div className="mx-auto flex h-full max-w-[1320px] min-h-0 flex-col gap-3">
+            <div className="px-1">
+              <h1 className="text-[1.8rem] font-semibold leading-tight text-[color:var(--cs-heading)]">
+                {locale === "vi" ? "Bệnh nhân" : "Patients"}
+              </h1>
+            </div>
 
-          <PatientTable items={items} />
+            <div className="min-h-0 flex-1">
+              <PatientTable items={items} />
+            </div>
+          </div>
         </section>
       }
-      rightPanel={<div />}
+      rightPanel={null}
     />
   );
 }

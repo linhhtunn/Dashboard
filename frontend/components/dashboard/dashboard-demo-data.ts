@@ -98,6 +98,10 @@ export const dashboardSummary: AISummary = {
   disclaimerKey: "ai_support_only",
 };
 
+export function getDashboardSummary(_locale?: unknown) {
+  return dashboardSummary;
+}
+
 export const dashboardMetrics: MetricSummary[] = [
   {
     metric: "heart_rate",

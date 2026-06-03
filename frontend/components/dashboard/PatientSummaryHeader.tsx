@@ -1,41 +1,18 @@
-import { PencilLine, ShieldCheck } from "lucide-react";
-
 import { PanelCard } from "@/components/common/PanelCard";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import {
+  getGenderLabel,
+  getPatientStatusLabel,
+  getWardLabel,
+} from "@/lib/i18n";
 import type { Patient } from "@/types";
 
 type PatientSummaryHeaderProps = {
   patient: Patient;
 };
 
-function getStatusLabel(status: Patient["status"]) {
-  switch (status) {
-    case "healthy":
-      return "Khỏe mạnh";
-    case "at_risk":
-      return "Cần theo dõi";
-    case "critical":
-      return "Cần xử lý ngay";
-    case "recent_symptom":
-      return "Triệu chứng gần đây";
-    default:
-      return "Chưa xác định";
-  }
-}
-
-function getGenderLabel(gender: Patient["gender"]) {
-  switch (gender) {
-    case "male":
-      return "Nam";
-    case "female":
-      return "Nữ";
-    case "other":
-      return "Khác";
-    default:
-      return gender;
-  }
-}
-
 export function PatientSummaryHeader({ patient }: PatientSummaryHeaderProps) {
+  const { locale } = useLocale();
   const initials = patient.name
     .split(" ")
     .slice(0, 2)
@@ -52,41 +29,36 @@ export function PatientSummaryHeader({ patient }: PatientSummaryHeaderProps) {
           </div>
 
           <div>
-            <div className="flex items-center gap-2.5">
-              <h3 className="text-[1.55rem] font-semibold leading-none text-[color:var(--cs-heading)]">
-                {patient.name}
-              </h3>
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:rgba(13,71,161,0.06)] text-[color:var(--cs-primary)] transition hover:bg-[color:rgba(13,71,161,0.12)]"
-                aria-label="Chỉnh sửa bệnh nhân"
-              >
-                <PencilLine className="h-4 w-4" />
-              </button>
-            </div>
+            <h3 className="text-[1.25rem] font-semibold leading-none text-[color:var(--cs-heading)]">
+              {patient.name}
+            </h3>
 
-            <p className="mt-2 text-[1rem] text-[color:var(--cs-text-soft)]">
-              MRN {patient.mrn} <span className="mx-1.5">&bull;</span>
-              {patient.age} tuổi <span className="mx-1.5">&bull;</span>
-              {getGenderLabel(patient.gender)}
+            <p className="mt-2 text-[0.9rem] text-[color:var(--cs-text-soft)]">
+              MRN {patient.mrn} <span className="mx-1.5">•</span>
+              {patient.age} {locale === "vi" ? "tuổi" : "years old"}{" "}
+              <span className="mx-1.5">•</span>
+              {getGenderLabel(patient.gender, locale)}
             </p>
-            <p className="mt-1 text-[1rem] text-[color:var(--cs-text-soft)]">
-              {patient.wardLabel?.vi ?? patient.wardCode}
-              <span className="mx-1.5">&bull;</span>
-              Giường {patient.bed}
+            <p className="mt-1 text-[0.9rem] text-[color:var(--cs-text-soft)]">
+              {getWardLabel(patient, locale)}
+              {patient.bed ? (
+                <>
+                  <span className="mx-1.5">•</span>
+                  {locale === "vi" ? "Giường" : "Bed"} {patient.bed}
+                </>
+              ) : null}
             </p>
           </div>
         </div>
 
         <div className="text-right">
           <div className="inline-flex items-center gap-2 rounded-[1rem] border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3.5 py-2 text-[color:var(--cs-teal)]">
-            <ShieldCheck className="h-4.5 w-4.5" />
-            <span className="text-[1rem] font-semibold">
-              {getStatusLabel(patient.status)}
+            <span className="text-[0.8rem] font-semibold">
+              {getPatientStatusLabel(patient.status, locale)}
             </span>
           </div>
-          <p className="mt-2 text-[0.92rem] text-[color:var(--cs-text-soft)]">
-            Cập nhật 2 phút trước
+          <p className="mt-2 text-[0.75rem] text-[color:var(--cs-text-soft)]">
+            {locale === "vi" ? "Cập nhật gần đây" : "Recently updated"}
           </p>
         </div>
       </div>

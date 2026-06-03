@@ -1,7 +1,8 @@
 "use client";
 
-import { Activity, CheckCircle2, HeartPulse, ShieldCheck, X } from "lucide-react";
+import { Activity, HeartPulse, ShieldCheck, X } from "lucide-react";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { PanelCard } from "@/components/common/PanelCard";
 import {
   dashboardMetrics,
@@ -10,6 +11,7 @@ import {
   type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
 import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
+import { getMetricLabel, localizeText } from "@/lib/i18n";
 
 type PatientContextPanelProps = {
   activeIssue: DashboardIssue;
@@ -32,66 +34,41 @@ function getMetricMeta(metricKey: (typeof dashboardMetrics)[number]["metric"]) {
   switch (metricKey) {
     case "heart_rate":
       return {
-        title: "Nhịp tim",
         icon: HeartPulse,
         iconColor: "text-[color:#EF4444]",
         stroke: "#0D47A1",
       };
     case "hrv_rmssd":
       return {
-        title: "HRV - RMSSD",
         icon: Activity,
         iconColor: "text-[color:#2563EB]",
         stroke: "#009688",
       };
     case "spo2":
       return {
-        title: "SpO₂",
         icon: ShieldCheck,
         iconColor: "text-[color:var(--cs-teal)]",
         stroke: "#009688",
       };
     case "systolic_bp":
       return {
-        title: "Huyết áp tâm thu",
         icon: ShieldCheck,
         iconColor: "text-[color:var(--cs-gold)]",
         stroke: "#F5B300",
       };
     case "diastolic_bp":
       return {
-        title: "Huyết áp tâm trương",
         icon: ShieldCheck,
         iconColor: "text-[color:#FB923C]",
         stroke: "#F59E0B",
       };
     default:
       return {
-        title: metricKey,
         icon: Activity,
         iconColor: "text-[color:var(--cs-primary)]",
         stroke: "#0D47A1",
       };
   }
-}
-
-function buildIssueMetrics(issue: DashboardIssue): IssueDisplayMetric[] {
-  return dashboardMetrics
-    .filter((metric) => issue.metricKeys.includes(metric.metric))
-    .map((metric) => {
-      const meta = getMetricMeta(metric.metric);
-
-      return {
-        key: metric.metric,
-        title: meta.title,
-        value: `${metric.currentValue}`,
-        unit: metric.unit,
-        changeLabel: `${Math.abs(metric.changePct ?? 0)}% so với 15 phút trước`,
-        icon: meta.icon,
-        iconColor: meta.iconColor,
-        stroke: meta.stroke,
-      };
-    });
 }
 
 function MiniSparkline({ stroke }: { stroke: string }) {
@@ -125,9 +102,27 @@ function MiniSparkline({ stroke }: { stroke: string }) {
 export function PatientContextPanel({
   activeIssue,
   onClose,
-  onToggleIssue,
 }: PatientContextPanelProps) {
-  const issueMetrics = buildIssueMetrics(activeIssue);
+  const { locale } = useLocale();
+  const issueMetrics = dashboardMetrics
+    .filter((metric) => activeIssue.metricKeys.includes(metric.metric))
+    .map((metric) => {
+      const meta = getMetricMeta(metric.metric);
+
+      return {
+        key: metric.metric,
+        title: getMetricLabel(metric.metric, locale),
+        value: `${metric.currentValue}`,
+        unit: metric.unit,
+        changeLabel:
+          locale === "vi"
+            ? `${Math.abs(metric.changePct ?? 0)}% so với 15 phút trước`
+            : `${Math.abs(metric.changePct ?? 0)}% vs 15 minutes ago`,
+        icon: meta.icon,
+        iconColor: meta.iconColor,
+        stroke: meta.stroke,
+      } satisfies IssueDisplayMetric;
+    });
 
   return (
     <div className="dashboard-glass dashboard-fade-up h-full min-h-0 rounded-[1.45rem] p-3 shadow-[0_26px_60px_rgba(13,71,161,0.14)]">
@@ -137,7 +132,9 @@ export function PatientContextPanel({
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/72 text-[color:var(--cs-primary)] transition hover:bg-white"
-            aria-label="Đóng phần xem phác đồ"
+            aria-label={
+              locale === "vi" ? "Đóng phần xem phác đồ" : "Close protocol view"
+            }
           >
             <X className="h-4.5 w-4.5" />
           </button>
@@ -148,51 +145,14 @@ export function PatientContextPanel({
             <PatientSummaryHeader patient={dashboardPatient} />
 
             <PanelCard className="px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="inline-flex rounded-full bg-[color:rgba(13,71,161,0.08)] px-3 py-1 text-[12px] font-semibold text-[color:var(--cs-primary)]">
-                    {activeIssue.chipLabel}
-                  </span>
-                  <h3 className="mt-3 text-[1.35rem] font-semibold leading-tight text-[color:var(--cs-heading)]">
-                    {activeIssue.protocolTitle}
-                  </h3>
-                  <p className="mt-2 text-[1.02rem] leading-7 text-[color:var(--cs-text)]">
-                    {activeIssue.protocolSummary}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => onToggleIssue(activeIssue.id)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:rgba(13,71,161,0.06)] text-[color:var(--cs-primary)] transition hover:bg-[color:rgba(13,71,161,0.12)]"
-                  aria-label={`Ẩn ${activeIssue.title}`}
-                >
-                  <X className="h-4.5 w-4.5" />
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {activeIssue.protocolSteps.map((step, index) => (
-                  <div
-                    key={step}
-                    className="dashboard-fade-up flex items-start gap-3 text-[1rem] leading-7 text-[color:var(--cs-text)]"
-                    style={{ animationDelay: `${index * 90}ms` }}
-                  >
-                    <CheckCircle2 className="mt-1 h-4.5 w-4.5 shrink-0 text-[color:var(--cs-teal)]" />
-                    <span>{step}</span>
-                  </div>
-                ))}
-              </div>
-            </PanelCard>
-
-            <PanelCard className="px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h4 className="text-[1.2rem] font-semibold text-[color:var(--cs-heading)]">
-                    Biểu đồ chỉ số liên quan
+                    {locale === "vi" ? "Biểu đồ chỉ số" : "Metric chart"}{" "}
+                    {issueMetrics.map((metric) => metric.title).join(", ")}
                   </h4>
-                  <p className="mt-1 text-[0.98rem] text-[color:var(--cs-text-soft)]">
-                    Chỉ hiển thị các chỉ số phục vụ cho phác đồ đang mở.
+                  <p className="mt-2 text-sm text-[color:var(--cs-text-soft)]">
+                    {localizeText(activeIssue.protocolSummary, locale)}
                   </p>
                 </div>
               </div>

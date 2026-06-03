@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, ChevronDown, Globe, Hospital } from "lucide-react";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+
 function useOutsideClose<T extends HTMLElement>(onClose: () => void) {
   const ref = useRef<T | null>(null);
 
@@ -21,16 +23,51 @@ function useOutsideClose<T extends HTMLElement>(onClose: () => void) {
 }
 
 export function DashboardTopBar() {
+  const { locale, setLocale } = useLocale();
   const [hospitalOpen, setHospitalOpen] = useState(false);
   const [localeOpen, setLocaleOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [locale, setLocale] = useState<"VI" | "EN">("VI");
 
   const hospitalRef = useOutsideClose<HTMLDivElement>(() => setHospitalOpen(false));
   const localeRef = useOutsideClose<HTMLDivElement>(() => setLocaleOpen(false));
-  const notificationsRef = useOutsideClose<HTMLDivElement>(() => setNotificationsOpen(false));
+  const notificationsRef = useOutsideClose<HTMLDivElement>(() =>
+    setNotificationsOpen(false),
+  );
   const profileRef = useOutsideClose<HTMLDivElement>(() => setProfileOpen(false));
+
+  const copy =
+    locale === "vi"
+      ? {
+          hospitals: [
+            "Vinmec International Hospital",
+            "Chợ Rẫy Satellite Unit",
+          ],
+          onDuty: "Đang trực",
+          notifications: "Thông báo",
+          profile: "Hồ sơ bác sĩ",
+          profileMenu: ["Hồ sơ cá nhân", "Tùy chọn hiển thị"],
+          notificationItems: [
+            "SpO₂ của Bệnh nhân A thấp hơn baseline.",
+            "Đến giờ dùng Aspirin 81 mg.",
+            "Nhịp tim tăng nhẹ trong 15 phút gần nhất.",
+          ],
+        }
+      : {
+          hospitals: [
+            "Vinmec International Hospital",
+            "Cho Ray Satellite Unit",
+          ],
+          onDuty: "On duty",
+          notifications: "Notifications",
+          profile: "Doctor profile",
+          profileMenu: ["Personal profile", "Display preferences"],
+          notificationItems: [
+            "Patient A's SpO₂ is below baseline.",
+            "It is time to administer Aspirin 81 mg.",
+            "Heart rate has increased slightly in the last 15 minutes.",
+          ],
+        };
 
   return (
     <header className="dashboard-glass relative z-30 rounded-[1.15rem] border border-white/40 bg-white/50 px-3 py-2 backdrop-blur-[22px]">
@@ -44,25 +81,27 @@ export function DashboardTopBar() {
             >
               <span className="flex items-center gap-2">
                 <Hospital className="h-4 w-4 text-[color:var(--cs-primary)]" />
-                <span>Vinmec International Hospital</span>
+                <span>{copy.hospitals[0]}</span>
               </span>
               <ChevronDown className="h-4 w-4 text-[color:var(--cs-text-soft)]" />
             </button>
 
             {hospitalOpen ? (
               <div className="dashboard-glass absolute right-0 top-[calc(100%+8px)] w-[280px] rounded-2xl p-2">
-                <button
-                  type="button"
-                  className="flex w-full rounded-xl px-3 py-2 text-left text-sm text-[color:var(--cs-heading)] hover:bg-white/70"
-                >
-                  Vinmec International Hospital
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full rounded-xl px-3 py-2 text-left text-sm text-[color:var(--cs-text-soft)] hover:bg-white/70"
-                >
-                  Chợ Rẫy Satellite Unit
-                </button>
+                {copy.hospitals.map((hospital, index) => (
+                  <button
+                    key={hospital}
+                    type="button"
+                    className={[
+                      "flex w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-white/70",
+                      index === 0
+                        ? "text-[color:var(--cs-heading)]"
+                        : "text-[color:var(--cs-text-soft)]",
+                    ].join(" ")}
+                  >
+                    {hospital}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>
@@ -74,13 +113,13 @@ export function DashboardTopBar() {
               className="dashboard-input flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-sm text-[color:var(--cs-text)] transition hover:border-[color:var(--cs-border-strong)]"
             >
               <Globe className="h-4 w-4 text-[color:var(--cs-teal)]" />
-              <span>{locale}</span>
+              <span>{locale.toUpperCase()}</span>
               <ChevronDown className="h-4 w-4 text-[color:var(--cs-text-soft)]" />
             </button>
 
             {localeOpen ? (
               <div className="dashboard-glass absolute right-0 top-[calc(100%+8px)] w-[110px] rounded-2xl p-2">
-                {(["VI", "EN"] as const).map((item) => (
+                {(["vi", "en"] as const).map((item) => (
                   <button
                     key={item}
                     type="button"
@@ -89,7 +128,7 @@ export function DashboardTopBar() {
                       setLocaleOpen(false);
                     }}
                     className={[
-                      "flex w-full rounded-xl px-3 py-2 text-left text-sm transition",
+                      "flex w-full rounded-xl px-3 py-2 text-left text-sm uppercase transition",
                       locale === item
                         ? "bg-[color:rgba(13,71,161,0.08)] text-[color:var(--cs-primary)]"
                         : "text-[color:var(--cs-heading)] hover:bg-white/70",
@@ -106,8 +145,8 @@ export function DashboardTopBar() {
             <button
               type="button"
               className="flex h-10 w-10 items-center justify-center rounded-full border border-[color:rgba(0,150,136,0.16)] bg-white/82"
-              aria-label="Đang trực"
-              title="Đang trực"
+              aria-label={copy.onDuty}
+              title={copy.onDuty}
             >
               <span className="relative flex h-3.5 w-3.5 items-center justify-center">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:rgba(0,150,136,0.45)]" />
@@ -116,7 +155,7 @@ export function DashboardTopBar() {
             </button>
 
             <div className="pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 rounded-full bg-[color:var(--cs-heading)] px-3 py-1 text-[11px] font-medium text-white opacity-0 shadow-[0_10px_24px_rgba(15,23,42,0.24)] transition duration-150 group-hover:opacity-100">
-              Đang trực
+              {copy.onDuty}
             </div>
           </div>
 
@@ -125,7 +164,7 @@ export function DashboardTopBar() {
               type="button"
               onClick={() => setNotificationsOpen((current) => !current)}
               className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--cs-border)] bg-white text-[color:var(--cs-text)] transition hover:border-[color:var(--cs-border-strong)]"
-              aria-label="Thông báo"
+              aria-label={copy.notifications}
             >
               <Bell className="h-4.5 w-4.5" />
               <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-[color:var(--cs-danger)] px-1 text-[10px] font-semibold text-white shadow-[0_8px_18px_rgba(229,72,77,0.28)]">
@@ -135,15 +174,14 @@ export function DashboardTopBar() {
 
             {notificationsOpen ? (
               <div className="dashboard-glass absolute right-0 top-[calc(100%+8px)] w-[260px] rounded-2xl p-2">
-                <div className="rounded-xl px-3 py-2 text-sm text-[color:var(--cs-heading)]">
-                  SpO₂ của Bệnh nhân A thấp hơn baseline.
-                </div>
-                <div className="rounded-xl px-3 py-2 text-sm text-[color:var(--cs-heading)]">
-                  Đến giờ dùng Aspirin 81 mg.
-                </div>
-                <div className="rounded-xl px-3 py-2 text-sm text-[color:var(--cs-heading)]">
-                  Nhịp tim tăng nhẹ trong 15 phút gần nhất.
-                </div>
+                {copy.notificationItems.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-xl px-3 py-2 text-sm text-[color:var(--cs-heading)]"
+                  >
+                    {item}
+                  </div>
+                ))}
               </div>
             ) : null}
           </div>
@@ -153,25 +191,22 @@ export function DashboardTopBar() {
               type="button"
               onClick={() => setProfileOpen((current) => !current)}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--cs-primary-soft)] text-sm font-semibold text-[color:var(--cs-primary)]"
-              aria-label="Hồ sơ bác sĩ"
+              aria-label={copy.profile}
             >
               DR
             </button>
 
             {profileOpen ? (
               <div className="dashboard-glass absolute right-0 top-[calc(100%+8px)] w-[180px] rounded-2xl p-2">
-                <button
-                  type="button"
-                  className="flex w-full rounded-xl px-3 py-2 text-left text-sm text-[color:var(--cs-heading)] hover:bg-white/70"
-                >
-                  Hồ sơ cá nhân
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full rounded-xl px-3 py-2 text-left text-sm text-[color:var(--cs-heading)] hover:bg-white/70"
-                >
-                  Tùy chọn hiển thị
-                </button>
+                {copy.profileMenu.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className="flex w-full rounded-xl px-3 py-2 text-left text-sm text-[color:var(--cs-heading)] hover:bg-white/70"
+                  >
+                    {item}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>

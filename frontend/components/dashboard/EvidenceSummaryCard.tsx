@@ -74,9 +74,6 @@ export function EvidenceSummaryCard({
         <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
           Bằng chứng liên quan
         </p>
-        <p className="mt-1 text-sm text-[color:var(--cs-text-soft)]">
-          Các tín hiệu đang hỗ trợ cho phác đồ được mở.
-        </p>
       </div>
 
       <div className="mt-3 space-y-2.5">{primaryEvidence.map(renderEvidenceItem)}</div>

@@ -1,123 +1,75 @@
 "use client";
 
 import { useState } from "react";
-import type { Alert, AlertSeverity, VitalMetric } from "@/types";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import {
+  formatAlertTimestamp,
+  getAlertSeverityLabel,
+  getAlertTypeLabel,
+  getMetricLabel,
+} from "@/lib/i18n";
+import type { Alert, AlertSeverity } from "@/types";
 
 type AlertItemProps = {
   alert: Alert;
 };
 
-const severityCopy: Record<
+const severityStyles: Record<
   AlertSeverity,
   {
-    label: string;
     classes: string;
     dot: string;
   }
 > = {
   info: {
-    label: "Needs monitoring",
-    classes: "border-slate-200 bg-slate-50 text-slate-600",
-    dot: "bg-slate-400",
+    classes:
+      "border-[color:rgba(13,71,161,0.18)] bg-[color:rgba(13,71,161,0.08)] text-[color:var(--cs-primary)]",
+    dot: "bg-[color:var(--cs-primary)]",
   },
   warning: {
-    label: "Attention",
-    classes: "border-amber-200 bg-amber-50 text-amber-700",
-    dot: "bg-amber-500",
+    classes:
+      "border-[color:rgba(245,179,0,0.22)] bg-[color:rgba(245,179,0,0.14)] text-[color:#9a6700]",
+    dot: "bg-[color:var(--cs-gold)]",
   },
   critical: {
-    label: "High priority",
-    classes: "border-red-200 bg-red-50 text-red-700",
-    dot: "bg-red-500",
+    classes:
+      "border-[color:rgba(229,72,77,0.22)] bg-[color:rgba(229,72,77,0.12)] text-[color:var(--cs-danger)]",
+    dot: "bg-[color:var(--cs-danger)]",
   },
 };
 
-const metricLabels: Partial<Record<VitalMetric, string>> = {
-  heart_rate: "Heart rate",
-  respiratory_rate: "Respiratory rate",
-  blood_pressure: "Blood pressure",
-  spo2: "Oxygen saturation",
-  glucose: "Glucose",
-  motion: "Motion signal",
-};
-
-function formatTimestamp(timestamp: string) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMinutes = Math.max(
-    0,
-    Math.round((now.getTime() - date.getTime()) / 60000),
-  );
-
-  if (diffMinutes > 0 && diffMinutes < 60) {
-    return `${diffMinutes} min ago`;
-  }
-
-  const time = new Intl.DateTimeFormat("en", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-
-  if (date.toDateString() === now.toDateString()) {
-    return `Today · ${time}`;
-  }
-
-  return time;
-}
-
-function formatEvidence(alert: Alert) {
-  if (alert.evidence.length === 0) {
-    return ["Dau hieu bat thuong can theo doi them."];
-  }
-
-  return alert.evidence.map((evidence) => {
-    const metricName = evidence.metric
-      ? metricLabels[evidence.metric] ?? "Health signal"
-      : "Health signal";
-    const value =
-      evidence.value !== undefined
-        ? ` at ${evidence.value}${evidence.unit ? ` ${evidence.unit}` : ""}`
-        : "";
-
-    if (alert.type === "high_blood_pressure" || alert.type === "low_blood_pressure") {
-      return "Blood pressure outside recent baseline.";
-    }
-
-    return `${metricName} shows abnormal signs${value}; needs monitoring.`;
-  });
-}
-
 export function AlertItem({ alert }: AlertItemProps) {
+  const { locale } = useLocale();
   const [acknowledged, setAcknowledged] = useState(alert.acknowledged);
-  const severity = severityCopy[alert.severity];
+  const severity = severityStyles[alert.severity];
 
   return (
-    <article className="rounded-lg border border-border bg-panel p-4">
+    <article className="dashboard-surface rounded-[1.35rem] px-4 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={[
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium",
+                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
                 severity.classes,
               ].join(" ")}
             >
               <span className={["h-2 w-2 rounded-full", severity.dot].join(" ")} />
-              {severity.label}
+              {getAlertSeverityLabel(alert.severity, locale)}
             </span>
-            <span className="text-xs text-text-body">
-              {formatTimestamp(alert.timestamp)}
+            <span className="text-xs text-[color:var(--cs-text-soft)]">
+              {formatAlertTimestamp(alert.timestamp, locale)}
             </span>
           </div>
 
-          <p className="text-sm font-medium text-text-strong">
-            {alert.message}
+          <p className="text-base font-semibold text-[color:var(--cs-heading)]">
+            {getAlertTypeLabel(alert.type, locale)}
           </p>
 
           <div className="space-y-1">
-            {formatEvidence(alert).map((evidence) => (
-              <p key={evidence} className="text-sm text-text-body">
+            {formatEvidence(alert, locale).map((evidence) => (
+              <p key={evidence} className="text-sm text-[color:var(--cs-text)]">
                 {evidence}
               </p>
             ))}
@@ -128,11 +80,43 @@ export function AlertItem({ alert }: AlertItemProps) {
           type="button"
           disabled={acknowledged}
           onClick={() => setAcknowledged(true)}
-          className="h-10 shrink-0 rounded-md border border-primary/20 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:border-border disabled:text-text-body disabled:opacity-60"
+          className="h-10 shrink-0 rounded-full border border-[color:rgba(13,71,161,0.14)] bg-white/72 px-4 text-sm font-semibold text-[color:var(--cs-primary)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {acknowledged ? "Acknowledged" : "Acknowledge"}
+          {acknowledged
+            ? locale === "vi"
+              ? "Đã ghi nhận"
+              : "Acknowledged"
+            : locale === "vi"
+              ? "Xác nhận"
+              : "Confirm"}
         </button>
       </div>
     </article>
   );
+}
+
+function formatEvidence(alert: Alert, locale: "vi" | "en") {
+  if (alert.evidence.length === 0) {
+    return [
+      locale === "vi"
+        ? "Dấu hiệu bất thường cần theo dõi thêm."
+        : "Abnormal signal requires additional monitoring.",
+    ];
+  }
+
+  return alert.evidence.map((evidence) => {
+    const metricName = evidence.metric
+      ? getMetricLabel(evidence.metric, locale)
+      : locale === "vi"
+        ? "Chỉ số theo dõi"
+        : "Monitored metric";
+    const value =
+      evidence.value !== undefined
+        ? ` ${evidence.value}${evidence.unit ? ` ${evidence.unit}` : ""}`
+        : "";
+
+    return locale === "vi"
+      ? `${metricName} đang ở mức${value}. Cần bác sĩ xác nhận thêm bối cảnh lâm sàng.`
+      : `${metricName} is currently at${value}. Please confirm the broader clinical context.`;
+  });
 }

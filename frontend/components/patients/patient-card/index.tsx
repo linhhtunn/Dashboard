@@ -1,9 +1,18 @@
 import Link from "next/link";
-import type { Patient, PatientStatus, VitalSign } from "@/types";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import {
+  formatRelativeUpdate,
+  getGenderLabel,
+  getPatientStatusLabel,
+  getSymptomLabel,
+  getWardLabel,
+} from "@/lib/i18n";
+import type { Patient, PatientStatus, VitalSignalSample } from "@/types";
 
 export type PatientListItem = {
   patient: Patient;
-  latestVital: VitalSign | null;
+  latestVital: VitalSignalSample | null;
   openAlertCount: number;
 };
 
@@ -11,107 +20,118 @@ type PatientCardProps = {
   item: PatientListItem;
 };
 
-const statusLabels: Record<PatientStatus, string> = {
-  critical: "Critical",
-  at_risk: "At Risk",
-  recent_symptom: "Recent Symptom",
-  healthy: "Healthy",
-};
-
 const statusClasses: Record<PatientStatus, string> = {
-  critical: "border-red-200 bg-red-50 text-red-600",
-  at_risk: "border-amber-200 bg-amber-50 text-amber-800",
-  recent_symptom: "border-blue-700 bg-blue-700 text-white",
-  healthy: "border-teal-200 bg-teal-50 text-teal-700",
+  healthy:
+    "border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.1)] text-[color:var(--cs-teal)]",
+  at_risk:
+    "border-[color:rgba(245,179,0,0.22)] bg-[color:rgba(245,179,0,0.14)] text-[color:#9a6700]",
+  critical:
+    "border-[color:rgba(229,72,77,0.22)] bg-[color:rgba(229,72,77,0.12)] text-[color:var(--cs-danger)]",
+  recent_symptom:
+    "border-[color:rgba(13,71,161,0.18)] bg-[color:rgba(13,71,161,0.1)] text-[color:var(--cs-primary)]",
 };
 
-function formatGender(gender: Patient["gender"]) {
-  return gender.charAt(0).toUpperCase() + gender.slice(1);
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(value));
-}
-
-function formatBloodPressure(vital: VitalSign | null) {
-  return vital ? `${vital.systolicBp}/${vital.diastolicBp}` : "--";
+function formatBloodPressure(vital: VitalSignalSample | null) {
+  if (!vital?.vitals.systolicBp || !vital.vitals.diastolicBp) return "--/--";
+  return `${vital.vitals.systolicBp}/${vital.vitals.diastolicBp}`;
 }
 
 export function PatientCard({ item }: PatientCardProps) {
+  const { locale } = useLocale();
   const { patient, latestVital, openAlertCount } = item;
-  const symptomCount = patient.recentSymptoms.length;
+  const firstSymptom =
+    patient.recentSymptomCodes[0] &&
+    getSymptomLabel(patient.recentSymptomCodes[0], locale);
 
   return (
-    <article className="rounded-lg border border-border bg-panel p-4 shadow-sm">
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1.4fr_0.8fr_1fr_0.9fr_auto] lg:items-center">
+    <article className="dashboard-surface rounded-[1.4rem] p-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)_auto] xl:items-center">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-text-strong">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="truncate text-[1.1rem] font-semibold text-[color:var(--cs-heading)]">
               {patient.name}
             </h3>
             <span
               className={[
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
+                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
                 statusClasses[patient.status],
               ].join(" ")}
             >
-              {statusLabels[patient.status]}
+              {getPatientStatusLabel(patient.status, locale)}
             </span>
           </div>
-          <p className="mt-1 text-sm text-text-body">
-            {patient.mrn} / {patient.id}
-          </p>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[color:var(--cs-text-soft)]">
+            <span>MRN {patient.mrn}</span>
+            <span>•</span>
+            <span>
+              {patient.age} {locale === "vi" ? "tuổi" : "years old"} •{" "}
+              {getGenderLabel(patient.gender, locale)}
+            </span>
+            <span>•</span>
+            <span>{getWardLabel(patient, locale)}</span>
+            {patient.bed ? (
+              <>
+                <span>•</span>
+                <span>
+                  {locale === "vi" ? "Giường" : "Bed"} {patient.bed}
+                </span>
+              </>
+            ) : null}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-sm text-[color:var(--cs-text)]">
+            <span className="rounded-full bg-white/72 px-3 py-1.5">
+              {locale === "vi" ? "Nhịp tim" : "Heart rate"}:{" "}
+              <strong className="text-[color:var(--cs-heading)]">
+                {latestVital?.vitals.heartRate ?? "--"} bpm
+              </strong>
+            </span>
+            <span className="rounded-full bg-white/72 px-3 py-1.5">
+              SpO₂:{" "}
+              <strong className="text-[color:var(--cs-heading)]">
+                {latestVital?.vitals.spo2 ?? "--"}%
+              </strong>
+            </span>
+            <span className="rounded-full bg-white/72 px-3 py-1.5">
+              {locale === "vi" ? "Huyết áp" : "Blood pressure"}:{" "}
+              <strong className="text-[color:var(--cs-heading)]">
+                {formatBloodPressure(latestVital)} mmHg
+              </strong>
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm text-text-body lg:block lg:space-y-1">
+        <div className="grid gap-2 rounded-[1.15rem] border border-white/50 bg-white/50 px-4 py-3 text-sm text-[color:var(--cs-text)]">
+          <p className="font-medium text-[color:var(--cs-heading)]">
+            {openAlertCount > 0
+              ? locale === "vi"
+                ? `${openAlertCount} cảnh báo đang mở`
+                : `${openAlertCount} open alert${openAlertCount === 1 ? "" : "s"}`
+              : locale === "vi"
+                ? "Không có cảnh báo đang mở"
+                : "No open alerts"}
+          </p>
           <p>
-            <span className="font-medium text-text-strong">{patient.age}</span>{" "}
-            years
+            {firstSymptom
+              ? locale === "vi"
+                ? `Triệu chứng gần nhất: ${firstSymptom}`
+                : `Latest symptom: ${firstSymptom}`
+              : locale === "vi"
+                ? "Chưa ghi nhận triệu chứng mới"
+                : "No newly recorded symptoms"}
           </p>
-          <p>{formatGender(patient.gender)}</p>
+          <p>{formatRelativeUpdate(patient.lastUpdated, locale)}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 rounded-md bg-surface p-3 text-sm">
-          <div>
-            <p className="text-xs text-text-body">HR</p>
-            <p className="font-semibold text-text-strong">
-              {latestVital ? latestVital.heartRate : "--"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-body">RR</p>
-            <p className="font-semibold text-text-strong">
-              {latestVital ? latestVital.respiratoryRate : "--"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-body">BP</p>
-            <p className="font-semibold text-text-strong">
-              {formatBloodPressure(latestVital)}
-            </p>
-          </div>
+        <div className="flex items-center justify-end">
+          <Link
+            href={`/patients/${patient.id}`}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.78))] px-4 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(13,71,161,0.18)] transition hover:brightness-105"
+          >
+            {locale === "vi" ? "Xem hồ sơ" : "View record"}
+          </Link>
         </div>
-
-        <div className="space-y-1 text-sm text-text-body">
-          <p>
-            {symptomCount > 0
-              ? `${symptomCount} recent symptom${symptomCount > 1 ? "s" : ""}`
-              : "No recent symptoms"}
-          </p>
-          <p>{openAlertCount} open alert{openAlertCount === 1 ? "" : "s"}</p>
-          <p>Updated {formatDateTime(patient.lastUpdated)}</p>
-        </div>
-
-        <Link
-          href={`/patients/${patient.id}`}
-          className="inline-flex h-10 items-center justify-center rounded-md border border-primary/20 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/25"
-        >
-          View
-        </Link>
       </div>
     </article>
   );
