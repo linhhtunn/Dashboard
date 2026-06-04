@@ -8,14 +8,9 @@ from functools import lru_cache
 from app.agents.clinical import ClinicalAgent
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.config import get_settings
+from app.core.container import build_agent_service, build_agent_service_async
 from app.contracts.agent_response import AgentResponse
-from app.infrastructure.llm.providers import OpenAIProvider
-from app.memory.checkpointer import (
-    CheckpointerHandle,
-    create_async_checkpointer,
-    create_checkpointer,
-)
-from app.memory.policy import SlidingWindowPolicy
+from app.memory.checkpointer import CheckpointerHandle
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.ports import AlertRepository, PatientRepository
 from app.services.generation import GenerationService
@@ -80,28 +75,9 @@ class AgentService:
 
 @lru_cache
 def create_agent_service() -> AgentService:
-    settings = get_settings()
-    patient_repository, alert_repository = _create_fixture_repositories()
-    generation_service = GenerationService(OpenAIProvider(settings))
-    try:
-        checkpointer_handle = create_checkpointer(settings)
-        memory_workflow = ChatMemoryWorkflow(
-            policy=SlidingWindowPolicy(
-                compact_turn_threshold=settings.memory_compact_turn_threshold,
-                overlap_turns=settings.memory_overlap_turns,
-            ),
-            checkpointer=checkpointer_handle.checkpointer,
-        )
-    except Exception as exc:
-        logger.warning("chat_memory_configuration_failed reason=%s", exc)
-        checkpointer_handle = None
-        memory_workflow = ChatMemoryWorkflow()
-    return AgentService(
-        generation_service=generation_service,
-        patient_repository=patient_repository,
-        alert_repository=alert_repository,
-        memory_workflow=memory_workflow,
-        checkpointer_handle=checkpointer_handle,
+    return build_agent_service(
+        settings=get_settings(),
+        service_cls=AgentService,
     )
 
 
@@ -118,34 +94,8 @@ async def create_agent_service_async() -> AgentService:
         if _agent_service_instance is not None:
             return _agent_service_instance
 
-        settings = get_settings()
-        patient_repository, alert_repository = _create_fixture_repositories()
-        generation_service = GenerationService(OpenAIProvider(settings))
-        try:
-            checkpointer_handle = await create_async_checkpointer(settings)
-            memory_workflow = ChatMemoryWorkflow(
-                policy=SlidingWindowPolicy(
-                    compact_turn_threshold=settings.memory_compact_turn_threshold,
-                    overlap_turns=settings.memory_overlap_turns,
-                ),
-                checkpointer=checkpointer_handle.checkpointer,
-            )
-        except Exception as exc:
-            logger.warning("chat_memory_configuration_failed reason=%s", exc)
-            checkpointer_handle = None
-            memory_workflow = ChatMemoryWorkflow()
-
-        _agent_service_instance = AgentService(
-            generation_service=generation_service,
-            patient_repository=patient_repository,
-            alert_repository=alert_repository,
-            memory_workflow=memory_workflow,
-            checkpointer_handle=checkpointer_handle,
+        _agent_service_instance = await build_agent_service_async(
+            settings=get_settings(),
+            service_cls=AgentService,
         )
         return _agent_service_instance
-
-
-def _create_fixture_repositories() -> tuple[PatientRepository, AlertRepository]:
-    from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
-
-    return FixturePatientRepository(), FixtureAlertRepository()
