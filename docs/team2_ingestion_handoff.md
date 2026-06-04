@@ -52,6 +52,17 @@ python -m ingestion consume
 **JSON queue (Team 1 simulator)** — `message_id`, `patient_id`, `timestamp`, `signals` với `hrv_rmssd`, `rr_interval_ms`, `acc_magnitude`, `gyro_magnitude` (vẫn hỗ trợ alias `hrv`). `context.scenario_id` → `raw_payload._ingestion.scenario_id`.
 
 
+**Đọc DB (Python)**
+
+```python
+from settings import load_database_url
+from ingestion.db_connector import DatabaseConnector
+
+db = DatabaseConnector(load_database_url())
+rows = db.fetch_valid_clean_vitals("P001", limit=50)
+raw = db.fetch_raw_vitals("P001", data_state="INVALID", limit=20)
+```
+
 **Kiểm tra nhanh**
 
 ```sql
