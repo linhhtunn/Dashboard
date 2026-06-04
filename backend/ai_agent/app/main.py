@@ -15,6 +15,16 @@ app = FastAPI(
 app.include_router(agent_router)
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "service": "ai-agent",
+        "status": "ok",
+        "health": "/health",
+        "docs": "/docs",
+    }
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {
