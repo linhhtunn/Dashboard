@@ -6,10 +6,10 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
-from app import prompts
+from app.agents.clinical import prompts
 from app.contracts.agent_response import AgentResponse, ResponseType, validate_agent_response
 from app.infrastructure.llm.ports import LLMConfigurationError, LLMProvider
-from app.retry import run_with_llm_retry, run_with_repair_retry
+from app.infrastructure.resilience import run_with_llm_retry, run_with_repair_retry
 from app.services.safety import check_clinical_safety
 from app.services.parsers.agent_response_parser import LLMOutputParseError, parse_agent_response
 

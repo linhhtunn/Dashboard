@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 
 from app.config import get_settings
-from app.logging_config import configure_logging
-from app.routers.agent import router as agent_router
+from app.infrastructure.observability import configure_logging
 from app.routers.agent import router as agent_router
 
 settings = get_settings()

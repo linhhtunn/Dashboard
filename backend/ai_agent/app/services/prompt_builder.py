@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from app import prompts
+from app.agents.clinical import prompts
 from app.api.schemas.agent_requests import ChatMessage
 
 

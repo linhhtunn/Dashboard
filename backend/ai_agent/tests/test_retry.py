@@ -1,7 +1,7 @@
 import pytest
 
 from app.infrastructure.llm.ports import LLMConfigurationError
-from app.retry import run_with_llm_retry, run_with_repair_retry
+from app.infrastructure.resilience import run_with_llm_retry, run_with_repair_retry
 from app.services.parsers.agent_response_parser import LLMOutputParseError
 
 

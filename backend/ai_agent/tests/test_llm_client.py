@@ -1,7 +1,6 @@
 import pytest
 
 from app.config import Settings
-from app.llm_client import OpenAILLMClient
 from app.infrastructure.llm.ports import LLMConfigurationError
 from app.infrastructure.llm.providers import OpenAIProvider
 
@@ -19,7 +18,3 @@ async def test_llm_client_requires_openai_api_key() -> None:
 
     with pytest.raises(LLMConfigurationError, match="OPENAI_API_KEY is required"):
         await client.generate_text(system_prompt="system", user_prompt="hello")
-
-
-def test_legacy_openai_llm_client_alias_points_to_openai_provider() -> None:
-    assert OpenAILLMClient is OpenAIProvider

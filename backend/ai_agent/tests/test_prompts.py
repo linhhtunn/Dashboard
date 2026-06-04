@@ -1,4 +1,4 @@
-from app import prompts
+from app.agents.clinical import prompts
 
 
 def test_prompt_module_exposes_clinical_assistant_templates() -> None:
