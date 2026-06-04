@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 
 from app.config import get_settings
-from app.fallback import (
+from app.services.fallback import (
     build_chat_fallback,
     build_explain_alert_fallback,
     build_summary_fallback,
@@ -22,7 +22,7 @@ from app.memory.workflow import ChatGenerationResult, ChatMemoryWorkflow
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.contracts.agent_response import AgentResponse, ResponseType
 from app.repositories.ports import AlertRepository, PatientRepository, RepositoryItemNotFoundError
-from app.safety import PromptSafetyDecision, classify_prompt_injection
+from app.services.safety import PromptSafetyDecision, classify_prompt_injection
 from app.services.generation import GenerationResult, GenerationService
 from app.services.prompt_builder import (
     build_chat_prompt,

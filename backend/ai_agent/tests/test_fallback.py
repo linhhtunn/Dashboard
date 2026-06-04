@@ -1,4 +1,4 @@
-from app.fallback import (
+from app.services.fallback import (
     build_chat_fallback,
     build_explain_alert_fallback,
     build_summary_fallback,

@@ -1,4 +1,4 @@
-from app.services.safety import (
+from app.services.safety.safety_service import (
     ClinicalSafetyResult,
     PromptSafetyDecision,
     PromptSafetyResult,

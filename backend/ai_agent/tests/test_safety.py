@@ -1,5 +1,5 @@
-from app.fallback import build_summary_fallback
-from app.safety import (
+from app.services.fallback import build_summary_fallback
+from app.services.safety import (
     PromptSafetyDecision,
     check_clinical_safety,
     classify_prompt_injection,
