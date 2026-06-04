@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from math import sqrt
@@ -105,3 +106,139 @@ class SensorData(BaseModel):
             "gyro_z": self.gyroscope.z,
             "gyro_magnitude": self.gyroscope.magnitude,
         }
+
+    def flat_signals(self) -> Dict[str, float | None]:
+        """Flat numeric fields for range / fault checks in cleaner."""
+        return {
+            "heart_rate": self.heart_rate,
+            "hrv": self.hrv_rmssd,
+            "systolic_bp": self.blood_pressure.systolic,
+            "diastolic_bp": self.blood_pressure.diastolic,
+            "spo2": self.spo2,
+            "acc_x": self.accelerometer.x,
+            "acc_y": self.accelerometer.y,
+            "acc_z": self.accelerometer.z,
+            "gyro_x": self.gyroscope.x,
+            "gyro_y": self.gyroscope.y,
+            "gyro_z": self.gyroscope.z,
+        }
+
+
+@dataclass(frozen=True)
+class ParsedQueueMessage:
+    message_id: str
+    sensor: SensorData
+    scenario_id: str | None = None
+
+
+def _parse_timestamp(value: Any) -> Any:
+    if isinstance(value, str) and value.endswith("Z"):
+        return value.replace("Z", "+00:00")
+    return value
+
+
+BROKER_REQUIRED_SIGNAL_KEYS: tuple[str, ...] = (
+    "heart_rate",
+    "systolic_bp",
+    "diastolic_bp",
+    "spo2",
+    "acc_x",
+    "acc_y",
+    "acc_z",
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+)
+
+
+def _require_broker_signals(signals: dict[str, Any]) -> None:
+    missing = [key for key in BROKER_REQUIRED_SIGNAL_KEYS if key not in signals]
+    if missing:
+        raise ValueError(f"missing signals: {missing}")
+
+
+def _signal_hrv_rmssd(signals: dict[str, Any]) -> float | None:
+    """Simulator uses hrv_rmssd; legacy fixtures may use hrv."""
+    if signals.get("hrv_rmssd") is not None:
+        return signals["hrv_rmssd"]
+    return signals.get("hrv")
+
+
+def _finalize_constructed_sensor(sensor: SensorData) -> SensorData:
+    if sensor.heart_rate and sensor.rr_interval_ms is None:
+        sensor.rr_interval_ms = round(60000.0 / sensor.heart_rate, 2)
+    acc = sensor.accelerometer
+    if acc.magnitude is None:
+        acc.magnitude = round(sqrt((acc.x * acc.x) + (acc.y * acc.y) + (acc.z * acc.z)), 4)
+    gyro = sensor.gyroscope
+    if gyro.magnitude is None:
+        gyro.magnitude = round(sqrt((gyro.x * gyro.x) + (gyro.y * gyro.y) + (gyro.z * gyro.z)), 4)
+    return sensor
+
+
+def _activity_from_context(context: dict[str, Any] | None) -> ActivityState:
+    if not context:
+        return ActivityState.SITTING
+    raw = context.get("activity_state", "sitting")
+    try:
+        return ActivityState(str(raw).lower())
+    except ValueError:
+        return ActivityState.SITTING
+
+
+def parse_queue_payload(data: dict[str, Any]) -> ParsedQueueMessage:
+    """
+    Parse RabbitMQ JSON into SensorData.
+
+    Supports broker envelope (message_id + signals.*) or nested SensorData fields.
+    """
+    message_id = str(data.get("message_id") or "")
+    context = data.get("context")
+    scenario_id = context.get("scenario_id") if isinstance(context, dict) else None
+
+    if "signals" in data:
+        # Broker payloads may contain fault values; cleaner classifies them.
+        signals = data["signals"]
+        _require_broker_signals(signals)
+        for key in ("message_id", "patient_id", "timestamp"):
+            if key not in data:
+                raise ValueError(f"missing field: {key}")
+        ts = _parse_timestamp(data["timestamp"])
+        if isinstance(ts, str):
+            ts = datetime.fromisoformat(ts)
+        sensor = SensorData.model_construct(
+            patient_id=data["patient_id"],
+            timestamp=ts,
+            activity_state=_activity_from_context(context if isinstance(context, dict) else None),
+            heart_rate=signals["heart_rate"],
+            rr_interval_ms=signals.get("rr_interval_ms"),
+            hrv_rmssd=_signal_hrv_rmssd(signals),
+            blood_pressure=BloodPressure.model_construct(
+                systolic=signals["systolic_bp"],
+                diastolic=signals["diastolic_bp"],
+            ),
+            spo2=signals["spo2"],
+            accelerometer=Accelerometer.model_construct(
+                x=signals["acc_x"],
+                y=signals["acc_y"],
+                z=signals["acc_z"],
+                magnitude=signals.get("acc_magnitude"),
+            ),
+            gyroscope=Gyroscope.model_construct(
+                x=signals["gyro_x"],
+                y=signals["gyro_y"],
+                z=signals["gyro_z"],
+                magnitude=signals.get("gyro_magnitude"),
+            ),
+        )
+        sensor = _finalize_constructed_sensor(sensor)
+    else:
+        body = {k: v for k, v in data.items() if k not in ("message_id", "schema_version", "device_id", "context")}
+        if "timestamp" in body:
+            body["timestamp"] = _parse_timestamp(body["timestamp"])
+        sensor = SensorData.model_validate(body)
+
+    if not message_id:
+        message_id = f"msg_{sensor.patient_id}_{int(sensor.timestamp.timestamp())}"
+
+    return ParsedQueueMessage(message_id=message_id, sensor=sensor, scenario_id=scenario_id)
