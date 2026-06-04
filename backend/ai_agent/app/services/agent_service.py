@@ -14,6 +14,7 @@ from app.memory.checkpointer import CheckpointerHandle
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.ports import AlertRepository, PatientRepository
 from app.services.generation import GenerationService
+from app.tools import ToolRegistry
 from app.workflows import ChatWorkflow, ExplainAlertWorkflow, SummaryWorkflow
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class AgentService:
     alert_repository: AlertRepository
     memory_workflow: ChatMemoryWorkflow = field(default_factory=ChatMemoryWorkflow)
     clinical_agent: ClinicalAgent = field(default_factory=ClinicalAgent)
+    tool_registry: ToolRegistry = field(default_factory=ToolRegistry)
     checkpointer_handle: CheckpointerHandle | None = None
 
     async def summarize_patient(self, request: SummaryRequest) -> AgentResponse:

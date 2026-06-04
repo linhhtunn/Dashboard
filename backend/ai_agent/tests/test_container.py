@@ -17,6 +17,7 @@ def test_container_builds_agent_service_with_runtime_dependencies() -> None:
     assert isinstance(service.patient_repository, FixturePatientRepository)
     assert isinstance(service.alert_repository, FixtureAlertRepository)
     assert isinstance(service.memory_workflow, ChatMemoryWorkflow)
+    assert service.tool_registry.names() == ["clinical.patient_context"]
 
 
 def test_container_falls_back_to_manual_memory_when_memory_config_fails() -> None:

@@ -7,7 +7,10 @@ from app.memory.checkpointer import create_async_checkpointer, create_checkpoint
 from app.memory.policy import SlidingWindowPolicy
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
+from app.repositories.ports import PatientRepository
 from app.services.generation import GenerationService
+from app.tools import ToolRegistry
+from app.tools.clinical import PatientContextTool
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +25,7 @@ def build_agent_service(
     patient_repository = FixturePatientRepository()
     alert_repository = FixtureAlertRepository()
     generation_service = GenerationService(OpenAIProvider(settings))
+    tool_registry = _build_tool_registry(patient_repository=patient_repository)
     checkpointer_handle = None
 
     try:
@@ -39,6 +43,7 @@ def build_agent_service(
         patient_repository=patient_repository,
         alert_repository=alert_repository,
         memory_workflow=memory_workflow,
+        tool_registry=tool_registry,
         checkpointer_handle=checkpointer_handle,
     )
 
@@ -51,6 +56,7 @@ async def build_agent_service_async(
     patient_repository = FixturePatientRepository()
     alert_repository = FixtureAlertRepository()
     generation_service = GenerationService(OpenAIProvider(settings))
+    tool_registry = _build_tool_registry(patient_repository=patient_repository)
     checkpointer_handle = None
 
     try:
@@ -68,6 +74,7 @@ async def build_agent_service_async(
         patient_repository=patient_repository,
         alert_repository=alert_repository,
         memory_workflow=memory_workflow,
+        tool_registry=tool_registry,
         checkpointer_handle=checkpointer_handle,
     )
 
@@ -84,3 +91,12 @@ def _build_memory_workflow(
         ),
         checkpointer=checkpointer,
     )
+
+
+def _build_tool_registry(
+    *,
+    patient_repository: PatientRepository,
+) -> ToolRegistry:
+    registry = ToolRegistry()
+    registry.register(PatientContextTool(patient_repository=patient_repository))
+    return registry
