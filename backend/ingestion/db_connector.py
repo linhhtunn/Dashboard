@@ -215,3 +215,114 @@ class DatabaseConnector:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
                 return cur.fetchone()[0] == 1
+
+    def _fetch_rows(
+        self,
+        conn: Any,
+        sql: str,
+        params: tuple[Any, ...] | list[Any],
+    ) -> list[dict[str, Any]]:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
+    def fetch_raw_vitals(
+        self,
+        patient_id: str,
+        *,
+        limit: int = 100,
+        data_state: str | None = None,
+    ) -> list[dict[str, Any]]:
+        table = self._db.raw_vitals_table
+        pid_col = self._db.patient_id_column
+        ts_col = self._db.timestamp_column
+        payload_col = self._db.raw_payload_column
+        meta_key = self._db.raw_payload_metadata_key
+
+        sql = f"""
+            SELECT {pid_col}, {self._db.message_id_column}, {ts_col}, {payload_col}
+            FROM {table}
+            WHERE {pid_col} = %s
+        """
+        params: list[Any] = [patient_id]
+
+        if data_state is not None:
+            sql += f" AND {payload_col}->%s->>'data_state' = %s"
+            params.extend([meta_key, data_state])
+
+        sql += f" ORDER BY {ts_col} DESC LIMIT %s"
+        params.append(limit)
+
+        with self.connection() as conn:
+            return self._fetch_rows(conn, sql, params)
+
+    def fetch_clean_vitals(
+        self,
+        patient_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        table = self._db.clean_vitals_table
+        pid_col = self._db.patient_id_column
+        ts_col = self._db.timestamp_column
+        columns = ", ".join([pid_col, ts_col, *self._db.clean_vital_insert_columns])
+
+        sql = f"""
+            SELECT {columns}
+            FROM {table}
+            WHERE {pid_col} = %s
+            ORDER BY {ts_col} DESC
+            LIMIT %s
+        """
+        with self.connection() as conn:
+            return self._fetch_rows(conn, sql, (patient_id, limit))
+
+    def fetch_valid_clean_vitals(
+        self,
+        patient_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Clean vitals joined with raw rows whose ingestion metadata is VALID."""
+        raw_table = self._db.raw_vitals_table
+        clean_table = self._db.clean_vitals_table
+        pid_col = self._db.patient_id_column
+        ts_col = self._db.timestamp_column
+        payload_col = self._db.raw_payload_column
+        meta_key = self._db.raw_payload_metadata_key
+        columns = ", ".join(f"c.{name}" for name in self._db.clean_vital_insert_columns)
+
+        sql = f"""
+            SELECT c.{pid_col}, c.{ts_col}, {columns},
+                   r.{self._db.message_id_column},
+                   r.{payload_col}->%s->>'data_state' AS data_state
+            FROM {clean_table} c
+            JOIN {raw_table} r
+              ON r.{pid_col} = c.{pid_col} AND r.{ts_col} = c.{ts_col}
+            WHERE c.{pid_col} = %s
+              AND r.{payload_col}->%s->>'data_state' = 'VALID'
+            ORDER BY c.{ts_col} DESC
+            LIMIT %s
+        """
+        params = (meta_key, patient_id, meta_key, limit)
+        with self.connection() as conn:
+            return self._fetch_rows(conn, sql, params)
+
+    def fetch_raw_vital_by_message_id(self, message_id: str) -> dict[str, Any] | None:
+        if not message_id:
+            return None
+        table = self._db.raw_vitals_table
+        mid_col = self._db.message_id_column
+        pid_col = self._db.patient_id_column
+        ts_col = self._db.timestamp_column
+        payload_col = self._db.raw_payload_column
+
+        sql = f"""
+            SELECT {pid_col}, {mid_col}, {ts_col}, {payload_col}
+            FROM {table}
+            WHERE {mid_col} = %s
+            LIMIT 1
+        """
+        with self.connection() as conn:
+            rows = self._fetch_rows(conn, sql, (message_id,))
+        return rows[0] if rows else None
