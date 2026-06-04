@@ -1,14 +1,23 @@
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
 from pydantic import ValidationError
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.llm_client import LLMConfigurationError
 from app.output_parser import LLMOutputParseError
 
 T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 class RetryAttemptsExhausted(RuntimeError):
@@ -33,6 +42,7 @@ async def run_with_llm_retry(
         retry=retry_if_exception(is_retryable_llm_error),
         wait=wait_exponential(multiplier=0.1, min=0.1, max=1.0),
         stop=stop_after_attempt(max_attempts),
+        before_sleep=before_sleep_log(logger, logging.INFO),
         reraise=True,
     )
     async def _run() -> T:
@@ -53,6 +63,18 @@ async def run_with_repair_retry(
             return await operation(attempt, last_error)
         except (LLMOutputParseError, ValidationError) as exc:
             last_error = exc
+            logger.info(
+                "llm_repair_retry_attempt attempt=%s error_type=%s error_message=%s",
+                attempt,
+                exc.__class__.__name__,
+                exc,
+            )
     if last_error is None:
         raise RetryAttemptsExhausted("Repair retry failed without an error")
+    logger.warning(
+        "llm_repair_retry_exhausted max_attempts=%s last_error_type=%s last_error_message=%s",
+        max_attempts,
+        last_error.__class__.__name__,
+        last_error,
+    )
     return fallback(last_error)
