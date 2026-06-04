@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Any
 
 from app.config import Settings
@@ -19,13 +20,27 @@ class CheckpointerHandle:
     context_manager: Any | None = None
 
     def close(self) -> None:
-        if self.context_manager is not None:
+        if self.context_manager is None:
+            return
+        if hasattr(self.context_manager, "__exit__"):
             self.context_manager.__exit__(None, None, None)
+            return
+        if hasattr(self.context_manager, "close"):
+            self.context_manager.close()
 
     async def aclose(self) -> None:
-        if self.context_manager is not None and hasattr(self.context_manager, "__aexit__"):
-            await self.context_manager.__aexit__(None, None, None)
-        elif self.context_manager is not None:
+        if self.context_manager is None:
+            return
+        if hasattr(self.context_manager, "__aexit__"):
+            result = self.context_manager.__aexit__(None, None, None)
+            if isawaitable(result):
+                await result
+            return
+        if hasattr(self.context_manager, "close"):
+            result = self.context_manager.close()
+            if isawaitable(result):
+                await result
+        else:
             self.close()
 
 
@@ -71,15 +86,25 @@ def _create_postgres_checkpointer(settings: Settings) -> CheckpointerHandle:
 
     try:
         from langgraph.checkpoint.postgres import PostgresSaver
+        from psycopg.rows import dict_row
+        from psycopg_pool import ConnectionPool
     except ImportError as exc:
         raise MemoryConfigurationError(
             "langgraph-checkpoint-postgres is required for Supabase/Postgres memory"
         ) from exc
 
-    context_manager = PostgresSaver.from_conn_string(dsn)
-    checkpointer = context_manager.__enter__()
+    pool = ConnectionPool(
+        conninfo=dsn,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+        min_size=1,
+        max_size=4,
+        open=False,
+        check=ConnectionPool.check_connection,
+    )
+    pool.open(wait=True)
+    checkpointer = PostgresSaver(pool)
     logger.info("chat_memory_checkpointer_selected mode=supabase backend=postgres")
-    return CheckpointerHandle(checkpointer=checkpointer, context_manager=context_manager)
+    return CheckpointerHandle(checkpointer=checkpointer, context_manager=pool)
 
 
 async def _create_async_postgres_checkpointer(settings: Settings) -> CheckpointerHandle:
@@ -91,12 +116,22 @@ async def _create_async_postgres_checkpointer(settings: Settings) -> Checkpointe
 
     try:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        from psycopg.rows import dict_row
+        from psycopg_pool import AsyncConnectionPool
     except ImportError as exc:
         raise MemoryConfigurationError(
             "langgraph-checkpoint-postgres is required for Supabase/Postgres memory"
         ) from exc
 
-    context_manager = AsyncPostgresSaver.from_conn_string(dsn)
-    checkpointer = await context_manager.__aenter__()
+    pool = AsyncConnectionPool(
+        conninfo=dsn,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+        min_size=1,
+        max_size=4,
+        open=False,
+        check=AsyncConnectionPool.check_connection,
+    )
+    await pool.open(wait=True)
+    checkpointer = AsyncPostgresSaver(pool)
     logger.info("chat_memory_checkpointer_selected mode=supabase backend=async_postgres")
-    return CheckpointerHandle(checkpointer=checkpointer, context_manager=context_manager)
+    return CheckpointerHandle(checkpointer=checkpointer, context_manager=pool)

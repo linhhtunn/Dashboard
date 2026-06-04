@@ -12,7 +12,8 @@ from app.memory.policy import (
     compact_if_needed,
 )
 from app.memory.state import ChatMemoryState, MemoryTurn, initial_chat_memory_state, make_turn
-from app.schemas import AgentResponse, ChatMessage
+from app.api.schemas.agent_requests import ChatMessage
+from app.contracts.agent_response import AgentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +95,31 @@ class ChatMemoryWorkflow:
     ) -> AgentResponse:
         if self._graph is not None:
             logger.info("chat_memory_run backend=langgraph_checkpointer conversation_id=%s", conversation_id)
-            return await self._run_graph(
-                patient_id=patient_id,
-                conversation_id=conversation_id,
-                message=message,
-                history=history,
-                generate_response=generate_response,
-            )
+            try:
+                return await self._run_graph(
+                    patient_id=patient_id,
+                    conversation_id=conversation_id,
+                    message=message,
+                    history=history,
+                    generate_response=generate_response,
+                )
+            except Exception as exc:
+                if not _is_memory_backend_error(exc):
+                    raise
+                logger.warning(
+                    "chat_memory_backend_failed_falling_back backend=langgraph_checkpointer "
+                    "conversation_id=%s error_type=%s error_message=%s",
+                    conversation_id,
+                    exc.__class__.__name__,
+                    exc,
+                )
+                return await self._run_manual(
+                    patient_id=patient_id,
+                    conversation_id=conversation_id,
+                    message=message,
+                    history=history,
+                    generate_response=generate_response,
+                )
         logger.info("chat_memory_run backend=manual_in_process conversation_id=%s", conversation_id)
         return await self._run_manual(
             patient_id=patient_id,
@@ -229,3 +248,13 @@ def _history_to_turns(history: list[ChatMessage]) -> list[MemoryTurn]:
         make_turn(role=item.role.value, content=item.content)
         for item in history
     ]
+
+
+def _is_memory_backend_error(exc: Exception) -> bool:
+    error_type = exc.__class__.__name__.lower()
+    error_module = exc.__class__.__module__.lower()
+    return (
+        "psycopg" in error_module
+        or "langgraph.checkpoint" in error_module
+        or error_type in {"operationalerror", "interfaceerror", "pooltimeout"}
+    )

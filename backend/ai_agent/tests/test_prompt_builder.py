@@ -1,5 +1,5 @@
 from app.fixtures.clinical import get_alert_fixture, get_patient_fixture
-from app.schemas import ChatRequest
+from app.api.schemas.agent_requests import ChatRequest
 from app.services.prompt_builder import (
     build_chat_prompt,
     build_explain_alert_prompt,

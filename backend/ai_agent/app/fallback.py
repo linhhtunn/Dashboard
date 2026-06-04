@@ -1,4 +1,10 @@
-from app.schemas import AgentResponse, Comparison, ComparisonType, ResponseType, Visualization
+from app.contracts.agent_response import (
+    AgentResponse,
+    Comparison,
+    ComparisonType,
+    ResponseType,
+    Visualization,
+)
 
 
 def _empty_visualization() -> Visualization:

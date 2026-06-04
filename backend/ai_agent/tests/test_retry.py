@@ -1,8 +1,8 @@
 import pytest
 
 from app.llm_client import LLMConfigurationError
-from app.output_parser import LLMOutputParseError
 from app.retry import run_with_llm_retry, run_with_repair_retry
+from app.services.parsers.agent_response_parser import LLMOutputParseError
 
 
 @pytest.mark.asyncio

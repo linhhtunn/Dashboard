@@ -3,7 +3,7 @@ from app.fallback import (
     build_explain_alert_fallback,
     build_summary_fallback,
 )
-from app.schemas import ResponseType, validate_agent_response
+from app.contracts.agent_response import ResponseType, validate_agent_response
 
 
 def test_chat_fallback_uses_conversation_id_as_source_id() -> None:

@@ -3,7 +3,11 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from app.output_parser import LLMOutputParseError, parse_agent_response, parse_json_object
+from app.services.parsers.agent_response_parser import (
+    LLMOutputParseError,
+    parse_agent_response,
+    parse_json_object,
+)
 from tests.test_schemas import valid_payload
 
 

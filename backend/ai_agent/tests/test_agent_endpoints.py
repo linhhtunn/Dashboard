@@ -5,7 +5,7 @@ import pytest
 
 from app.main import app
 from app.routers.agent import get_agent_service
-from app.schemas import ResponseType, validate_agent_response
+from app.contracts.agent_response import ResponseType, validate_agent_response
 from app.services.agent_service import AgentService
 from tests.test_agent_service import FakeLLM, contract_payload
 

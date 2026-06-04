@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from app import prompts
-from app.schemas import ChatMessage
+from app.api.schemas.agent_requests import ChatMessage
 
 
 def _json_context(value: Any) -> str:

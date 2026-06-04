@@ -13,7 +13,7 @@ from tenacity import (
 )
 
 from app.llm_client import LLMConfigurationError
-from app.output_parser import LLMOutputParseError
+from app.services.parsers.agent_response_parser import LLMOutputParseError
 
 T = TypeVar("T")
 

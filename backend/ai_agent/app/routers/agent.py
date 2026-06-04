@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
-from app.schemas import AgentResponse, ChatRequest, ExplainAlertRequest, SummaryRequest
+from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
+from app.contracts.agent_response import AgentResponse
 from app.services.agent_service import AgentService, create_agent_service_async
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])

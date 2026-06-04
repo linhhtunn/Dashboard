@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import ChatRequest, SummaryRequest
+from app.api.schemas.agent_requests import ChatRequest, SummaryRequest
 
 
 def test_summary_request_requires_patient_id() -> None:

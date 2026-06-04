@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from app.schemas import AgentResponse
+from app.contracts.agent_response import AgentResponse
 
 
 class PromptSafetyDecision(StrEnum):

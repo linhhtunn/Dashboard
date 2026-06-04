@@ -3,7 +3,12 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import AgentResponse, DataPointStatus, ResponseType, validate_agent_response
+from app.contracts.agent_response import (
+    AgentResponse,
+    DataPointStatus,
+    ResponseType,
+    validate_agent_response,
+)
 
 
 def valid_payload() -> dict:

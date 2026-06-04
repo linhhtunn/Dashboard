@@ -1,9 +1,10 @@
 import json
 
+import psycopg
 import pytest
 
 from app.memory.workflow import ChatMemoryWorkflow
-from app.schemas import ChatRequest, ExplainAlertRequest, SummaryRequest
+from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.services.agent_service import AgentService
 from tests.test_agent_service import FakeLLM, contract_payload
 
@@ -20,6 +21,11 @@ class CapturingFakeLLM(FakeLLM):
             user_prompt=user_prompt,
             temperature=temperature,
         )
+
+
+class FailingGraph:
+    async def ainvoke(self, input_state, config):
+        raise psycopg.OperationalError("the connection is closed")
 
 
 @pytest.mark.asyncio
@@ -105,3 +111,24 @@ async def test_summary_and_explain_alert_do_not_touch_chat_memory() -> None:
     await service.explain_alert(ExplainAlertRequest(alert_id="ALT_FALL_0092"))
 
     assert workflow._store == {}
+
+
+@pytest.mark.asyncio
+async def test_graph_memory_backend_failure_falls_back_to_manual_memory() -> None:
+    llm = CapturingFakeLLM(
+        [json.dumps(contract_payload(response_type="chat", source_id="CONV_P001_001"))]
+    )
+    workflow = ChatMemoryWorkflow()
+    workflow._graph = FailingGraph()
+    service = AgentService(llm_client=llm, memory_workflow=workflow)
+
+    response = await service.chat(
+        ChatRequest(
+            patient_id="P001",
+            conversation_id="CONV_P001_001",
+            message="Memory backend dang loi thi van tra loi duoc khong?",
+        )
+    )
+
+    assert response.source_id == "CONV_P001_001"
+    assert workflow._store["CONV_P001_001"]["turn_count"] == 2

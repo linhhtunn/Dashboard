@@ -3,7 +3,8 @@ import json
 import pytest
 
 from app.llm_client import LLMConfigurationError, LLMResponse
-from app.schemas import ChatRequest, ExplainAlertRequest, ResponseType, SummaryRequest
+from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
+from app.contracts.agent_response import ResponseType
 from app.services.agent_service import AgentService
 
 
