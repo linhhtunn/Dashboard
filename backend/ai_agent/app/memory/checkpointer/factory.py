@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from inspect import isawaitable
 from typing import Any
 
-from app.config import Settings
+from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
 

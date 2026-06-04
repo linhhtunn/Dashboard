@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.api.schemas.agent_requests import ChatMessage
-from app.services.prompt_builder import (
+from app.agents.clinical.prompts.builders import (
     build_chat_prompt,
     build_explain_alert_prompt,
     build_summary_prompt,

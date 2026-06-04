@@ -3,7 +3,7 @@ import time
 
 from openai import AsyncOpenAI
 
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 from app.infrastructure.llm.ports import LLMConfigurationError, LLMResponse
 
 logger = logging.getLogger(__name__)

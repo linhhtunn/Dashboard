@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
-from app.agents.clinical import prompts
+from app.agents.clinical.prompts.templates import SYSTEM_PROMPT
 from app.contracts.agent_response import AgentResponse, ResponseType, validate_agent_response
 from app.infrastructure.llm.ports import LLMConfigurationError, LLMProvider
 from app.infrastructure.resilience import run_with_llm_retry, run_with_repair_retry
@@ -40,7 +40,7 @@ class GenerationService:
 
         async def generate() -> str:
             response = await self.llm_provider.generate_text(
-                system_prompt=prompts.SYSTEM_PROMPT,
+                system_prompt=SYSTEM_PROMPT,
                 user_prompt=user_prompt,
             )
             return response.content
@@ -56,7 +56,7 @@ class GenerationService:
                     f"Loi: {last_error}. Hay tra ve lai dung mot JSON object hop le."
                 )
                 response = await self.llm_provider.generate_text(
-                    system_prompt=prompts.SYSTEM_PROMPT,
+                    system_prompt=SYSTEM_PROMPT,
                     user_prompt=repair_prompt,
                 )
                 raw_text = response.content

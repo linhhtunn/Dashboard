@@ -5,7 +5,7 @@ import pytest
 from app.contracts.agent_response import AgentResponse, ResponseType
 from app.services.fallback import build_summary_fallback
 from app.services.generation import GenerationService
-from tests.test_agent_service import FakeLLM, contract_payload
+from tests.workflow.test_agent_service import FakeLLM, contract_payload
 
 
 def log_fallback(

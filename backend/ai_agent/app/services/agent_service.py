@@ -7,7 +7,7 @@ from functools import lru_cache
 
 from app.agents.clinical import ClinicalAgent
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
-from app.config import get_settings
+from app.core.config import get_settings
 from app.core.container import build_agent_service, build_agent_service_async
 from app.contracts.agent_response import AgentResponse
 from app.memory.checkpointer import CheckpointerHandle

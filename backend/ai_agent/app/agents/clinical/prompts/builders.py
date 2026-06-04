@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from app.agents.clinical import prompts
+from app.agents.clinical.prompts import templates
 from app.api.schemas.agent_requests import ChatMessage
 
 
@@ -22,7 +22,7 @@ def contract_instruction(response_type: str, patient_id: str, source_id: str) ->
 
 def build_summary_prompt(patient: dict[str, Any]) -> str:
     patient_id = patient["patient_id"]
-    body = prompts.SUMMARY_PROMPT_TEMPLATE.format(
+    body = templates.SUMMARY_PROMPT_TEMPLATE.format(
         patient_name=patient["name"],
         patient_age=patient["age"],
         patient_gender=patient["gender"],
@@ -37,7 +37,7 @@ def build_summary_prompt(patient: dict[str, Any]) -> str:
 def build_explain_alert_prompt(alert: dict[str, Any], patient: dict[str, Any]) -> str:
     patient_id = patient["patient_id"]
     alert_id = alert["alert_id"]
-    body = prompts.EXPLAIN_ALERT_PROMPT_TEMPLATE.format(
+    body = templates.EXPLAIN_ALERT_PROMPT_TEMPLATE.format(
         patient_name=patient["name"],
         patient_id=patient_id,
         medical_history=patient["medical_history"],

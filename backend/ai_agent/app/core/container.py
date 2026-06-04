@@ -1,7 +1,7 @@
 import logging
 from typing import TypeVar
 
-from app.config import Settings
+from app.core.config import Settings
 from app.infrastructure.llm.providers import OpenAIProvider
 from app.memory.checkpointer import create_async_checkpointer, create_checkpointer
 from app.memory.policy import SlidingWindowPolicy

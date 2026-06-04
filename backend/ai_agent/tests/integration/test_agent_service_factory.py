@@ -1,4 +1,4 @@
-from app.config import get_settings
+from app.core.config import get_settings
 from app.services.agent_service import create_agent_service
 
 

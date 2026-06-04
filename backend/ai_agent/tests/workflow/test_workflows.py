@@ -9,7 +9,7 @@ from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.fixtures import FixturePatientRepository
 from app.services.generation import GenerationService
 from app.workflows import ChatWorkflow, SummaryWorkflow
-from tests.test_agent_service import FakeLLM, contract_payload
+from tests.workflow.test_agent_service import FakeLLM, contract_payload
 
 
 def log_fallback(

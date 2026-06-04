@@ -8,7 +8,7 @@ from app.services.parsers.agent_response_parser import (
     parse_agent_response,
     parse_json_object,
 )
-from tests.test_schemas import valid_payload
+from tests.unit.test_schemas import valid_payload
 
 
 def test_raw_json_object_is_parsed() -> None:

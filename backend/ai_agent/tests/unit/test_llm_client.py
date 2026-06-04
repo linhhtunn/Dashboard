@@ -1,6 +1,6 @@
 import pytest
 
-from app.config import Settings
+from app.core.config import Settings
 from app.infrastructure.llm.ports import LLMConfigurationError
 from app.infrastructure.llm.providers import OpenAIProvider
 

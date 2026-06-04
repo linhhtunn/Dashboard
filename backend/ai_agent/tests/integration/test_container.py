@@ -1,4 +1,4 @@
-from app.config import Settings
+from app.core.config import Settings
 from app.core.container import build_agent_service
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository

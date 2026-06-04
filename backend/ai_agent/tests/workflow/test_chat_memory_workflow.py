@@ -6,7 +6,7 @@ import pytest
 from app.memory.workflow import ChatMemoryWorkflow
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.services.agent_service import AgentService
-from tests.test_agent_service import FakeLLM, contract_payload, make_agent_service
+from tests.workflow.test_agent_service import FakeLLM, contract_payload, make_agent_service
 
 
 class CapturingFakeLLM(FakeLLM):
