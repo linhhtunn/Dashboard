@@ -1,0 +1,193 @@
+[
+  {
+    "patient_id": "P001",
+    "name": "Nguyen Minh Quan",
+    "age": 24,
+    "gender": "male",
+    "age_group": "young_male",
+    "risk_group": ["healthy"],
+    "activity_level": "high",
+    "medical_history": "No known chronic disease",
+    "health_status": "NORMAL",
+    "baseline": {
+      "heart_rate": 68,
+      "rr_interval_ms": 882,
+      "hrv_rmssd": 68,
+      "systolic_bp": 112,
+      "diastolic_bp": 72,
+      "spo2": 98
+    }
+  },
+  {
+    "patient_id": "P002",
+    "name": "Tran Duc Anh",
+    "age": 31,
+    "gender": "male",
+    "age_group": "young_male",
+    "risk_group": ["healthy", "active_lifestyle"],
+    "activity_level": "high",
+    "medical_history": "Regular exercise",
+    "health_status": "NORMAL",
+    "baseline": {
+      "heart_rate": 62,
+      "rr_interval_ms": 968,
+      "hrv_rmssd": 76,
+      "systolic_bp": 116,
+      "diastolic_bp": 74,
+      "spo2": 99
+    }
+  },
+  {
+    "patient_id": "P003",
+    "name": "Le Thanh Mai",
+    "age": 26,
+    "gender": "female",
+    "age_group": "young_female",
+    "risk_group": ["healthy"],
+    "activity_level": "medium",
+    "medical_history": "No known chronic disease",
+    "health_status": "NORMAL",
+    "baseline": {
+      "heart_rate": 72,
+      "rr_interval_ms": 833,
+      "hrv_rmssd": 72,
+      "systolic_bp": 106,
+      "diastolic_bp": 68,
+      "spo2": 98
+    }
+  },
+  {
+    "patient_id": "P004",
+    "name": "Pham Ngoc Linh",
+    "age": 34,
+    "gender": "female",
+    "age_group": "young_female",
+    "risk_group": ["sedentary_lifestyle"],
+    "activity_level": "low",
+    "medical_history": "Office worker, low daily activity",
+    "health_status": "NORMAL",
+    "baseline": {
+      "heart_rate": 78,
+      "rr_interval_ms": 769,
+      "hrv_rmssd": 54,
+      "systolic_bp": 112,
+      "diastolic_bp": 73,
+      "spo2": 98
+    }
+  },
+  {
+    "patient_id": "P005",
+    "name": "Hoang Thu Ha",
+    "age": 29,
+    "gender": "female",
+    "age_group": "pregnant",
+    "risk_group": ["pregnancy"],
+    "activity_level": "medium",
+    "medical_history": "Pregnancy, second trimester",
+    "health_status": "NORMAL",
+    "baseline": {
+      "heart_rate": 82,
+      "rr_interval_ms": 732,
+      "hrv_rmssd": 48,
+      "systolic_bp": 118,
+      "diastolic_bp": 76,
+      "spo2": 98
+    }
+  },
+  {
+    "patient_id": "P006",
+    "name": "Do Khanh Vy",
+    "age": 32,
+    "gender": "female",
+    "age_group": "pregnant",
+    "risk_group": ["pregnancy", "blood_pressure_risk"],
+    "activity_level": "low",
+    "medical_history": "Pregnancy, blood pressure monitoring recommended",
+    "health_status": "WARNING",
+    "baseline": {
+      "heart_rate": 88,
+      "rr_interval_ms": 682,
+      "hrv_rmssd": 42,
+      "systolic_bp": 132,
+      "diastolic_bp": 84,
+      "spo2": 97
+    }
+  },
+  {
+    "patient_id": "P007",
+    "name": "Nguyen Van Hung",
+    "age": 68,
+    "gender": "male",
+    "age_group": "elderly_male",
+    "risk_group": ["elderly", "hypertension_risk"],
+    "activity_level": "medium",
+    "medical_history": "Mild hypertension risk",
+    "health_status": "WARNING",
+    "baseline": {
+      "heart_rate": 76,
+      "rr_interval_ms": 789,
+      "hrv_rmssd": 38,
+      "systolic_bp": 136,
+      "diastolic_bp": 86,
+      "spo2": 96
+    }
+  },
+  {
+    "patient_id": "P008",
+    "name": "Tran Quoc Bao",
+    "age": 74,
+    "gender": "male",
+    "age_group": "elderly_male",
+    "risk_group": ["elderly", "low_activity", "fall_risk"],
+    "activity_level": "low",
+    "medical_history": "Low activity, fall risk monitoring",
+    "health_status": "WARNING",
+    "baseline": {
+      "heart_rate": 82,
+      "rr_interval_ms": 732,
+      "hrv_rmssd": 32,
+      "systolic_bp": 142,
+      "diastolic_bp": 88,
+      "spo2": 95
+    }
+  },
+  {
+    "patient_id": "P009",
+    "name": "Le Thi Hoa",
+    "age": 70,
+    "gender": "female",
+    "age_group": "elderly_female",
+    "risk_group": ["elderly", "fall_risk"],
+    "activity_level": "low",
+    "medical_history": "Post-menopause, balance monitoring recommended",
+    "health_status": "WARNING",
+    "baseline": {
+      "heart_rate": 80,
+      "rr_interval_ms": 750,
+      "hrv_rmssd": 36,
+      "systolic_bp": 132,
+      "diastolic_bp": 82,
+      "spo2": 96
+    }
+  },
+  {
+    "patient_id": "P010",
+    "name": "Pham Thi Lan",
+    "age": 78,
+    "gender": "female",
+    "age_group": "elderly_female",
+    "risk_group": ["elderly", "hypertension_risk", "low_spo2_risk"],
+    "activity_level": "low",
+    "medical_history": "Hypertension risk, lower normal SpO2 baseline",
+    "health_status": "WARNING",
+    "baseline": {
+      "heart_rate": 88,
+      "rr_interval_ms": 682,
+      "hrv_rmssd": 28,
+      "systolic_bp": 146,
+      "diastolic_bp": 88,
+      "spo2": 94
+    }
+  }
+]
+
