@@ -5,13 +5,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.memory.policy import (
-    SlidingWindowPolicy,
-    append_safe_turns,
-    build_memory_context,
-    compact_if_needed,
-)
-from app.memory.state import ChatMemoryState, MemoryTurn, initial_chat_memory_state, make_turn
+from app.memory.short_term.manager import ShortTermMemoryManager
+from app.memory.short_term.policy import SlidingWindowPolicy
+from app.memory.short_term.state import ChatMemoryState, MemoryTurn, make_turn
 from app.api.schemas.agent_requests import ChatMessage
 from app.contracts.agent_response import AgentResponse
 
@@ -33,8 +29,10 @@ class ChatMemoryWorkflow:
     checkpointer: Any | None = None
     _store: dict[str, ChatMemoryState] = field(default_factory=dict)
     _graph: Any | None = field(default=None, init=False)
+    _short_term_memory: ShortTermMemoryManager = field(init=False)
 
     def __post_init__(self) -> None:
+        self._short_term_memory = ShortTermMemoryManager(policy=self.policy, store=self._store)
         if self.checkpointer is None:
             logger.info("chat_memory_workflow_selected backend=manual_in_process")
             return
@@ -46,8 +44,7 @@ class ChatMemoryWorkflow:
         graph = StateGraph(ChatMemoryState)
 
         async def prepare_memory_window(state: ChatMemoryState) -> dict[str, Any]:
-            normalized = self._normalize_state(state)
-            return {"memory_context": build_memory_context(normalized)}
+            return {"memory_context": self._short_term_memory.build_context(state)}
 
         async def generate_response(state: ChatMemoryState) -> dict[str, Any]:
             generate = self._active_generate_response
@@ -62,8 +59,8 @@ class ChatMemoryWorkflow:
             response = state["response"]
             if not isinstance(response, AgentResponse):
                 return {}
-            updated = self._append_and_compact(
-                self._normalize_state(state),
+            updated = self._short_term_memory.append_assistant_response(
+                self._short_term_memory.normalize_state(state),
                 assistant_message=response.narrative_summary,
             )
             return {
@@ -169,26 +166,20 @@ class ChatMemoryWorkflow:
         history: list[ChatMessage],
         generate_response: GenerateChatResponse,
     ) -> AgentResponse:
-        state = self._store.get(conversation_id)
-        if state is None:
-            state = self._seed_state(
-                patient_id=patient_id,
-                conversation_id=conversation_id,
-                message=message,
-                history=history,
-            )
-        else:
-            state = dict(state)
-            state["current_message"] = message
-
-        memory_context = build_memory_context(self._normalize_state(state))
+        state = self._short_term_memory.load_or_seed(
+            patient_id=patient_id,
+            conversation_id=conversation_id,
+            message=message,
+            history_turns=_history_to_turns(history),
+        )
+        memory_context = self._short_term_memory.build_context(state)
         result = await generate_response(memory_context)
         if result.safe_for_memory:
-            state = self._append_and_compact(
-                self._normalize_state(state),
+            state = self._short_term_memory.append_assistant_response(
+                self._short_term_memory.normalize_state(state),
                 assistant_message=result.response.narrative_summary,
             )
-            self._store[conversation_id] = state
+            self._short_term_memory.save(conversation_id, state)
             logger.info(
                 "chat_memory_checkpointed conversation_id=%s raw_turns=%s turn_count=%s",
                 conversation_id,
@@ -196,51 +187,6 @@ class ChatMemoryWorkflow:
                 state["turn_count"],
             )
         return result.response
-
-    def _seed_state(
-        self,
-        *,
-        patient_id: str,
-        conversation_id: str,
-        message: str,
-        history: list[ChatMessage],
-    ) -> ChatMemoryState:
-        state = initial_chat_memory_state(
-            patient_id=patient_id,
-            conversation_id=conversation_id,
-            current_message=message,
-        )
-        state["raw_turns"] = _history_to_turns(history)
-        state["turn_count"] = len(state["raw_turns"])
-        return state
-
-    def _append_and_compact(
-        self,
-        state: ChatMemoryState,
-        *,
-        assistant_message: str,
-    ) -> ChatMemoryState:
-        with_new_turns = append_safe_turns(
-            state,
-            user_message=state.get("current_message", ""),
-            assistant_message=assistant_message,
-        )
-        compacted = compact_if_needed(with_new_turns, self.policy)
-        return compacted
-
-    def _normalize_state(self, state: ChatMemoryState) -> ChatMemoryState:
-        normalized = initial_chat_memory_state(
-            patient_id=state.get("patient_id", ""),
-            conversation_id=state.get("conversation_id", ""),
-            current_message=state.get("current_message", ""),
-        )
-        normalized.update(state)
-        normalized["raw_turns"] = list(state.get("raw_turns", []))
-        normalized["summary"] = state.get("summary", "")
-        normalized["turn_count"] = int(state.get("turn_count", len(normalized["raw_turns"])))
-        normalized["last_compacted_turn"] = int(state.get("last_compacted_turn", 0))
-        normalized["safe_for_memory"] = bool(state.get("safe_for_memory", False))
-        return normalized
 
 
 def _history_to_turns(history: list[ChatMessage]) -> list[MemoryTurn]:
