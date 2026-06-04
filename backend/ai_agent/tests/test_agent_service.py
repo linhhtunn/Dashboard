@@ -5,7 +5,7 @@ import pytest
 
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.contracts.agent_response import ResponseType
-from app.llm_client import LLMConfigurationError, LLMResponse
+from app.infrastructure.llm.ports import LLMConfigurationError, LLMResponse
 from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
 from app.repositories.ports import RepositoryItemNotFoundError
 from app.services.agent_service import AgentService

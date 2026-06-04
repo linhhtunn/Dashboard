@@ -12,7 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.llm_client import LLMConfigurationError
+from app.infrastructure.llm.ports import LLMConfigurationError
 from app.services.parsers.agent_response_parser import LLMOutputParseError
 
 T = TypeVar("T")

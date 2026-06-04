@@ -1,12 +1,13 @@
-from app.infrastructure.llm.ports import LLMConfigurationError, LLMProvider, LLMResponse
+from app.infrastructure.llm.ports import (
+    LLMConfigurationError,
+    LLMProvider,
+    LLMResponse,
+)
 from app.infrastructure.llm.providers import OpenAIProvider
-
-OpenAILLMClient = OpenAIProvider
 
 __all__ = [
     "LLMConfigurationError",
     "LLMProvider",
     "LLMResponse",
-    "OpenAILLMClient",
     "OpenAIProvider",
 ]

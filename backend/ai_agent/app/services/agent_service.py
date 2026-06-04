@@ -5,7 +5,6 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Protocol
 
 from pydantic import ValidationError
 
@@ -16,7 +15,8 @@ from app.fallback import (
     build_explain_alert_fallback,
     build_summary_fallback,
 )
-from app.llm_client import LLMConfigurationError, LLMResponse, OpenAILLMClient
+from app.infrastructure.llm.ports import LLMConfigurationError, LLMProvider
+from app.infrastructure.llm.providers import OpenAIProvider
 from app.memory.checkpointer import (
     CheckpointerHandle,
     create_async_checkpointer,
@@ -39,20 +39,9 @@ from app.services.prompt_builder import (
 logger = logging.getLogger(__name__)
 
 
-class LLMClientProtocol(Protocol):
-    async def generate_text(
-        self,
-        *,
-        system_prompt: str,
-        user_prompt: str,
-        temperature: float = 0.2,
-    ) -> LLMResponse:
-        ...
-
-
 @dataclass(frozen=True)
 class AgentService:
-    llm_client: LLMClientProtocol
+    llm_client: LLMProvider
     patient_repository: PatientRepository
     alert_repository: AlertRepository
     memory_workflow: ChatMemoryWorkflow = field(default_factory=ChatMemoryWorkflow)
@@ -336,7 +325,7 @@ def create_agent_service() -> AgentService:
         checkpointer_handle = None
         memory_workflow = ChatMemoryWorkflow()
     return AgentService(
-        llm_client=OpenAILLMClient(settings),
+        llm_client=OpenAIProvider(settings),
         patient_repository=patient_repository,
         alert_repository=alert_repository,
         memory_workflow=memory_workflow,
@@ -374,7 +363,7 @@ async def create_agent_service_async() -> AgentService:
             memory_workflow = ChatMemoryWorkflow()
 
         _agent_service_instance = AgentService(
-            llm_client=OpenAILLMClient(settings),
+            llm_client=OpenAIProvider(settings),
             patient_repository=patient_repository,
             alert_repository=alert_repository,
             memory_workflow=memory_workflow,
