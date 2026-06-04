@@ -64,7 +64,10 @@ def build_chat_prompt(
     message: str,
     history: list[ChatMessage],
     conversation_id: str | None,
+<<<<<<< HEAD
     memory_context: str = "",
+=======
+>>>>>>> 7682d9ee1c770e31101571d6e4b9182bbb537b71
 ) -> str:
     patient_id = patient["patient_id"]
     source_id = conversation_id or patient_id
@@ -76,7 +79,10 @@ def build_chat_prompt(
         "Hay tra loi cau hoi cua bac si dua tren patient context duoc cung cap.\n"
         f"- Patient context: {_json_context(patient)}\n"
         f"- Conversation ID: {source_id}\n"
+<<<<<<< HEAD
         f"- Server short-term memory: {memory_context or 'none yet.'}\n"
+=======
+>>>>>>> 7682d9ee1c770e31101571d6e4b9182bbb537b71
         f"- History optional: {_json_context(history_context)}\n"
         f"- User message: {message}\n\n"
         f"{contract_instruction('chat', patient_id, source_id)}"
