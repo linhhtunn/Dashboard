@@ -2,20 +2,15 @@ from __future__ import annotations
 
 import logging
 import asyncio
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from pydantic import ValidationError
-
-from app import prompts
 from app.config import get_settings
 from app.fallback import (
     build_chat_fallback,
     build_explain_alert_fallback,
     build_summary_fallback,
 )
-from app.infrastructure.llm.ports import LLMConfigurationError, LLMProvider
 from app.infrastructure.llm.providers import OpenAIProvider
 from app.memory.checkpointer import (
     CheckpointerHandle,
@@ -25,11 +20,10 @@ from app.memory.checkpointer import (
 from app.memory.policy import SlidingWindowPolicy
 from app.memory.workflow import ChatGenerationResult, ChatMemoryWorkflow
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
-from app.contracts.agent_response import AgentResponse, ResponseType, validate_agent_response
+from app.contracts.agent_response import AgentResponse, ResponseType
 from app.repositories.ports import AlertRepository, PatientRepository, RepositoryItemNotFoundError
-from app.retry import run_with_llm_retry, run_with_repair_retry
-from app.safety import PromptSafetyDecision, check_clinical_safety, classify_prompt_injection
-from app.services.parsers.agent_response_parser import LLMOutputParseError, parse_agent_response
+from app.safety import PromptSafetyDecision, classify_prompt_injection
+from app.services.generation import GenerationResult, GenerationService
 from app.services.prompt_builder import (
     build_chat_prompt,
     build_explain_alert_prompt,
@@ -41,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AgentService:
-    llm_client: LLMProvider
+    generation_service: GenerationService
     patient_repository: PatientRepository
     alert_repository: AlertRepository
     memory_workflow: ChatMemoryWorkflow = field(default_factory=ChatMemoryWorkflow)
@@ -145,7 +139,7 @@ class AgentService:
                 conversation_id=request.conversation_id,
                 memory_context=memory_context,
             )
-            return await self._generate_with_contract_result(
+            result = await self._generate_with_contract_result(
                 user_prompt=prompt,
                 expected_response_type=ResponseType.CHAT,
                 expected_patient_id=request.patient_id,
@@ -155,6 +149,10 @@ class AgentService:
                     conversation_id=request.conversation_id,
                     reason=reason,
                 ),
+            )
+            return ChatGenerationResult(
+                response=result.response,
+                safe_for_memory=result.safe_for_memory,
             )
 
         return await self.memory_workflow.run(
@@ -172,7 +170,7 @@ class AgentService:
         expected_response_type: ResponseType,
         expected_patient_id: str,
         expected_source_id: str,
-        fallback: Callable[[str], AgentResponse],
+        fallback,
     ) -> AgentResponse:
         result = await self._generate_with_contract_result(
             user_prompt=user_prompt,
@@ -190,88 +188,16 @@ class AgentService:
         expected_response_type: ResponseType,
         expected_patient_id: str,
         expected_source_id: str,
-        fallback: Callable[[str], AgentResponse],
-    ) -> ChatGenerationResult:
-        raw_text: str | None = None
-
-        async def generate() -> str:
-            response = await self.llm_client.generate_text(
-                system_prompt=prompts.SYSTEM_PROMPT,
-                user_prompt=user_prompt,
-            )
-            return response.content
-
-        async def parse_or_repair(attempt: int, last_error: Exception | None) -> AgentResponse:
-            nonlocal raw_text
-            if attempt == 1:
-                raw_text = await run_with_llm_retry(generate)
-            else:
-                repair_prompt = (
-                    f"{user_prompt}\n\n"
-                    "Lan tra loi truoc khong dat Contract 6 JSON. "
-                    f"Loi: {last_error}. Hay tra ve lai dung mot JSON object hop le."
-                )
-                response = await self.llm_client.generate_text(
-                    system_prompt=prompts.SYSTEM_PROMPT,
-                    user_prompt=repair_prompt,
-                )
-                raw_text = response.content
-            parsed = parse_agent_response(raw_text)
-            logger.info(
-                "llm_response_parsed_successfully response_type=%s patient_id=%s source_id=%s",
-                parsed.response_type.value,
-                parsed.patient_id,
-                parsed.source_id,
-            )
-            return self._normalize_response(
-                parsed,
-                response_type=expected_response_type,
-                patient_id=expected_patient_id,
-                source_id=expected_source_id,
-            )
-
-        repair_fallback_used = False
-
-        def repair_fallback(exc: Exception) -> AgentResponse:
-            nonlocal repair_fallback_used
-            repair_fallback_used = True
-            return self._log_and_return_fallback(
-                endpoint=expected_response_type.value,
-                response=fallback("LLM output khong dat Contract 6 sau khi repair retry."),
-                patient_id=expected_patient_id,
-                reason=f"LLM output khong dat Contract 6 sau khi repair retry: {exc}",
-            )
-
-        try:
-            response = await run_with_repair_retry(
-                parse_or_repair,
-                fallback=repair_fallback,
-            )
-        except (LLMConfigurationError, TimeoutError, ConnectionError, LLMOutputParseError, ValidationError):
-            return ChatGenerationResult(
-                response=self._log_and_return_fallback(
-                    endpoint=expected_response_type.value,
-                    response=fallback("Khong the tao phan hoi an toan tu LLM trong luc nay."),
-                    patient_id=expected_patient_id,
-                    reason="Khong the tao phan hoi an toan tu LLM trong luc nay.",
-                ),
-                safe_for_memory=False,
-            )
-        if repair_fallback_used:
-            return ChatGenerationResult(response=response, safe_for_memory=False)
-
-        clinical_safety = check_clinical_safety(response)
-        if not clinical_safety.safe:
-            return ChatGenerationResult(
-                response=self._log_and_return_fallback(
-                    endpoint=expected_response_type.value,
-                    response=fallback(clinical_safety.reason),
-                    patient_id=expected_patient_id,
-                    reason=clinical_safety.reason,
-                ),
-                safe_for_memory=False,
-            )
-        return ChatGenerationResult(response=response, safe_for_memory=True)
+        fallback,
+    ) -> GenerationResult:
+        return await self.generation_service.generate_with_contract(
+            user_prompt=user_prompt,
+            expected_response_type=expected_response_type,
+            expected_patient_id=expected_patient_id,
+            expected_source_id=expected_source_id,
+            fallback=fallback,
+            log_fallback=self._log_and_return_fallback,
+        )
 
     def _log_and_return_fallback(
         self,
@@ -291,26 +217,12 @@ class AgentService:
         )
         return response
 
-    def _normalize_response(
-        self,
-        response: AgentResponse,
-        *,
-        response_type: ResponseType,
-        patient_id: str,
-        source_id: str,
-    ) -> AgentResponse:
-        payload = response.model_dump(mode="json")
-        payload["schema_version"] = "v1"
-        payload["response_type"] = response_type.value
-        payload["patient_id"] = patient_id
-        payload["source_id"] = source_id
-        return validate_agent_response(payload)
-
 
 @lru_cache
 def create_agent_service() -> AgentService:
     settings = get_settings()
     patient_repository, alert_repository = _create_fixture_repositories()
+    generation_service = GenerationService(OpenAIProvider(settings))
     try:
         checkpointer_handle = create_checkpointer(settings)
         memory_workflow = ChatMemoryWorkflow(
@@ -325,7 +237,7 @@ def create_agent_service() -> AgentService:
         checkpointer_handle = None
         memory_workflow = ChatMemoryWorkflow()
     return AgentService(
-        llm_client=OpenAIProvider(settings),
+        generation_service=generation_service,
         patient_repository=patient_repository,
         alert_repository=alert_repository,
         memory_workflow=memory_workflow,
@@ -348,6 +260,7 @@ async def create_agent_service_async() -> AgentService:
 
         settings = get_settings()
         patient_repository, alert_repository = _create_fixture_repositories()
+        generation_service = GenerationService(OpenAIProvider(settings))
         try:
             checkpointer_handle = await create_async_checkpointer(settings)
             memory_workflow = ChatMemoryWorkflow(
@@ -363,7 +276,7 @@ async def create_agent_service_async() -> AgentService:
             memory_workflow = ChatMemoryWorkflow()
 
         _agent_service_instance = AgentService(
-            llm_client=OpenAIProvider(settings),
+            generation_service=generation_service,
             patient_repository=patient_repository,
             alert_repository=alert_repository,
             memory_workflow=memory_workflow,

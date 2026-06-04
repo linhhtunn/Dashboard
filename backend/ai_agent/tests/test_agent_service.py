@@ -9,6 +9,7 @@ from app.infrastructure.llm.ports import LLMConfigurationError, LLMResponse
 from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
 from app.repositories.ports import RepositoryItemNotFoundError
 from app.services.agent_service import AgentService
+from app.services.generation import GenerationService
 
 
 def contract_payload(
@@ -86,7 +87,7 @@ def make_agent_service(
     memory_workflow=None,
 ) -> AgentService:
     return AgentService(
-        llm_client=llm_client,
+        generation_service=GenerationService(llm_client),
         patient_repository=patient_repository or FixturePatientRepository(),
         alert_repository=alert_repository or FixtureAlertRepository(),
         **({"memory_workflow": memory_workflow} if memory_workflow is not None else {}),
