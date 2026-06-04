@@ -6,7 +6,7 @@ import pytest
 from app.memory.workflow import ChatMemoryWorkflow
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.services.agent_service import AgentService
-from tests.test_agent_service import FakeLLM, contract_payload
+from tests.test_agent_service import FakeLLM, contract_payload, make_agent_service
 
 
 class CapturingFakeLLM(FakeLLM):
@@ -36,7 +36,7 @@ async def test_repeated_conversation_id_resumes_short_term_memory() -> None:
             json.dumps(contract_payload(response_type="chat", source_id="CONV_P001_001")),
         ]
     )
-    service = AgentService(llm_client=llm, memory_workflow=ChatMemoryWorkflow())
+    service = make_agent_service(llm_client=llm, memory_workflow=ChatMemoryWorkflow())
 
     await service.chat(
         ChatRequest(
@@ -67,7 +67,7 @@ async def test_invalid_chat_response_does_not_pollute_memory() -> None:
         ]
     )
     workflow = ChatMemoryWorkflow()
-    service = AgentService(llm_client=llm, memory_workflow=workflow)
+    service = make_agent_service(llm_client=llm, memory_workflow=workflow)
 
     await service.chat(
         ChatRequest(
@@ -91,7 +91,7 @@ async def test_invalid_chat_response_does_not_pollute_memory() -> None:
 @pytest.mark.asyncio
 async def test_summary_and_explain_alert_do_not_touch_chat_memory() -> None:
     workflow = ChatMemoryWorkflow()
-    service = AgentService(
+    service = make_agent_service(
         llm_client=FakeLLM(
             [
                 json.dumps(contract_payload(response_type="summary", source_id="P001")),
@@ -120,7 +120,7 @@ async def test_graph_memory_backend_failure_falls_back_to_manual_memory() -> Non
     )
     workflow = ChatMemoryWorkflow()
     workflow._graph = FailingGraph()
-    service = AgentService(llm_client=llm, memory_workflow=workflow)
+    service = make_agent_service(llm_client=llm, memory_workflow=workflow)
 
     response = await service.chat(
         ChatRequest(

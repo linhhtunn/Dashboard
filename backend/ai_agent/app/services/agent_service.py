@@ -16,7 +16,6 @@ from app.fallback import (
     build_explain_alert_fallback,
     build_summary_fallback,
 )
-from app.fixtures.clinical import FixtureNotFoundError, get_alert_fixture, get_patient_fixture
 from app.llm_client import LLMConfigurationError, LLMResponse, OpenAILLMClient
 from app.memory.checkpointer import (
     CheckpointerHandle,
@@ -27,6 +26,7 @@ from app.memory.policy import SlidingWindowPolicy
 from app.memory.workflow import ChatGenerationResult, ChatMemoryWorkflow
 from app.api.schemas.agent_requests import ChatRequest, ExplainAlertRequest, SummaryRequest
 from app.contracts.agent_response import AgentResponse, ResponseType, validate_agent_response
+from app.repositories.ports import AlertRepository, PatientRepository, RepositoryItemNotFoundError
 from app.retry import run_with_llm_retry, run_with_repair_retry
 from app.safety import PromptSafetyDecision, check_clinical_safety, classify_prompt_injection
 from app.services.parsers.agent_response_parser import LLMOutputParseError, parse_agent_response
@@ -53,13 +53,15 @@ class LLMClientProtocol(Protocol):
 @dataclass(frozen=True)
 class AgentService:
     llm_client: LLMClientProtocol
+    patient_repository: PatientRepository
+    alert_repository: AlertRepository
     memory_workflow: ChatMemoryWorkflow = field(default_factory=ChatMemoryWorkflow)
     checkpointer_handle: CheckpointerHandle | None = None
 
     async def summarize_patient(self, request: SummaryRequest) -> AgentResponse:
         try:
-            patient = get_patient_fixture(request.patient_id)
-        except FixtureNotFoundError:
+            patient = self.patient_repository.get_by_id(request.patient_id)
+        except RepositoryItemNotFoundError:
             return self._log_and_return_fallback(
                 endpoint="summary",
                 response=build_summary_fallback(
@@ -84,9 +86,9 @@ class AgentService:
 
     async def explain_alert(self, request: ExplainAlertRequest) -> AgentResponse:
         try:
-            alert = get_alert_fixture(request.alert_id)
-            patient = get_patient_fixture(alert["patient_id"])
-        except FixtureNotFoundError:
+            alert = self.alert_repository.get_by_id(request.alert_id)
+            patient = self.patient_repository.get_by_id(alert["patient_id"])
+        except RepositoryItemNotFoundError:
             return self._log_and_return_fallback(
                 endpoint="explain-alert",
                 response=build_explain_alert_fallback(
@@ -131,8 +133,8 @@ class AgentService:
             )
 
         try:
-            patient = get_patient_fixture(request.patient_id)
-        except FixtureNotFoundError:
+            patient = self.patient_repository.get_by_id(request.patient_id)
+        except RepositoryItemNotFoundError:
             return self._log_and_return_fallback(
                 endpoint="chat",
                 response=build_chat_fallback(
@@ -319,6 +321,7 @@ class AgentService:
 @lru_cache
 def create_agent_service() -> AgentService:
     settings = get_settings()
+    patient_repository, alert_repository = _create_fixture_repositories()
     try:
         checkpointer_handle = create_checkpointer(settings)
         memory_workflow = ChatMemoryWorkflow(
@@ -334,6 +337,8 @@ def create_agent_service() -> AgentService:
         memory_workflow = ChatMemoryWorkflow()
     return AgentService(
         llm_client=OpenAILLMClient(settings),
+        patient_repository=patient_repository,
+        alert_repository=alert_repository,
         memory_workflow=memory_workflow,
         checkpointer_handle=checkpointer_handle,
     )
@@ -353,6 +358,7 @@ async def create_agent_service_async() -> AgentService:
             return _agent_service_instance
 
         settings = get_settings()
+        patient_repository, alert_repository = _create_fixture_repositories()
         try:
             checkpointer_handle = await create_async_checkpointer(settings)
             memory_workflow = ChatMemoryWorkflow(
@@ -369,7 +375,15 @@ async def create_agent_service_async() -> AgentService:
 
         _agent_service_instance = AgentService(
             llm_client=OpenAILLMClient(settings),
+            patient_repository=patient_repository,
+            alert_repository=alert_repository,
             memory_workflow=memory_workflow,
             checkpointer_handle=checkpointer_handle,
         )
         return _agent_service_instance
+
+
+def _create_fixture_repositories() -> tuple[PatientRepository, AlertRepository]:
+    from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
+
+    return FixturePatientRepository(), FixtureAlertRepository()
