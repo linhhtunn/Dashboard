@@ -8,7 +8,7 @@ Chay tu thu muc `backend/ai_agent`:
 
 ```bash
 cd /home/cuong/Desktop/python/VinUni/software-engineering/backend/ai_agent
-../../.venv/bin/python -m uvicorn app.main:app --reload --port 8005
+uv run uvicorn app.main:app --reload --port 8005
 ```
 
 ## 2. Goi Health

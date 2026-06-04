@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả kiến trúc hiện tại của `backend/ai_agent` sau các phase refactor. Mục tiêu là giúp developer biết thư mục nào dùng để làm gì, file nào chịu trách nhiệm gì, và khi thêm feature mới thì nên đặt code ở đâu.
 
-Trạng thái hiện tại: refactor kiến trúc chính đã hoàn thành ở mức backend MVP hiện tại. Các file facade lẻ cũ ở `app/` như `schemas.py`, `output_parser.py`, `llm_client.py`, `safety.py`, `fallback.py`, `prompts.py`, `retry.py`, `logging_config.py` đã được bỏ hoặc chuyển vào đúng package.
+Trạng thái hiện tại: refactor kiến trúc chính đã hoàn thành ở mức backend MVP hiện tại. Các file facade lẻ cũ ở `app/` như `schemas.py`, `output_parser.py`, `llm_client.py`, `safety.py`, `fallback.py`, `prompts.py`, `retry.py`, `logging_config.py` đã được bỏ hoặc chuyển vào đúng package. Phần `domain/` chưa được tạo theo chủ đích hiện tại vì chưa có entity/value object thật cần model hóa.
 
 ## Part 1. Nguyên Tắc Kiến Trúc
 
@@ -25,7 +25,7 @@ Các rule quan trọng:
 - Tool là boundary reusable giữa nhiều agent/workflow.
 - LLM provider nằm sau port, không gọi OpenAI trực tiếp từ workflow hoặc agent.
 - Memory tách riêng khỏi business logic, gồm short-term memory, checkpointer, summarizer.
-- Cross-cutting concern như logging và retry nằm trong `infrastructure`.
+- Logging setup cơ bản nằm trong `core/logging.py`; retry/resilience nằm trong `infrastructure/resilience`.
 
 ## Part 2. Cấu Trúc Thư Mục Cấp Cao
 
@@ -40,15 +40,17 @@ backend/ai_agent/
 │   ├── infrastructure/
 │   ├── memory/
 │   ├── repositories/
-│   ├── routers/
 │   ├── services/
 │   ├── tools/
 │   ├── workflows/
 │   ├── __init__.py
-│   ├── config.py
 │   └── main.py
 ├── scripts/
 ├── tests/
+│   ├── agent/
+│   ├── integration/
+│   ├── unit/
+│   └── workflow/
 ├── Dockerfile
 ├── README.md
 ├── pytest.ini
@@ -63,11 +65,7 @@ Package runtime chính của AI Agent backend. Chỉ còn các entrypoint/config
 
 ### `app/api/`
 
-Chứa schema request/response thuộc tầng API. Tầng này không chứa business logic, AI logic, workflow orchestration, hoặc data access.
-
-### `app/routers/`
-
-Chứa FastAPI router. Router nhận HTTP request, inject service, gọi service method, trả response.
+Chứa router, controller và schema thuộc tầng API. Router chỉ khai báo FastAPI route/dependency, controller chuyển request sang service call, schema validate request. Tầng này không chứa AI logic, workflow orchestration, hoặc data access.
 
 ### `app/contracts/`
 
@@ -99,11 +97,11 @@ Chứa state management cho conversation memory. Tách short-term memory, summar
 
 ### `app/infrastructure/`
 
-Chứa integration/cross-cutting implementation: LLM provider, observability, retry/resilience. Đây là nơi code phụ thuộc thư viện hoặc external system cụ thể.
+Chứa integration/cross-cutting implementation: LLM provider và retry/resilience. Đây là nơi code phụ thuộc thư viện hoặc external system cụ thể.
 
 ### `app/core/`
 
-Chứa composition root/container. Đây là nơi wire dependency thật cho runtime.
+Chứa config, logging setup và composition root/container. Đây là nơi wire dependency thật cho runtime.
 
 ### `app/fixtures/`
 
@@ -124,7 +122,6 @@ Chứa script vận hành ngoài runtime app, ví dụ SQL setup cho Supabase/La
 | File | Trách nhiệm |
 |---|---|
 | `app/__init__.py` | Đánh dấu `app` là Python package. Không chứa business logic. |
-| `app/config.py` | Định nghĩa settings/runtime config, đọc env, expose `get_settings()`. |
 | `app/main.py` | FastAPI entrypoint, setup logging, register router, khai báo `/` và `/health`. |
 
 ### `app/api/`
@@ -132,15 +129,12 @@ Chứa script vận hành ngoài runtime app, ví dụ SQL setup cho Supabase/La
 | File | Trách nhiệm |
 |---|---|
 | `api/__init__.py` | Package marker. |
+| `api/controllers/__init__.py` | Re-export API controllers. |
+| `api/controllers/agent_controller.py` | Controller cho agent endpoints. Gọi `AgentService`, không chứa FastAPI decorator. |
+| `api/routers/__init__.py` | Re-export API router. |
+| `api/routers/agent.py` | FastAPI routes cho AI Agent. Khai báo route, dependency, response model. |
 | `api/schemas/__init__.py` | Re-export API schemas. |
 | `api/schemas/agent_requests.py` | Pydantic request schema cho chat, summary, explain alert, chat history. |
-
-### `app/routers/`
-
-| File | Trách nhiệm |
-|---|---|
-| `routers/__init__.py` | Package marker. |
-| `routers/agent.py` | FastAPI endpoints cho AI Agent. Gọi `AgentService`, không chứa AI/business logic. |
 
 ### `app/contracts/`
 
@@ -157,7 +151,9 @@ Chứa script vận hành ngoài runtime app, ví dụ SQL setup cho Supabase/La
 | `agents/__init__.py` | Re-export agent public API. |
 | `agents/clinical/__init__.py` | Re-export clinical agent. |
 | `agents/clinical/agent.py` | `ClinicalAgent`, wrapper cho prompt-building behavior của clinical assistant. |
-| `agents/clinical/prompts.py` | System prompt và template prompt dành riêng cho clinical agent. |
+| `agents/clinical/prompts/__init__.py` | Re-export clinical prompt templates và builders. |
+| `agents/clinical/prompts/templates.py` | System prompt và template prompt dành riêng cho clinical agent. |
+| `agents/clinical/prompts/builders.py` | Build prompt body từ patient/alert/history/memory context. |
 
 ### `app/workflows/`
 
@@ -174,7 +170,6 @@ Chứa script vận hành ngoài runtime app, ví dụ SQL setup cho Supabase/La
 |---|---|
 | `services/__init__.py` | Package marker. |
 | `services/agent_service.py` | Application facade cho router. Tạo và gọi workflow tương ứng. |
-| `services/prompt_builder.py` | Build prompt body từ patient/alert/history/memory context. |
 | `services/generation/__init__.py` | Re-export generation service. |
 | `services/generation/generation_service.py` | Điều phối LLM call, retry, parse, repair, normalize contract, clinical safety và fallback. |
 | `services/parsers/__init__.py` | Re-export parser. |
@@ -238,8 +233,6 @@ Ghi chú: `memory/state.py` và `memory/policy.py` vẫn tồn tại như compat
 | `infrastructure/llm/ports/llm_provider.py` | LLM provider protocol, response object, configuration error. |
 | `infrastructure/llm/providers/__init__.py` | Re-export provider implementations. |
 | `infrastructure/llm/providers/openai_provider.py` | OpenAI provider implementation. Chỉ file này phụ thuộc OpenAI SDK. |
-| `infrastructure/observability/__init__.py` | Re-export logging setup. |
-| `infrastructure/observability/logging_config.py` | Configure Python logging cho service. |
 | `infrastructure/resilience/__init__.py` | Re-export retry helpers. |
 | `infrastructure/resilience/retry.py` | Retry policy cho LLM call và repair retry cho parse/contract errors. |
 
@@ -247,8 +240,10 @@ Ghi chú: `memory/state.py` và `memory/policy.py` vẫn tồn tại như compat
 
 | File | Trách nhiệm |
 |---|---|
-| `core/__init__.py` | Package marker. |
+| `core/__init__.py` | Re-export core config, logging và container APIs. |
+| `core/config.py` | Định nghĩa settings/runtime config, đọc env, expose `get_settings()`. |
 | `core/container.py` | Composition root. Tạo repository, LLM provider, generation service, memory workflow, tool registry, agent service. |
+| `core/logging.py` | Configure Python logging cho service. |
 
 ### `app/fixtures/`
 
@@ -274,42 +269,45 @@ Ghi chú: `memory/state.py` và `memory/policy.py` vẫn tồn tại như compat
 
 | Test file | Mục tiêu |
 |---|---|
-| `tests/test_agent_endpoints.py` | Test HTTP endpoints/router behavior. |
-| `tests/test_agent_requests.py` | Test API request schema validation. |
-| `tests/test_agent_service.py` | Test application facade và luồng service chính. |
-| `tests/test_agent_service_factory.py` | Test singleton/factory cho `AgentService`. |
-| `tests/test_chat_memory_policy.py` | Test memory compaction policy. |
-| `tests/test_chat_memory_workflow.py` | Test chat memory workflow và fallback khi backend memory lỗi. |
-| `tests/test_clinical_agent.py` | Test clinical agent prompt-building wrapper. |
-| `tests/test_container.py` | Test composition root wiring. |
-| `tests/test_fallback.py` | Test fallback response builders. |
-| `tests/test_fixture_repositories.py` | Test repository implementation đọc fixture. |
-| `tests/test_fixtures.py` | Test integrity của clinical fixture data. |
-| `tests/test_generation_service.py` | Test generation service parse/repair/fallback behavior. |
-| `tests/test_health.py` | Test health endpoint. |
-| `tests/test_llm_client.py` | Test OpenAI provider configuration behavior. |
-| `tests/test_output_parser.py` | Test parser cho raw LLM output. |
-| `tests/test_prompt_builder.py` | Test prompt builder. |
-| `tests/test_prompts.py` | Test clinical prompt templates. |
-| `tests/test_retry.py` | Test retry/resilience helpers. |
-| `tests/test_safety.py` | Test safety service. |
-| `tests/test_schemas.py` | Test response contract validation. |
-| `tests/test_tools.py` | Test tool contract, registry và patient context tool. |
-| `tests/test_workflows.py` | Test workflow orchestration. |
+| Test file | Mục tiêu |
+|---|---|
+| `tests/agent/test_clinical_agent.py` | Test clinical agent prompt-building wrapper. |
+| `tests/integration/test_agent_endpoints.py` | Test HTTP endpoints/router behavior. |
+| `tests/integration/test_agent_service_factory.py` | Test singleton/factory cho `AgentService`. |
+| `tests/integration/test_container.py` | Test composition root wiring. |
+| `tests/integration/test_health.py` | Test health endpoint. |
+| `tests/unit/test_agent_requests.py` | Test API request schema validation. |
+| `tests/unit/test_chat_memory_policy.py` | Test memory compaction policy. |
+| `tests/unit/test_fallback.py` | Test fallback response builders. |
+| `tests/unit/test_fixture_repositories.py` | Test repository implementation đọc fixture. |
+| `tests/unit/test_fixtures.py` | Test integrity của clinical fixture data. |
+| `tests/unit/test_generation_service.py` | Test generation service parse/repair/fallback behavior. |
+| `tests/unit/test_llm_client.py` | Test OpenAI provider configuration behavior. |
+| `tests/unit/test_output_parser.py` | Test parser cho raw LLM output. |
+| `tests/unit/test_prompt_builder.py` | Test prompt builder. |
+| `tests/unit/test_prompts.py` | Test clinical prompt templates. |
+| `tests/unit/test_retry.py` | Test retry/resilience helpers. |
+| `tests/unit/test_safety.py` | Test safety service. |
+| `tests/unit/test_schemas.py` | Test response contract validation. |
+| `tests/unit/test_tools.py` | Test tool contract, registry và patient context tool. |
+| `tests/workflow/test_agent_service.py` | Test application facade và luồng service chính. |
+| `tests/workflow/test_chat_memory_workflow.py` | Test chat memory workflow và fallback khi backend memory lỗi. |
+| `tests/workflow/test_workflows.py` | Test workflow orchestration. |
 
 ## Part 7. Nên Đặt Code Mới Ở Đâu?
 
 | Nhu cầu mới | Đặt ở đâu |
 |---|---|
-| Endpoint HTTP mới | `app/routers/` và schema trong `app/api/schemas/` |
+| Endpoint HTTP mới | Router trong `app/api/routers/`, controller trong `app/api/controllers/`, schema trong `app/api/schemas/` |
 | Use case orchestration mới | `app/workflows/` |
-| Agent mới | `app/agents/<agent_name>/agent.py` và prompt trong cùng package |
+| Agent mới | `app/agents/<agent_name>/agent.py` và prompt trong `app/agents/<agent_name>/prompts/` |
 | LLM provider mới | `app/infrastructure/llm/providers/` và port nếu cần trong `ports/` |
 | Tool mới | Port trong `app/tools/ports/`, implementation trong `app/tools/<domain>/`, đăng ký trong `core/container.py` |
 | Repository thật như Postgres | `app/repositories/postgres/`, implement protocol trong `repositories/ports/` |
 | Memory provider/checkpointer mới | `app/memory/checkpointer/` hoặc package con tương ứng trong `app/memory/` |
 | Retry/circuit breaker/rate limit | `app/infrastructure/resilience/` |
-| Logging/tracing/metrics | `app/infrastructure/observability/` |
+| Logging setup cơ bản | `app/core/logging.py` |
+| Tracing/metrics production | Tạo package mới trong `app/infrastructure/observability/` khi có nhu cầu thật |
 | Parser mới | `app/services/parsers/` |
 | Fallback logic | `app/services/fallback/` |
 | Safety rule | `app/services/safety/` |
@@ -325,9 +323,12 @@ Các file sau từng nằm trực tiếp trong `app/`, nhưng đã được bỏ
 | `app/llm_client.py` | `app/infrastructure/llm/providers/openai_provider.py` |
 | `app/safety.py` | `app/services/safety/safety_service.py` |
 | `app/fallback.py` | `app/services/fallback/fallback_service.py` |
-| `app/prompts.py` | `app/agents/clinical/prompts.py` |
+| `app/prompts.py` | `app/agents/clinical/prompts/templates.py` |
 | `app/retry.py` | `app/infrastructure/resilience/retry.py` |
-| `app/logging_config.py` | `app/infrastructure/observability/logging_config.py` |
+| `app/logging_config.py` | `app/core/logging.py` |
+| `app/config.py` | `app/core/config.py` |
+| `app/routers/agent.py` | `app/api/routers/agent.py` và `app/api/controllers/agent_controller.py` |
+| `app/services/prompt_builder.py` | `app/agents/clinical/prompts/builders.py` |
 
 ## Part 9. Kiểm Tra Sau Refactor
 

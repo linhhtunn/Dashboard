@@ -1,18 +1,16 @@
 FROM python:3.12-slim AS builder
 
+# Copy uv binary into the image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    VIRTUAL_ENV=/opt/venv
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
 WORKDIR /build
 
-RUN python -m venv "$VIRTUAL_ENV"
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-COPY requirements.txt .
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
 
 
 FROM python:3.12-slim AS runtime
@@ -28,6 +26,7 @@ WORKDIR /app
 RUN addgroup --system app \
     && adduser --system --ingroup app app
 
+# Copy virtual environment from builder stage
 COPY --from=builder /opt/venv /opt/venv
 COPY app ./app
 COPY scripts ./scripts

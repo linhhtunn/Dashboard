@@ -17,3 +17,5 @@ jira_scrum_backlog_import.csv
 .claude
 CLAUDE.md
 AGENTS.md
+backend/.venv
+*.json

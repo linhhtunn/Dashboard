@@ -12,7 +12,7 @@ Mục tiêu của service là luôn trả về `Contract 6 v1` JSON để fronte
 
 ```bash
 cd /home/cuong/Desktop/python/VinUni/software-engineering/backend/ai_agent
-../../.venv/bin/python -m uvicorn app.main:app --reload --port 8005
+uv run uvicorn app.main:app --reload --port 8005
 ```
 
 Health check:
@@ -335,7 +335,7 @@ Mục tiêu của service là luôn trả về `Contract 6 v1` JSON để fronte
 
 ```bash
 cd /home/cuong/Desktop/python/VinUni/software-engineering/backend/ai_agent
-../../.venv/bin/python -m uvicorn app.main:app --reload --port 8005
+uv run uvicorn app.main:app --reload --port 8005
 ```
 
 Health check:
