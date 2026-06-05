@@ -1,148 +1,152 @@
-# Biosignal Simulator
+# Wearable Simulator v2
 
-This package generates synthetic biosignal data for one patient.
+This package generates synthetic wearable data for one patient.
 
-The generated raw message intentionally does not include units, context, activity
-state, or ground-truth labels. Units are fixed by the data contract. Context and
-labels are exported separately through `scenario_ground_truth`.
+The active simulator flow is wearable v2. It no longer emits the old v1
+`activity_timeline`, `generated_vitals`, or `scenario_ground_truth` files.
 
-## Generate P001 Sample
+## Run
 
-Run from the repository root:
+From the repository root:
 
 ```bash
-python -m backend.simulator.generate_patient_simulation --config backend/simulator/config/default_generation_config.py
 python -m backend.simulator.generate_patient_simulation
 ```
 
-Default outputs:
+Default run-level settings live in:
 
 ```text
-backend/simulator/output/activity_timeline_P001_2h.json
-backend/simulator/output/generated_vitals_P001_2h.jsonl
-backend/simulator/output/scenario_ground_truth_P001_2h.json
-backend/simulator/output/fault_log_P001_2h.json
+backend/simulator/config/default_generation_config.py
 ```
 
-## Design
+The non-tech config selects the patient, health mode, start time, duration,
+seed, and whether wearable fault injection is enabled.
 
-- `config/patient_profiles.json`: synthetic patient baselines by age/subject group.
-- `config/default_generation_config.py`: run-level settings such as patient, start time, seed, output names, and timeline.
-- `generation_config.py`: parser for generation config.
-- `rules.py`: ranges and activity effects based on `biosignal_reference_summary.md`.
-- `timeline.py`: fixed/template/generated activity timeline and ground-truth/context export.
-- `signals.py`: Monte Carlo target sampling, temporal smoothing, and IMU variance.
-- `faults.py`: probability-based data-quality fault injection for Team 2 validation.
-- `generate_patient_simulation.py`: CLI entry point.
+## Active Outputs
 
-The default config now uses a generated 2-hour timeline:
+Generated files are written to:
 
 ```text
-TIMELINE_MODE = "generated"
-GENERATED_TIMELINE_RULES = {...}
-MICRO_EVENT_RULES = {...}
+backend/simulator/output/
 ```
 
-The generator uses a simple Markov-style transition matrix for macro activity
-blocks, then applies configured anchor segments for demo windows such as walking
-or vigorous activity. Human behavior inside a macro activity is modeled as
-unlabeled behavior noise, not as a long list of explicit events. For example,
-when someone is sitting, the simulator does not need to know whether they are
-talking, annoyed, laughing, or shifting posture; it only adds short hidden
-variability pulses that affect HR, HRV, BP, accelerometer, or gyroscope
-behavior. Some pulses are small, while rare strong pulses can be larger as long
-as they are short and recover instead of becoming a sustained abnormal pattern.
+Clean wearable outputs:
 
-Most values that change between runs should live in
-`config/default_generation_config.py`, not in generator code:
-
-```python
-PATIENT_ID = "P001"
-START_TIME = "2026-06-03T10:00:00Z"
-SAMPLING_INTERVAL_SECONDS = 1
-SEED = 42
-OUTPUT_DIR = SIMULATOR_DIR / "output"
-FILE_SUFFIX_TEMPLATE = "{patient_id}_{duration_label}"
+```text
+wearable_continuous_{suffix}.jsonl
+wearable_spo2_triggered_{suffix}.jsonl
+wearable_ecg_triggered_{suffix}.jsonl
+sleep_timeline_{suffix}.json
+sleep_metrics_{suffix}.json
+daily_metrics_{suffix}.json
 ```
 
-To generate one message every 5 seconds, change:
+Faulty test outputs, when `FAULT_INJECTION_ENABLED = True`:
 
-```python
-SAMPLING_INTERVAL_SECONDS = 5
+```text
+faulty_wearable_continuous_{suffix}.jsonl
+faulty_wearable_spo2_triggered_{suffix}.jsonl
+faulty_wearable_ecg_triggered_{suffix}.jsonl
+wearable_fault_log_{suffix}.json
 ```
 
-To increase or decrease the total generated duration, keep
-`TIMELINE_MODE = "generated"` and edit:
+See the full output contract:
+
+```text
+backend/simulator/docs/wearable_simulator_expected_output.md
+```
+
+## Active v2 Files
+
+- `generate_patient_simulation.py`: main CLI entry point.
+- `generation_config.py`: loads the v2 run config and output file names.
+- `profile_generator.py`: Monte Carlo patient profile generator.
+- `profiles.py`: loads patient profiles.
+- `wearable_timeline.py`: generates master sleep/activity timeline.
+- `wearable_signals.py`: generates continuous, triggered, and daily wearable signals.
+- `wearable_faults.py`: injects wearable-aware data quality faults.
+- `exporters.py`: writes JSON and JSONL files.
+- `config/default_generation_config.py`: non-tech run config for one generated user.
+- `config/profile_generation_config.py`: demographic, pregnancy, lifestyle, and risk profile rules.
+- `config/wearable_reference_config.py`: activity effects, sleep rules, signal noise rules.
+- `config/wearable_dev_config.py`: output file names, windows, trigger schedule, ECG config.
+- `config/fault_injector_config.py`: wearable fault injection probabilities.
+
+## Wearable v2 Logic
+
+Continuous output is emitted every second.
+
+`heart_rate` and `respiratory_rate` are sliding-window estimates:
 
 ```python
-GENERATED_TIMELINE_RULES = {
-    "duration_minutes": 120,
-    ...
+WINDOWS = {
+    "heart_rate_seconds": 30,
+    "respiratory_rate_seconds": 60,
 }
 ```
 
-The output file suffix uses `{duration_label}`, so names update automatically,
-such as `P001_2h` or `P001_90m`.
+Continuous fields:
 
-Timeline modes:
-
-```python
-TIMELINE_MODE = "fixed"  # fixed | template | generated
-FIXED_TIMELINE_SEGMENTS = [...]
-TIMELINE_TEMPLATE_NAME = None
-TIMELINE_TEMPLATES = {...}
-GENERATED_TIMELINE_RULES = {...}
-MICRO_EVENT_RULES = {...}
-BEHAVIOR_NOISE_CONFIG = {...}
+```text
+steps
+heart_rate
+respiratory_rate
+stress_score
 ```
 
-`fixed` is useful for exact deterministic demos. `template` selects a named
-timeline template. `generated` uses the Markov-style generator plus optional
-anchors. `MICRO_EVENT_RULES` is optional and disabled by default; use it only if
-you intentionally want labeled context events in timeline/ground-truth files.
-For normal realism, prefer `BEHAVIOR_NOISE_CONFIG`.
+Triggered fields:
 
-Behavior noise is controlled here:
-
-```python
-BEHAVIOR_NOISE_CONFIG = {
-    "enabled": True,
-    "probability_per_minute": 0.18,
-    "activity_multipliers": {...},
-    "profiles": [
-        {"name": "minor_variability", "weight": 0.65, ...},
-        {"name": "moderate_transient", "weight": 0.28, ...},
-        {"name": "strong_short_spike", "weight": 0.07, ...},
-    ],
-}
+```text
+spo2
+ecg waveform points
 ```
 
-Fault injection is controlled here:
+Daily fields:
 
-```python
-FAULT_INJECTOR_CONFIG = {
-    "enabled": True,
-    "max_faults": 20,
-    "probabilities": {
-        "missing_timestamp": 0.0010,
-        "missing_patient_id": 0.0008,
-        "missing_signal": 0.0010,
-        "invalid_heart_rate": 0.0012,
-        "invalid_spo2": 0.0012,
-        "duplicate_message": 0.0010,
-        "out_of_order_timestamp": 0.0010,
-    },
-}
+```text
+hrv_rmssd_morning
 ```
 
-The generated vitals JSONL may contain intentionally faulty messages when this
-is enabled. `fault_log_P001_2h.json` records which messages were modified.
-Turn `enabled` to `False` when you need a clean-only stream.
+Sleep is generated as a night block with realistic jitter, stage cycles, and
+micro-awake segments. `sleep_metrics` is derived from `sleep_timeline`; it is
+not random and does not emit `good/fair/poor` labels.
 
-CLI flags such as `--patient-id`, `--start-time`, `--seed`, and `--output-dir`
-exist only for quick local overrides.
+## Legacy v1 Files
 
-## Replay to RabbitMQ
+These files still exist for historical/reference purposes, but they are not used
+by the current `generate_patient_simulation.py` flow:
 
-RabbitMQ code lives in `backend/rabbit_mq` so Team 1/2/3 can share the same
-topology and connection utilities. See `backend/rabbit_mq/README.md`.
+```text
+timeline.py
+signals.py
+rules.py
+signal_expectations.py
+faults.py
+config/timeline_generation_config.py
+config/behavior_noise_config.py
+```
+
+Do not build new Team 1/2/3 integration against those v1 outputs unless the
+team explicitly decides to revive the old biosignal contract.
+
+## Quick Checks
+
+Compile:
+
+```bash
+python -m compileall -q backend/simulator
+```
+
+Generate:
+
+```bash
+python -m backend.simulator.generate_patient_simulation
+```
+
+Expected for a 24h run:
+
+```text
+wearable_continuous...jsonl -> 86400 clean records
+faulty_wearable_continuous...jsonl -> may differ because of missing/duplicate records
+wearable_fault_log...json -> records injected data quality faults
+```

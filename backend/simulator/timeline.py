@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from backend.simulator.generation_config import TimelineConfig, TimelineSegmentConfig
 from backend.simulator.models import ActivitySegment, PatientProfile, format_utc_datetime
 from backend.simulator.rules import get_activity_rule
+from backend.simulator.signal_expectations import personalized_signal_range
 
 
 def _segment_config_to_segment(
@@ -58,12 +59,19 @@ def _duration_for_activity(rng: random.Random, rules: dict, activity_state: str,
     return max(1, min(duration, remaining))
 
 
+def _intensity_for_activity(rng: random.Random, rules: dict, activity_state: str) -> str:
+    intensity_options = rules.get("intensity_options_by_activity", {}).get(activity_state)
+    if intensity_options:
+        return _weighted_choice(rng, intensity_options)
+    default_intensity = rules.get("default_intensity_by_activity", {})
+    return default_intensity.get(activity_state, "normal")
+
+
 def _generate_macro_segments(config: TimelineConfig) -> list[TimelineSegmentConfig]:
     rules = config.generated_rules or {}
     rng = random.Random(int(rules.get("seed", 42)))
     duration_seconds = int(rules.get("duration_minutes", 120)) * 60
     start_activity = rules.get("start_activity", "sitting")
-    default_intensity = rules.get("default_intensity_by_activity", {})
     transition_matrix = rules.get("transition_matrix", {})
 
     segments: list[TimelineSegmentConfig] = []
@@ -75,7 +83,7 @@ def _generate_macro_segments(config: TimelineConfig) -> list[TimelineSegmentConf
         segments.append(
             TimelineSegmentConfig(
                 activity_state=current_activity,
-                activity_intensity=default_intensity.get(current_activity, "normal"),
+                activity_intensity=_intensity_for_activity(rng, rules, current_activity),
                 start_second=current_second,
                 end_second=current_second + segment_duration,
                 source="generated_markov",
@@ -87,78 +95,6 @@ def _generate_macro_segments(config: TimelineConfig) -> list[TimelineSegmentConf
             current_activity = _weighted_choice(rng, transitions)
 
     return segments
-
-
-def _anchor_from_dict(data: dict) -> TimelineSegmentConfig:
-    if "start_second" in data and "end_second" in data:
-        start_second = int(data["start_second"])
-        end_second = int(data["end_second"])
-    else:
-        start_second = int(data["start_minute"]) * 60
-        end_second = int(data["end_minute"]) * 60
-
-    return TimelineSegmentConfig(
-        activity_state=data["activity_state"],
-        activity_intensity=data.get("activity_intensity", "normal"),
-        start_second=start_second,
-        end_second=end_second,
-        event_type=data.get("event_type"),
-        ground_truth_label=data.get("ground_truth_label", "NORMAL"),
-        expected_severity=data.get("expected_severity", "LOW"),
-        context_event=data.get("context_event"),
-        context_effects=data.get("context_effects"),
-        source="generated_anchor",
-    )
-
-
-def _apply_anchor_segments(
-    segments: list[TimelineSegmentConfig],
-    config: TimelineConfig,
-) -> list[TimelineSegmentConfig]:
-    rules = config.generated_rules or {}
-    anchors = [_anchor_from_dict(item) for item in rules.get("anchor_segments", [])]
-    if not anchors:
-        return segments
-
-    output = list(segments)
-    for anchor in sorted(anchors, key=lambda item: item.start_second):
-        updated: list[TimelineSegmentConfig] = []
-        for segment in output:
-            if segment.end_second <= anchor.start_second or segment.start_second >= anchor.end_second:
-                updated.append(segment)
-                continue
-            if segment.start_second < anchor.start_second:
-                updated.append(
-                    TimelineSegmentConfig(
-                        activity_state=segment.activity_state,
-                        activity_intensity=segment.activity_intensity,
-                        start_second=segment.start_second,
-                        end_second=anchor.start_second,
-                        ground_truth_label=segment.ground_truth_label,
-                        expected_severity=segment.expected_severity,
-                        context_event=segment.context_event,
-                        context_effects=segment.context_effects,
-                        source=segment.source,
-                    )
-                )
-            if segment.end_second > anchor.end_second:
-                updated.append(
-                    TimelineSegmentConfig(
-                        activity_state=segment.activity_state,
-                        activity_intensity=segment.activity_intensity,
-                        start_second=anchor.end_second,
-                        end_second=segment.end_second,
-                        ground_truth_label=segment.ground_truth_label,
-                        expected_severity=segment.expected_severity,
-                        context_event=segment.context_event,
-                        context_effects=segment.context_effects,
-                        source=segment.source,
-                    )
-                )
-        updated.append(anchor)
-        output = sorted(updated, key=lambda item: item.start_second)
-
-    return output
 
 
 def _can_place_micro_event(start: int, end: int, placements: list[tuple[int, int]], min_gap: int) -> bool:
@@ -274,8 +210,6 @@ def _inject_micro_events(segments: list[TimelineSegmentConfig], config: Timeline
 
 def build_timeline(profile: PatientProfile, config: TimelineConfig) -> list[ActivitySegment]:
     segment_configs = _generate_macro_segments(config) if config.mode == "generated" else list(config.segments)
-    if config.mode == "generated":
-        segment_configs = _apply_anchor_segments(segment_configs, config)
     segment_configs = _inject_micro_events(segment_configs, config)
     return [
         _segment_config_to_segment(profile, config, segment_config, index)
@@ -342,11 +276,36 @@ def ground_truth_to_json(
                     "activity_intensity": segment.activity_intensity,
                     "context_event": segment.context_event,
                     "context_effects": segment.context_effects,
-                    "heart_rate_range": rule.heart_rate.as_list(),
-                    "hrv_rmssd_range": rule.hrv_rmssd.as_list(),
-                    "systolic_bp_range": rule.systolic_bp.as_list(),
-                    "diastolic_bp_range": rule.diastolic_bp.as_list(),
-                    "spo2_range": rule.spo2.as_list(),
+                    "heart_rate_range": personalized_signal_range(
+                        profile,
+                        rule,
+                        segment.activity_intensity,
+                        "heart_rate",
+                    ).as_list(),
+                    "hrv_rmssd_range": personalized_signal_range(
+                        profile,
+                        rule,
+                        segment.activity_intensity,
+                        "hrv_rmssd",
+                    ).as_list(),
+                    "systolic_bp_range": personalized_signal_range(
+                        profile,
+                        rule,
+                        segment.activity_intensity,
+                        "systolic_bp",
+                    ).as_list(),
+                    "diastolic_bp_range": personalized_signal_range(
+                        profile,
+                        rule,
+                        segment.activity_intensity,
+                        "diastolic_bp",
+                    ).as_list(),
+                    "spo2_range": personalized_signal_range(
+                        profile,
+                        rule,
+                        segment.activity_intensity,
+                        "spo2",
+                    ).as_list(),
                     "acc_magnitude_range": rule.acc_magnitude.as_list(),
                     "gyro_magnitude_range": rule.gyro_magnitude.as_list(),
                     "source": "biosignal_reference_summary.md",

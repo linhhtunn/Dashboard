@@ -8,6 +8,7 @@ from typing import Iterator
 
 from backend.simulator.models import ActivitySegment, PatientProfile, format_utc_datetime
 from backend.simulator.rules import INTENSITY_MULTIPLIER, get_activity_rule
+from backend.simulator.signal_expectations import expected_signal_centers, personalized_signal_range
 from backend.simulator.timeline import find_segment
 
 
@@ -18,6 +19,13 @@ class SignalState:
     systolic_bp: float
     diastolic_bp: float
     spo2: float
+
+
+@dataclass
+class LatentSignalState:
+    autonomic: float = 0.0
+    vascular: float = 0.0
+    oxygen: float = 0.0
 
 
 @dataclass
@@ -40,29 +48,74 @@ def _rr_interval_ms(heart_rate: float) -> int:
     return int(round(60000 / heart_rate))
 
 
+def _ou_step(previous: float, rng: random.Random, theta: float, sigma: float, dt: int) -> float:
+    reversion = min(1.0, theta * max(dt, 1))
+    return previous + reversion * (0.0 - previous) + rng.gauss(0, sigma * math.sqrt(max(dt, 1)))
+
+
+def _advance_latent_state(latent: LatentSignalState, rng: random.Random, sampling_interval_seconds: int) -> LatentSignalState:
+    return LatentSignalState(
+        autonomic=_ou_step(latent.autonomic, rng, theta=0.018, sigma=0.18, dt=sampling_interval_seconds),
+        vascular=_ou_step(latent.vascular, rng, theta=0.006, sigma=0.06, dt=sampling_interval_seconds),
+        oxygen=_ou_step(latent.oxygen, rng, theta=0.020, sigma=0.018, dt=sampling_interval_seconds),
+    )
+
+
 def _target_state(
     profile: PatientProfile,
     segment: ActivitySegment,
     rng: random.Random,
+    latent: LatentSignalState,
     behavior_effects: dict[str, float] | None = None,
 ) -> SignalState:
     rule = get_activity_rule(segment.activity_state)
-    multiplier = INTENSITY_MULTIPLIER.get(segment.activity_intensity, 1.0)
     context_effects = _combined_effects(segment, behavior_effects)
+    centers = expected_signal_centers(profile, rule, segment.activity_intensity)
+    baseline_hr_delta = centers["heart_rate"] - profile.baseline.heart_rate
+    context_hr_delta = context_effects.get("heart_rate_delta", 0.0)
+    shared_hr_pressure = max(0.0, baseline_hr_delta + context_hr_delta + latent.autonomic)
 
-    hr_delta = rng.gauss(rule.hr_delta_mean * multiplier, rule.hr_delta_std) + context_effects.get("heart_rate_delta", 0)
-    hrv_delta = rule.hrv_delta_mean * multiplier + rng.gauss(0, 2.0) + context_effects.get("hrv_rmssd_delta", 0)
-    sbp_delta = rule.systolic_delta_mean * multiplier + rng.gauss(0, 2.0) + context_effects.get("systolic_bp_delta", 0)
-    dbp_delta = rule.diastolic_delta_mean * multiplier + rng.gauss(0, 1.2) + context_effects.get("diastolic_bp_delta", 0)
-    spo2_delta = rule.spo2_delta_mean * multiplier + rng.gauss(0, 0.15) + context_effects.get("spo2_delta", 0)
+    heart_rate = (
+        centers["heart_rate"]
+        + context_hr_delta
+        + latent.autonomic
+        + rng.gauss(0, max(rule.hr_delta_std * 0.25, 0.55))
+    )
+    hrv_rmssd = (
+        centers["hrv_rmssd"]
+        + context_effects.get("hrv_rmssd_delta", 0.0)
+        - shared_hr_pressure * 0.24
+        + min(0.0, latent.autonomic) * 0.08
+        + rng.gauss(0, 0.9)
+    )
+    systolic_bp = (
+        centers["systolic_bp"]
+        + context_effects.get("systolic_bp_delta", 0.0)
+        + latent.vascular
+        + shared_hr_pressure * 0.10
+        + rng.gauss(0, 0.75)
+    )
+    diastolic_bp = (
+        centers["diastolic_bp"]
+        + context_effects.get("diastolic_bp_delta", 0.0)
+        + latent.vascular * 0.45
+        + shared_hr_pressure * 0.035
+        + rng.gauss(0, 0.45)
+    )
+    spo2 = (
+        centers["spo2"]
+        + context_effects.get("spo2_delta", 0.0)
+        + latent.oxygen
+        - max(0.0, baseline_hr_delta) * 0.003
+        + rng.gauss(0, 0.035)
+    )
 
-    baseline = profile.baseline
     return SignalState(
-        heart_rate=rule.heart_rate.clamp(baseline.heart_rate + hr_delta),
-        hrv_rmssd=rule.hrv_rmssd.clamp(baseline.hrv_rmssd + hrv_delta),
-        systolic_bp=rule.systolic_bp.clamp(baseline.systolic_bp + sbp_delta),
-        diastolic_bp=rule.diastolic_bp.clamp(baseline.diastolic_bp + dbp_delta),
-        spo2=rule.spo2.clamp(baseline.spo2 + spo2_delta),
+        heart_rate=personalized_signal_range(profile, rule, segment.activity_intensity, "heart_rate").clamp(heart_rate),
+        hrv_rmssd=personalized_signal_range(profile, rule, segment.activity_intensity, "hrv_rmssd").clamp(hrv_rmssd),
+        systolic_bp=personalized_signal_range(profile, rule, segment.activity_intensity, "systolic_bp").clamp(systolic_bp),
+        diastolic_bp=personalized_signal_range(profile, rule, segment.activity_intensity, "diastolic_bp").clamp(diastolic_bp),
+        spo2=personalized_signal_range(profile, rule, segment.activity_intensity, "spo2").clamp(spo2),
     )
 
 
@@ -214,10 +267,12 @@ def generate_vitals_messages(
         spo2=profile.baseline.spo2,
     )
     behavior_pulse: BehaviorNoisePulse | None = None
+    latent = LatentSignalState()
 
     for message_index, second in enumerate(range(0, total_seconds, sampling_interval_seconds), start=1):
         segment = find_segment(segments, second)
         rule = get_activity_rule(segment.activity_state)
+        latent = _advance_latent_state(latent, rng, sampling_interval_seconds)
         behavior_pulse, behavior_effects = _advance_behavior_noise_pulse(
             behavior_pulse,
             segment,
@@ -225,22 +280,27 @@ def generate_vitals_messages(
             behavior_noise_config,
             sampling_interval_seconds,
         )
-        target = _target_state(profile, segment, rng, behavior_effects)
+        target = _target_state(profile, segment, rng, latent, behavior_effects)
+        heart_rate_range = personalized_signal_range(profile, rule, segment.activity_intensity, "heart_rate")
+        hrv_range = personalized_signal_range(profile, rule, segment.activity_intensity, "hrv_rmssd")
+        systolic_range = personalized_signal_range(profile, rule, segment.activity_intensity, "systolic_bp")
+        diastolic_range = personalized_signal_range(profile, rule, segment.activity_intensity, "diastolic_bp")
+        spo2_range = personalized_signal_range(profile, rule, segment.activity_intensity, "spo2")
 
         current = SignalState(
-            heart_rate=rule.heart_rate.clamp(
+            heart_rate=heart_rate_range.clamp(
                 _smooth(current.heart_rate, target.heart_rate, alpha=0.075, noise=rng.gauss(0, 0.45))
             ),
-            hrv_rmssd=rule.hrv_rmssd.clamp(
+            hrv_rmssd=hrv_range.clamp(
                 _smooth(current.hrv_rmssd, target.hrv_rmssd, alpha=0.06, noise=rng.gauss(0, 0.65))
             ),
-            systolic_bp=rule.systolic_bp.clamp(
+            systolic_bp=systolic_range.clamp(
                 _smooth(current.systolic_bp, target.systolic_bp, alpha=0.025, noise=rng.gauss(0, 0.35))
             ),
-            diastolic_bp=rule.diastolic_bp.clamp(
+            diastolic_bp=diastolic_range.clamp(
                 _smooth(current.diastolic_bp, target.diastolic_bp, alpha=0.025, noise=rng.gauss(0, 0.22))
             ),
-            spo2=rule.spo2.clamp(
+            spo2=spo2_range.clamp(
                 _smooth(current.spo2, target.spo2, alpha=0.035, noise=rng.gauss(0, 0.04))
             ),
         )

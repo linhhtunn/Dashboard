@@ -11,10 +11,16 @@ DEFAULT_CONFIG_PATH = Path(__file__).parent / "config" / "default_generation_con
 
 @dataclass(frozen=True)
 class OutputFileConfig:
-    activity_timeline: str
-    generated_vitals: str
-    scenario_ground_truth: str
-    fault_log: str
+    wearable_continuous: str
+    wearable_spo2_triggered: str
+    wearable_ecg_triggered: str
+    faulty_wearable_continuous: str
+    faulty_wearable_spo2_triggered: str
+    faulty_wearable_ecg_triggered: str
+    wearable_fault_log: str
+    sleep_timeline: str
+    sleep_metrics: str
+    daily_metrics: str
 
 
 @dataclass(frozen=True)
@@ -36,16 +42,9 @@ class TimelineSegmentConfig:
 class TimelineConfig:
     segments: list[TimelineSegmentConfig]
     scenario_id_template: str = "SCN_NORMAL_{patient_id}_{index:03d}"
-    mode: str = "fixed"
+    mode: str = "generated"
     generated_rules: dict[str, Any] | None = None
     micro_event_rules: dict[str, Any] | None = None
-
-
-@dataclass(frozen=True)
-class FaultInjectorConfig:
-    enabled: bool
-    probabilities: dict[str, float]
-    max_faults: int | None = None
 
 
 @dataclass(frozen=True)
@@ -56,20 +55,18 @@ class GenerationConfig:
     profiles_path: Path
     output_dir: Path
     start_time: str
-    sampling_interval_seconds: int
+    duration_hours: int
     seed: int
     file_suffix_template: str
     output_files: OutputFileConfig
-    timeline: TimelineConfig
-    fault_injector: FaultInjectorConfig
-    behavior_noise: dict[str, Any]
+    profile_generator: dict[str, Any]
+    wearable: dict[str, Any]
+    wearable_fault_injector: dict[str, Any]
     layers: dict[str, Any]
 
     @property
     def duration_seconds(self) -> int:
-        if self.timeline.mode == "generated" and self.timeline.generated_rules:
-            return int(self.timeline.generated_rules.get("duration_minutes", 120)) * 60
-        return max(segment.end_second for segment in self.timeline.segments)
+        return int(self.duration_hours) * 3600
 
     @property
     def duration_label(self) -> str:
@@ -85,7 +82,6 @@ class GenerationConfig:
         return self.file_suffix_template.format(
             patient_id=self.patient_id,
             run_name=self.run_name,
-            sampling_interval_seconds=self.sampling_interval_seconds,
             duration_seconds=self.duration_seconds,
             duration_label=self.duration_label,
         )
@@ -96,66 +92,10 @@ class GenerationConfig:
             patient_id=self.patient_id,
             run_name=self.run_name,
             suffix=self.file_suffix,
-            sampling_interval_seconds=self.sampling_interval_seconds,
             duration_seconds=self.duration_seconds,
             duration_label=self.duration_label,
         )
         return self.output_dir / filename
-
-
-def _resolve_path(value: str | Path, base_dir: Path) -> Path:
-    path = Path(value)
-    if path.is_absolute():
-        return path
-    return (base_dir / path).resolve()
-
-
-def _segment_from_dict(data: dict[str, Any]) -> TimelineSegmentConfig:
-    if "start_second" in data and "end_second" in data:
-        start_second = int(data["start_second"])
-        end_second = int(data["end_second"])
-    else:
-        start_second = int(data["start_minute"]) * 60
-        end_second = int(data["end_minute"]) * 60
-
-    if end_second <= start_second:
-        raise ValueError(f"Invalid timeline segment: end_second <= start_second: {data}")
-
-    return TimelineSegmentConfig(
-        scenario_id=data.get("scenario_id"),
-        event_type=data.get("event_type"),
-        activity_state=data["activity_state"],
-        activity_intensity=data.get("activity_intensity", "normal"),
-        start_second=start_second,
-        end_second=end_second,
-        ground_truth_label=data.get("ground_truth_label", "NORMAL"),
-        expected_severity=data.get("expected_severity", "LOW"),
-        context_event=data.get("context_event"),
-        context_effects=data.get("context_effects"),
-        source=data.get("source", "configured"),
-    )
-
-
-def _load_timeline(data: dict[str, Any]) -> TimelineConfig:
-    segments = [_segment_from_dict(item) for item in data["segments"]]
-    return TimelineConfig(
-        segments=segments,
-        scenario_id_template=data.get("scenario_id_template", "SCN_NORMAL_{patient_id}_{index:03d}"),
-        mode=data.get("mode", "fixed"),
-        generated_rules=data.get("generated_rules"),
-        micro_event_rules=data.get("micro_event_rules"),
-    )
-
-
-def _load_fault_injector(module: Any) -> FaultInjectorConfig:
-    config = getattr(module, "FAULT_INJECTOR_CONFIG", None)
-    if not config:
-        return FaultInjectorConfig(enabled=False, probabilities={}, max_faults=None)
-    return FaultInjectorConfig(
-        enabled=bool(config.get("enabled", False)),
-        probabilities=dict(config.get("probabilities", {})),
-        max_faults=config.get("max_faults"),
-    )
 
 
 def _load_python_config(path: Path) -> Any:
@@ -170,24 +110,7 @@ def _load_python_config(path: Path) -> Any:
 def load_generation_config(path: Path = DEFAULT_CONFIG_PATH) -> GenerationConfig:
     config_path = path.resolve()
     module = _load_python_config(config_path)
-    timeline_mode = getattr(module, "TIMELINE_MODE", "fixed")
-    supported_timeline_modes = {"fixed", "template", "generated"}
-    if timeline_mode not in supported_timeline_modes:
-        known = ", ".join(sorted(supported_timeline_modes))
-        raise NotImplementedError(
-            f"TIMELINE_MODE={timeline_mode!r} is not implemented. Known: {known}"
-        )
-
     output_files_data = getattr(module, "OUTPUT_FILES", {})
-    if timeline_mode == "template":
-        template_name = getattr(module, "TIMELINE_TEMPLATE_NAME", None)
-        templates = getattr(module, "TIMELINE_TEMPLATES", {})
-        if not template_name or template_name not in templates:
-            known = ", ".join(sorted(templates))
-            raise ValueError(f"Unknown TIMELINE_TEMPLATE_NAME={template_name!r}. Known: {known}")
-        timeline_segments = templates[template_name]
-    else:
-        timeline_segments = getattr(module, "FIXED_TIMELINE_SEGMENTS", [])
 
     return GenerationConfig(
         config_path=config_path,
@@ -196,27 +119,42 @@ def load_generation_config(path: Path = DEFAULT_CONFIG_PATH) -> GenerationConfig
         profiles_path=Path(module.PROFILES_PATH).resolve(),
         output_dir=Path(module.OUTPUT_DIR).resolve(),
         start_time=module.START_TIME,
-        sampling_interval_seconds=int(getattr(module, "SAMPLING_INTERVAL_SECONDS", 1)),
+        duration_hours=int(getattr(module, "DURATION_HOURS", 24)),
         seed=int(getattr(module, "SEED", 42)),
         file_suffix_template=getattr(module, "FILE_SUFFIX_TEMPLATE", "{patient_id}_{duration_label}"),
         output_files=OutputFileConfig(
-            activity_timeline=output_files_data.get("activity_timeline", "activity_timeline_{suffix}.json"),
-            generated_vitals=output_files_data.get("generated_vitals", "generated_vitals_{suffix}.jsonl"),
-            scenario_ground_truth=output_files_data.get(
-                "scenario_ground_truth",
-                "scenario_ground_truth_{suffix}.json",
+            wearable_continuous=output_files_data.get(
+                "wearable_continuous",
+                "wearable_continuous_{suffix}.jsonl",
             ),
-            fault_log=output_files_data.get("fault_log", "fault_log_{suffix}.json"),
+            wearable_spo2_triggered=output_files_data.get(
+                "wearable_spo2_triggered",
+                "wearable_spo2_triggered_{suffix}.jsonl",
+            ),
+            wearable_ecg_triggered=output_files_data.get(
+                "wearable_ecg_triggered",
+                "wearable_ecg_triggered_{suffix}.jsonl",
+            ),
+            faulty_wearable_continuous=output_files_data.get(
+                "faulty_wearable_continuous",
+                "faulty_wearable_continuous_{suffix}.jsonl",
+            ),
+            faulty_wearable_spo2_triggered=output_files_data.get(
+                "faulty_wearable_spo2_triggered",
+                "faulty_wearable_spo2_triggered_{suffix}.jsonl",
+            ),
+            faulty_wearable_ecg_triggered=output_files_data.get(
+                "faulty_wearable_ecg_triggered",
+                "faulty_wearable_ecg_triggered_{suffix}.jsonl",
+            ),
+            wearable_fault_log=output_files_data.get("wearable_fault_log", "wearable_fault_log_{suffix}.json"),
+            sleep_timeline=output_files_data.get("sleep_timeline", "sleep_timeline_{suffix}.json"),
+            sleep_metrics=output_files_data.get("sleep_metrics", "sleep_metrics_{suffix}.json"),
+            daily_metrics=output_files_data.get("daily_metrics", "daily_metrics_{suffix}.json"),
         ),
-        timeline=TimelineConfig(
-            segments=[_segment_from_dict(item) for item in timeline_segments],
-            scenario_id_template=getattr(module, "SCENARIO_ID_TEMPLATE", "SCN_NORMAL_{patient_id}_{index:03d}"),
-            mode=timeline_mode,
-            generated_rules=getattr(module, "GENERATED_TIMELINE_RULES", None),
-            micro_event_rules=getattr(module, "MICRO_EVENT_RULES", None),
-        ),
-        fault_injector=_load_fault_injector(module),
-        behavior_noise=getattr(module, "BEHAVIOR_NOISE_CONFIG", {}),
+        profile_generator=getattr(module, "PROFILE_GENERATOR_CONFIG", {}),
+        wearable=getattr(module, "WEARABLE_CONFIG", {}),
+        wearable_fault_injector=getattr(module, "WEARABLE_FAULT_INJECTOR_CONFIG", {}),
         layers=getattr(module, "LAYERS", {}),
     )
 
@@ -236,12 +174,12 @@ def with_overrides(
         profiles_path=config.profiles_path,
         output_dir=output_dir.resolve() if output_dir else config.output_dir,
         start_time=start_time or config.start_time,
-        sampling_interval_seconds=config.sampling_interval_seconds,
+        duration_hours=config.duration_hours,
         seed=seed if seed is not None else config.seed,
         file_suffix_template=config.file_suffix_template,
         output_files=config.output_files,
-        timeline=config.timeline,
-        fault_injector=config.fault_injector,
-        behavior_noise=config.behavior_noise,
+        profile_generator=config.profile_generator,
+        wearable=config.wearable,
+        wearable_fault_injector=config.wearable_fault_injector,
         layers=config.layers,
     )

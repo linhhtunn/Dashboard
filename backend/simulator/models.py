@@ -22,7 +22,9 @@ class PatientProfile:
     age: int
     gender: str
     age_group: str
-    risk_group: list[str]
+    pregnancy_status: str
+    lifestyle: str
+    risk_factors: list[str]
     activity_level: str
     medical_history: str
     health_status: str
@@ -36,12 +38,18 @@ class PatientProfile:
             age=int(data["age"]),
             gender=data["gender"],
             age_group=data["age_group"],
-            risk_group=list(data.get("risk_group", [])),
+            pregnancy_status=data.get("pregnancy_status", "none"),
+            lifestyle=data.get("lifestyle", ""),
+            risk_factors=list(data.get("risk_factors", data.get("risk_group", []))),
             activity_level=data["activity_level"],
             medical_history=data.get("medical_history", ""),
             health_status=data.get("health_status", "NORMAL"),
             baseline=Baseline(**data["baseline"]),
         )
+
+    @property
+    def risk_group(self) -> list[str]:
+        return self.risk_factors
 
 
 @dataclass(frozen=True)

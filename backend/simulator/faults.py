@@ -3,9 +3,8 @@ from __future__ import annotations
 import copy
 import random
 from datetime import timedelta
-from typing import Iterable
+from typing import Any, Iterable
 
-from backend.simulator.generation_config import FaultInjectorConfig
 from backend.simulator.models import format_utc_datetime, parse_utc_datetime
 
 
@@ -70,7 +69,7 @@ def _apply_fault(message: dict, fault_type: str) -> tuple[list[dict], dict]:
 
 def inject_faults(
     messages: Iterable[dict],
-    config: FaultInjectorConfig,
+    config: Any,
     seed: int,
 ) -> tuple[list[dict], list[dict]]:
     if not config.enabled:
