@@ -29,9 +29,33 @@ CONNECTION_CONFIG = {
 }
 
 CONSUMER_CONFIG = {
-    "team2_cleaning": {
+    "team2_wearable_continuous": {
         "auto_ack": False,
-        "prefetch_count": 30,
+        "prefetch_count": 100,
+        "requeue_on_error": False,
+        "max_retry_count": 3,
+    },
+    "team2_triggered_measurement": {
+        "auto_ack": False,
+        "prefetch_count": 20,
+        "requeue_on_error": False,
+        "max_retry_count": 3,
+    },
+    "team2_ecg_measurement": {
+        "auto_ack": False,
+        "prefetch_count": 2,
+        "requeue_on_error": False,
+        "max_retry_count": 3,
+    },
+    "team2_sleep": {
+        "auto_ack": False,
+        "prefetch_count": 10,
+        "requeue_on_error": False,
+        "max_retry_count": 3,
+    },
+    "team2_daily": {
+        "auto_ack": False,
+        "prefetch_count": 10,
         "requeue_on_error": False,
         "max_retry_count": 3,
     },
@@ -62,23 +86,45 @@ CONSUMER_CONFIG = {
 }
 
 QUEUES = {
-    "raw_vitals": {
-        "name": "q.team2.raw_vitals",
+    "wearable_continuous": {
+        "name": "q.team2.wearable_continuous",
         "exchange": EVENTS_EXCHANGE["name"],
-        "routing_key": "vitals.raw",
+        "routing_key": "wearable.continuous",
         "durable": True,
         "dlx": True,
-        "message_type": "vitals.raw",
-        "consumer_config": "team2_cleaning",
+        "consumer_config": "team2_wearable_continuous",
     },
-    "ground_truth": {
-        "name": "q.team3.ground_truth",
+    "wearable_spo2_triggered": {
+        "name": "q.team2.wearable_spo2_triggered",
         "exchange": EVENTS_EXCHANGE["name"],
-        "routing_key": "scenario.ground_truth",
+        "routing_key": "wearable.spo2_triggered",
         "durable": True,
         "dlx": True,
-        "message_type": "scenario.ground_truth",
-        "consumer_config": "team3_anomaly",
+        "consumer_config": "team2_triggered_measurement",
+    },
+    "wearable_ecg_triggered": {
+        "name": "q.team2.wearable_ecg_triggered",
+        "exchange": EVENTS_EXCHANGE["name"],
+        "routing_key": "wearable.ecg_triggered",
+        "durable": True,
+        "dlx": True,
+        "consumer_config": "team2_ecg_measurement",
+    },
+    "sleep_timeline": {
+        "name": "q.team2.sleep_timeline",
+        "exchange": EVENTS_EXCHANGE["name"],
+        "routing_key": "wearable.sleep_timeline",
+        "durable": True,
+        "dlx": True,
+        "consumer_config": "team2_sleep",
+    },
+    "daily_metrics": {
+        "name": "q.team2.daily_metrics",
+        "exchange": EVENTS_EXCHANGE["name"],
+        "routing_key": "wearable.daily_metrics",
+        "durable": True,
+        "dlx": True,
+        "consumer_config": "team2_daily",
     },
     "features": {
         "name": "q.team3.features",
@@ -86,7 +132,6 @@ QUEUES = {
         "routing_key": "features.realtime",
         "durable": True,
         "dlx": True,
-        "message_type": "features.realtime",
         "consumer_config": "team3_anomaly",
     },
     "alerts": {
@@ -95,7 +140,6 @@ QUEUES = {
         "routing_key": "alerts.created",
         "durable": True,
         "dlx": True,
-        "message_type": "alerts.created",
         "consumer_config": "dashboard_alerts",
     },
     "data_fault": {
@@ -104,7 +148,6 @@ QUEUES = {
         "routing_key": "data.fault",
         "durable": True,
         "dlx": True,
-        "message_type": "data.fault",
         "consumer_config": "team1_feedback",
     },
     "dead_letter": {
@@ -113,7 +156,6 @@ QUEUES = {
         "routing_key": DEAD_LETTER_ROUTING_KEY,
         "durable": True,
         "dlx": False,
-        "message_type": "dead_letter",
         "consumer_config": "debug",
     },
 }

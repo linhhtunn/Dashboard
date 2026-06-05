@@ -129,18 +129,6 @@ SLEEP_STAGE_EFFECTS = {
     },
 }
 
-STRESS_BASELINE_BY_LIFESTYLE = {
-    "very_active": 24,
-    "moderately_active": 34,
-    "low_activity": 44,
-    "sedentary": 52,
-}
-
-RESPIRATORY_RATE_BASELINE = {
-    "young": 16,
-    "elderly": 17,
-}
-
 SLEEP_GENERATION_RULES = {
     "sleep_start": "22:45",
     "sleep_start_jitter_minutes": [-90, 90],

@@ -2,8 +2,7 @@
 
 This package generates synthetic wearable data for one patient.
 
-The active simulator flow is wearable v2. It no longer emits the old v1
-`activity_timeline`, `generated_vitals`, or `scenario_ground_truth` files.
+The active simulator flow is wearable v2 and emits only wearable-style outputs.
 
 ## Run
 
@@ -76,6 +75,26 @@ backend/simulator/docs/wearable_simulator_expected_output.md
 
 Continuous output is emitted every second.
 
+Each generated profile includes a v2 `wearable_baseline` used by the signal and
+timeline generators:
+
+```text
+resting_heart_rate
+respiratory_rate
+stress_score
+spo2
+hrv_rmssd_morning
+daily_step_tendency
+sleep_start_offset_minutes
+sleep_duration_tendency_minutes
+sleep_fragmentation_tendency
+deep_sleep_tendency
+rem_sleep_tendency
+ecg_noise_level
+ecg_amplitude
+ecg_rhythm
+```
+
 `heart_rate` and `respiratory_rate` are sliding-window estimates:
 
 ```python
@@ -110,24 +129,6 @@ hrv_rmssd_morning
 Sleep is generated as a night block with realistic jitter, stage cycles, and
 micro-awake segments. `sleep_metrics` is derived from `sleep_timeline`; it is
 not random and does not emit `good/fair/poor` labels.
-
-## Legacy v1 Files
-
-These files still exist for historical/reference purposes, but they are not used
-by the current `generate_patient_simulation.py` flow:
-
-```text
-timeline.py
-signals.py
-rules.py
-signal_expectations.py
-faults.py
-config/timeline_generation_config.py
-config/behavior_noise_config.py
-```
-
-Do not build new Team 1/2/3 integration against those v1 outputs unless the
-team explicitly decides to revive the old biosignal contract.
 
 ## Quick Checks
 

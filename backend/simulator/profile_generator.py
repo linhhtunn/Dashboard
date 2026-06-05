@@ -112,6 +112,10 @@ def _clamp_to_group_ranges(baseline: dict[str, float], group_config: dict[str, A
     return clamped
 
 
+def _clamp_to_params(value: float, params: dict[str, float]) -> float:
+    return max(float(params["min"]), min(float(params["max"]), value))
+
+
 def _sample_baseline(
     rng: random.Random,
     group_config: dict[str, Any],
@@ -143,6 +147,62 @@ def _sample_baseline(
         "systolic_bp": int(round(baseline["systolic_bp"])),
         "diastolic_bp": int(round(baseline["diastolic_bp"])),
         "spo2": int(round(baseline["spo2"])),
+    }
+
+
+def _sample_wearable_baseline(
+    rng: random.Random,
+    *,
+    age_group: str,
+    baseline: dict[str, int],
+    physiological_state: str,
+    lifestyle: str,
+    risk_factors: list[str],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    ranges = config["wearable_baseline_ranges"][age_group]
+    sampled = {
+        key: _sample_truncated_gaussian(rng, params)
+        for key, params in ranges.items()
+    }
+    sampled.update(
+        {
+            "resting_heart_rate": float(baseline["heart_rate"]),
+            "spo2": float(baseline["spo2"]),
+            "hrv_rmssd_morning": float(baseline["hrv_rmssd"]),
+        }
+    )
+
+    adjustment_sources = [
+        config["wearable_lifestyle_adjustments"].get(lifestyle, {}),
+        config["wearable_physiological_state_adjustments"].get(physiological_state, {}),
+    ]
+    adjustment_sources.extend(
+        config["wearable_risk_factor_adjustments"].get(item, {}) for item in risk_factors
+    )
+    for adjustments in adjustment_sources:
+        for key, delta in adjustments.items():
+            sampled[key] = sampled.get(key, 0.0) + float(delta)
+
+    for key, params in ranges.items():
+        sampled[key] = _clamp_to_params(float(sampled[key]), params)
+    sampled["spo2"] = max(90.0, min(100.0, float(sampled["spo2"])))
+
+    return {
+        "resting_heart_rate": int(round(sampled["resting_heart_rate"])),
+        "respiratory_rate": round(float(sampled["respiratory_rate"]), 1),
+        "stress_score": int(round(sampled["stress_score"])),
+        "spo2": int(round(sampled["spo2"])),
+        "hrv_rmssd_morning": int(round(sampled["hrv_rmssd_morning"])),
+        "daily_step_tendency": round(float(sampled["daily_step_tendency"]), 3),
+        "sleep_start_offset_minutes": int(round(sampled["sleep_start_offset_minutes"])),
+        "sleep_duration_tendency_minutes": int(round(sampled["sleep_duration_tendency_minutes"])),
+        "sleep_fragmentation_tendency": round(float(sampled["sleep_fragmentation_tendency"]), 3),
+        "deep_sleep_tendency": round(float(sampled["deep_sleep_tendency"]), 3),
+        "rem_sleep_tendency": round(float(sampled["rem_sleep_tendency"]), 3),
+        "ecg_noise_level": round(float(sampled["ecg_noise_level"]), 4),
+        "ecg_amplitude": round(float(sampled["ecg_amplitude"]), 3),
+        "ecg_rhythm": "sinus_rhythm",
     }
 
 
@@ -211,6 +271,17 @@ def _generate_profile_from_group(
     selected_age = selected_user.get("age") if selected_user else None
     age = int(selected_age) if selected_age is not None else rng.randint(int(age_range[0]), int(age_range[1]))
 
+    baseline = _sample_baseline(
+        rng,
+        group_config,
+        pregnancy_status,
+        lifestyle,
+        risk_factors,
+        state_definitions,
+        lifestyle_definitions,
+        risk_definitions,
+    )
+
     return {
         "patient_id": patient_id,
         "name": _sample_name(rng, gender),
@@ -233,14 +304,14 @@ def _generate_profile_from_group(
             state_definitions,
             risk_definitions,
         ),
-        "baseline": _sample_baseline(
+        "baseline": baseline,
+        "wearable_baseline": _sample_wearable_baseline(
             rng,
-            group_config,
-            pregnancy_status,
-            lifestyle,
-            risk_factors,
-            state_definitions,
-            lifestyle_definitions,
-            risk_definitions,
+            age_group=age_group,
+            baseline=baseline,
+            physiological_state=pregnancy_status,
+            lifestyle=lifestyle,
+            risk_factors=risk_factors,
+            config=config,
         ),
     }

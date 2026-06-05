@@ -139,13 +139,12 @@ def declare_team1_topology(channel: Any, settings: RabbitMQSettings) -> None:
         )
 
 
-def persistent_json_properties(message_type: str) -> Any:
+def persistent_json_properties() -> Any:
     import pika
 
     return pika.BasicProperties(
         content_type=topology_config.PUBLISHER_CONFIG["content_type"],
         delivery_mode=topology_config.PUBLISHER_CONFIG["delivery_mode"],
-        type=message_type,
     )
 
 

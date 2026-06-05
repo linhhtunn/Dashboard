@@ -1,13 +1,3 @@
-DEFAULT_FAULT_PROBABILITIES = {
-    "missing_timestamp": 0.0010,
-    "missing_patient_id": 0.0008,
-    "missing_signal": 0.0010,
-    "invalid_heart_rate": 0.0012,
-    "invalid_spo2": 0.0012,
-    "duplicate_message": 0.0010,
-    "out_of_order_timestamp": 0.0010,
-}
-
 WEARABLE_FAULT_PROBABILITIES_BY_STREAM = {
     "wearable_continuous": {
         "missing_record": 0.0008,
@@ -53,17 +43,4 @@ def build_wearable_fault_injector_config(
             "wearable_ecg_triggered": 1,
         },
         "probabilities_by_stream": probabilities_by_stream or WEARABLE_FAULT_PROBABILITIES_BY_STREAM,
-    }
-
-
-def build_fault_injector_config(
-    *,
-    enabled: bool,
-    max_faults: int | None = 20,
-    probabilities: dict[str, float] | None = None,
-) -> dict:
-    return {
-        "enabled": enabled,
-        "max_faults": max_faults,
-        "probabilities": probabilities or DEFAULT_FAULT_PROBABILITIES,
     }

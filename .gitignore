@@ -9,3 +9,4 @@ project_sprint_plan_v2.md
 __pycache__/
 *.pyc
 backend/simulator/output/
+AGENTS.md

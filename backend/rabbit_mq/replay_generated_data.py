@@ -3,9 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Any, Iterator
 
 from backend.rabbit_mq.rabbitmq import (
     RabbitMQSettings,
@@ -17,11 +18,80 @@ from backend.rabbit_mq.rabbitmq import (
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = BACKEND_DIR / "simulator" / "output"
-DEFAULT_VITALS_PATH = DEFAULT_OUTPUT_DIR / "generated_vitals_P001_2h.jsonl"
-DEFAULT_GROUND_TRUTH_PATH = DEFAULT_OUTPUT_DIR / "scenario_ground_truth_P001_2h.json"
+DEFAULT_SUFFIX = "P005_24h"
 
 
-def iter_jsonl(path: Path, limit: int | None = None, skip: int = 0) -> Iterator[dict]:
+@dataclass(frozen=True)
+class StreamConfig:
+    queue_key: str
+    clean_filename: str
+    faulty_filename: str | None
+    file_format: str
+    timestamp_field: str
+
+
+STREAM_CONFIGS: dict[str, StreamConfig] = {
+    "wearable_continuous": StreamConfig(
+        queue_key="wearable_continuous",
+        clean_filename="wearable_continuous_{suffix}.jsonl",
+        faulty_filename="faulty_wearable_continuous_{suffix}.jsonl",
+        file_format="jsonl",
+        timestamp_field="timestamp",
+    ),
+    "wearable_spo2_triggered": StreamConfig(
+        queue_key="wearable_spo2_triggered",
+        clean_filename="wearable_spo2_triggered_{suffix}.jsonl",
+        faulty_filename="faulty_wearable_spo2_triggered_{suffix}.jsonl",
+        file_format="jsonl",
+        timestamp_field="timestamp",
+    ),
+    "wearable_ecg_triggered": StreamConfig(
+        queue_key="wearable_ecg_triggered",
+        clean_filename="wearable_ecg_triggered_{suffix}.jsonl",
+        faulty_filename="faulty_wearable_ecg_triggered_{suffix}.jsonl",
+        file_format="jsonl",
+        timestamp_field="timestamp",
+    ),
+    "sleep_timeline": StreamConfig(
+        queue_key="sleep_timeline",
+        clean_filename="sleep_timeline_{suffix}.json",
+        faulty_filename=None,
+        file_format="json",
+        timestamp_field="sleep_start",
+    ),
+    "daily_metrics": StreamConfig(
+        queue_key="daily_metrics",
+        clean_filename="daily_metrics_{suffix}.json",
+        faulty_filename=None,
+        file_format="json",
+        timestamp_field="measured_at",
+    ),
+}
+
+
+@dataclass(frozen=True)
+class PublishItem:
+    stream_name: str
+    order: int
+    timestamp: datetime
+    record: dict[str, Any]
+
+
+def parse_utc_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+def _sort_timestamp(record: dict[str, Any], timestamp_field: str) -> datetime:
+    value = record.get(timestamp_field)
+    if not value:
+        return datetime.max.replace(tzinfo=timezone.utc)
+    try:
+        return parse_utc_timestamp(str(value))
+    except ValueError:
+        return datetime.max.replace(tzinfo=timezone.utc)
+
+
+def _iter_jsonl(path: Path, limit: int | None = None, skip: int = 0) -> Iterator[dict[str, Any]]:
     emitted = 0
     with path.open("r", encoding="utf-8") as file:
         for index, line in enumerate(file, start=1):
@@ -36,83 +106,56 @@ def iter_jsonl(path: Path, limit: int | None = None, skip: int = 0) -> Iterator[
             yield json.loads(line)
 
 
-def iter_ground_truth(path: Path) -> Iterator[dict]:
+def _iter_json_records(path: Path) -> Iterator[dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(payload, list):
-        yield from payload
+        for item in payload:
+            yield item
     else:
         yield payload
 
 
-def parse_utc_timestamp(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+def _stream_path(stream_name: str, config: StreamConfig, args: argparse.Namespace) -> Path:
+    override = getattr(args, stream_name)
+    if override is not None:
+        return override
+
+    filename_template = config.clean_filename
+    if args.faulty and config.faulty_filename is not None:
+        filename_template = config.faulty_filename
+    return args.output_dir / filename_template.format(suffix=args.suffix)
 
 
-def ground_truth_matches_timestamp(ground_truth: dict, timestamp: datetime) -> bool:
-    event_start = parse_utc_timestamp(ground_truth["event_start"])
-    event_end = parse_utc_timestamp(ground_truth["event_end"])
-    return event_start <= timestamp < event_end
+def _load_stream_items(
+    *,
+    stream_name: str,
+    config: StreamConfig,
+    path: Path,
+    limit: int | None,
+    skip: int,
+    order_start: int,
+) -> list[PublishItem]:
+    if not path.exists():
+        raise FileNotFoundError(f"Missing {stream_name} input file: {path}")
 
+    if config.file_format == "jsonl":
+        records = _iter_jsonl(path, limit=limit, skip=skip)
+    else:
+        records = _iter_json_records(path)
 
-def validate_vitals_message(message: dict) -> None:
-    required_top_level = {"message_id", "schema_version", "patient_id", "device_id", "timestamp", "signals"}
-    missing = required_top_level - set(message)
-    if missing:
-        raise ValueError(f"Vitals message missing fields: {sorted(missing)}")
-
-    required_signals = {
-        "heart_rate",
-        "rr_interval_ms",
-        "hrv_rmssd",
-        "systolic_bp",
-        "diastolic_bp",
-        "spo2",
-        "acc_x",
-        "acc_y",
-        "acc_z",
-        "acc_magnitude",
-        "gyro_x",
-        "gyro_y",
-        "gyro_z",
-        "gyro_magnitude",
-    }
-    missing_signals = required_signals - set(message["signals"])
-    if missing_signals:
-        raise ValueError(f"Vitals message missing signals: {sorted(missing_signals)}")
-
-    signals = message["signals"]
-    if not 30 <= signals["heart_rate"] <= 220:
-        raise ValueError("Vitals message has heart_rate outside 30-220.")
-    if not 0 <= signals["spo2"] <= 100:
-        raise ValueError("Vitals message has spo2 outside 0-100.")
-    if signals["systolic_bp"] <= signals["diastolic_bp"]:
-        raise ValueError("Vitals message has systolic_bp <= diastolic_bp.")
-
-
-def count_invalid_vitals_messages(messages: Iterable[dict]) -> int:
-    invalid_count = 0
-    for message in messages:
-        try:
-            validate_vitals_message(message)
-        except ValueError:
-            invalid_count += 1
-    return invalid_count
-
-
-def validate_ground_truth_message(message: dict) -> None:
-    required = {
-        "scenario_id",
-        "patient_id",
-        "event_type",
-        "ground_truth_label",
-        "event_start",
-        "event_end",
-        "expected_severity",
-        "expected_pattern",
-    }
-    missing = required - set(message)
-    if missing:
-        raise ValueError(f"Ground truth message missing fields: {sorted(missing)}")
+    items = []
+    for offset, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError(f"{stream_name} must contain JSON objects, got {type(record).__name__}.")
+        items.append(
+            PublishItem(
+                stream_name=stream_name,
+                order=order_start + offset,
+                timestamp=_sort_timestamp(record, config.timestamp_field),
+                record=record,
+            )
+        )
+    return items
 
 
 def sleep_between_messages(connection, delay_seconds: float) -> None:
@@ -122,6 +165,14 @@ def sleep_between_messages(connection, delay_seconds: float) -> None:
         connection.sleep(delay_seconds)
         return
     time.sleep(delay_seconds)
+
+
+def preview_payload(message: dict[str, Any]) -> str:
+    preview = dict(message)
+    ecg_points = preview.get("ecg_points")
+    if isinstance(ecg_points, list):
+        preview["ecg_points"] = f"<{len(ecg_points)} points>"
+    return json.dumps(preview, ensure_ascii=False)
 
 
 class PublishSession:
@@ -153,6 +204,37 @@ class PublishSession:
         time.sleep(self.settings.connection_config["retry_delay"])
         self.open()
 
+    def publish(self, queue: dict[str, Any], message: dict[str, Any]) -> None:
+        routing_key = queue["routing_key"]
+        if self.dry_run:
+            self.dry_run_samples[routing_key] = self.dry_run_samples.get(routing_key, 0) + 1
+            if self.dry_run_samples[routing_key] <= 3:
+                print(f"[dry-run] {routing_key}: {preview_payload(message)}")
+            return
+
+        import pika
+
+        max_retries = self.settings.publisher_config["max_publish_retries"]
+        for attempt in range(max_retries + 1):
+            try:
+                self.channel.basic_publish(
+                    exchange=queue["exchange"],
+                    routing_key=routing_key,
+                    body=json.dumps(message, ensure_ascii=True, separators=(",", ":")).encode("utf-8"),
+                    properties=persistent_json_properties(),
+                    mandatory=self.settings.publisher_config["mandatory"],
+                )
+                return
+            except (
+                pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError,
+                pika.exceptions.StreamLostError,
+                OSError,
+            ) as exc:
+                if attempt >= max_retries:
+                    raise
+                self.reconnect(exc)
+
     def sleep(self, delay_seconds: float) -> None:
         if self.dry_run or delay_seconds <= 0:
             sleep_between_messages(self.connection, delay_seconds)
@@ -175,120 +257,57 @@ class PublishSession:
                     raise
                 self.reconnect(exc)
 
-    def publish(self, exchange: str, routing_key: str, message: dict, message_type: str) -> None:
-        if self.dry_run:
-            self.dry_run_samples[routing_key] = self.dry_run_samples.get(routing_key, 0) + 1
-            if self.dry_run_samples[routing_key] <= 3:
-                print(f"[dry-run] {routing_key}: {json.dumps(message, ensure_ascii=False)}")
-            return
-
-        import pika
-
-        max_retries = self.settings.publisher_config["max_publish_retries"]
-        for attempt in range(max_retries + 1):
-            try:
-                self.channel.basic_publish(
-                    exchange=exchange,
-                    routing_key=routing_key,
-                    body=json.dumps(message, ensure_ascii=True, separators=(",", ":")).encode("utf-8"),
-                    properties=persistent_json_properties(message_type),
-                    mandatory=self.settings.publisher_config["mandatory"],
-                )
-                return
-            except (
-                pika.exceptions.AMQPConnectionError,
-                pika.exceptions.AMQPChannelError,
-                pika.exceptions.StreamLostError,
-                OSError,
-            ) as exc:
-                if attempt >= max_retries:
-                    raise
-                self.reconnect(exc)
-
-
-def replay_vitals_with_matching_ground_truth(
-    publisher: PublishSession,
-    settings: RabbitMQSettings,
-    vitals_messages: Iterable[dict],
-    ground_truth_messages: Iterable[dict],
-    delay_seconds: float,
-) -> tuple[int, int]:
-    raw_vitals_queue = settings.queue("raw_vitals")
-    ground_truth_queue = settings.queue("ground_truth")
-    published_ground_truth_ids: set[str] = set()
-    vitals_count = 0
-    ground_truth_count = 0
-    ground_truth_list = list(ground_truth_messages)
-
-    for vitals_message in vitals_messages:
-        try:
-            vitals_timestamp = parse_utc_timestamp(vitals_message["timestamp"])
-        except (KeyError, TypeError, ValueError):
-            vitals_timestamp = None
-
-        if vitals_timestamp is not None:
-            for ground_truth in ground_truth_list:
-                scenario_id = ground_truth["scenario_id"]
-                if scenario_id in published_ground_truth_ids:
-                    continue
-                if not ground_truth_matches_timestamp(ground_truth, vitals_timestamp):
-                    continue
-
-                publisher.publish(
-                    exchange=ground_truth_queue["exchange"],
-                    routing_key=ground_truth_queue["routing_key"],
-                    message=ground_truth,
-                    message_type=ground_truth_queue["message_type"],
-                )
-                published_ground_truth_ids.add(scenario_id)
-                ground_truth_count += 1
-
-        publisher.publish(
-            exchange=raw_vitals_queue["exchange"],
-            routing_key=raw_vitals_queue["routing_key"],
-            message=vitals_message,
-            message_type=raw_vitals_queue["message_type"],
-        )
-        vitals_count += 1
-
-        publisher.sleep(delay_seconds)
-
-    return vitals_count, ground_truth_count
-
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Replay generated simulator files to RabbitMQ/CloudAMQP.")
-    parser.add_argument("--vitals", type=Path, default=DEFAULT_VITALS_PATH, help="Generated vitals JSONL file.")
+    parser = argparse.ArgumentParser(description="Replay wearable simulator output files to RabbitMQ/CloudAMQP.")
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Simulator output directory.")
+    parser.add_argument("--suffix", default=DEFAULT_SUFFIX, help="Output file suffix, for example P005_24h.")
     parser.add_argument(
-        "--ground-truth",
-        type=Path,
-        default=DEFAULT_GROUND_TRUTH_PATH,
-        help="Scenario ground truth JSON file.",
+        "--streams",
+        nargs="+",
+        choices=sorted(STREAM_CONFIGS),
+        default=list(STREAM_CONFIGS),
+        help="Streams to publish. sleep_metrics is intentionally not published; Team 2 derives it from sleep_timeline.",
     )
-    parser.add_argument("--limit", type=int, default=None, help="Limit vitals messages for safe testing.")
-    parser.add_argument("--skip", type=int, default=0, help="Skip this many vitals messages before replaying.")
-    parser.add_argument("--delay-seconds", type=float, default=0.0, help="Sleep between vitals messages.")
-    parser.add_argument("--skip-vitals", action="store_true", help="Do not publish vitals.raw.")
-    parser.add_argument("--skip-ground-truth", action="store_true", help="Do not publish scenario.ground_truth.")
-    parser.add_argument("--dry-run", action="store_true", help="Validate and print samples without RabbitMQ connection.")
-    parser.add_argument("--strict-validation", action="store_true", help="Fail if any vitals message violates schema.")
+    parser.add_argument("--wearable-continuous", type=Path, default=None, help="Override wearable continuous JSONL path.")
+    parser.add_argument("--wearable-spo2-triggered", type=Path, default=None, help="Override SpO2 triggered JSONL path.")
+    parser.add_argument("--wearable-ecg-triggered", type=Path, default=None, help="Override ECG triggered JSONL path.")
+    parser.add_argument("--sleep-timeline", type=Path, default=None, help="Override sleep timeline JSON path.")
+    parser.add_argument("--daily-metrics", type=Path, default=None, help="Override daily metrics JSON path.")
+    parser.add_argument("--faulty", action="store_true", help="Publish faulty wearable JSONL files for data-quality tests.")
+    parser.add_argument("--limit", type=int, default=None, help="Limit continuous records for safe testing.")
+    parser.add_argument("--skip", type=int, default=0, help="Skip this many continuous records before replaying.")
+    parser.add_argument("--delay-seconds", type=float, default=0.0, help="Sleep after each published message.")
+    parser.add_argument("--dry-run", action="store_true", help="Print publish samples without RabbitMQ connection.")
     parser.add_argument("--declare-only", action="store_true", help="Declare RabbitMQ topology and exit without publishing.")
     parser.add_argument("--no-declare", action="store_true", help="Publish without declaring topology first.")
     parser.add_argument("--env", type=Path, default=None, help="Optional .env path. Defaults to backend/rabbit_mq/.env.")
     return parser
 
 
+def load_publish_items(args: argparse.Namespace) -> list[PublishItem]:
+    items: list[PublishItem] = []
+    order = 0
+    for stream_name in args.streams:
+        config = STREAM_CONFIGS[stream_name]
+        path = _stream_path(stream_name, config, args)
+        limit = args.limit if stream_name == "wearable_continuous" else None
+        skip = args.skip if stream_name == "wearable_continuous" else 0
+        stream_items = _load_stream_items(
+            stream_name=stream_name,
+            config=config,
+            path=path,
+            limit=limit,
+            skip=skip,
+            order_start=order,
+        )
+        order += len(stream_items)
+        items.extend(stream_items)
+    return sorted(items, key=lambda item: (item.timestamp, item.order))
+
+
 def main() -> None:
     args = build_arg_parser().parse_args()
-
-    vitals_messages = list(iter_jsonl(args.vitals, limit=args.limit, skip=args.skip)) if not args.skip_vitals else []
-    ground_truth_messages = list(iter_ground_truth(args.ground_truth)) if not args.skip_ground_truth else []
-
-    invalid_vitals_count = count_invalid_vitals_messages(vitals_messages)
-    if args.strict_validation and invalid_vitals_count:
-        raise ValueError(f"Vitals file contains {invalid_vitals_count} invalid/fault-injected messages.")
-    for message in ground_truth_messages:
-        validate_ground_truth_message(message)
 
     if args.dry_run:
         settings = RabbitMQSettings.from_topology_for_dry_run()
@@ -306,37 +325,23 @@ def main() -> None:
                 print(f"Queue: {queue['name']} <- {queue['routing_key']}")
             return
 
+    items = load_publish_items(args)
     publisher = PublishSession(settings=settings, dry_run=args.dry_run, no_declare=args.no_declare)
+    counts = {stream_name: 0 for stream_name in args.streams}
     publisher.open()
     try:
-        if args.skip_vitals:
-            ground_truth_queue = settings.queue("ground_truth")
-            vitals_count = 0
-            ground_truth_count = 0
-            for ground_truth in ground_truth_messages:
-                publisher.publish(
-                    exchange=ground_truth_queue["exchange"],
-                    routing_key=ground_truth_queue["routing_key"],
-                    message=ground_truth,
-                    message_type=ground_truth_queue["message_type"],
-                )
-                ground_truth_count += 1
-        else:
-            vitals_count, ground_truth_count = replay_vitals_with_matching_ground_truth(
-                publisher=publisher,
-                settings=settings,
-                vitals_messages=vitals_messages,
-                ground_truth_messages=ground_truth_messages,
-                delay_seconds=args.delay_seconds,
-            )
+        for item in items:
+            queue = settings.queue(STREAM_CONFIGS[item.stream_name].queue_key)
+            publisher.publish(queue=queue, message=item.record)
+            counts[item.stream_name] += 1
+            publisher.sleep(args.delay_seconds)
     finally:
         publisher.close()
 
-    mode = "Validated" if args.dry_run else "Published"
-    print(f"{mode} vitals.raw messages: {vitals_count}")
-    print(f"{mode} scenario.ground_truth messages: {ground_truth_count}")
-    if invalid_vitals_count:
-        print(f"{mode} fault-injected/invalid vitals messages: {invalid_vitals_count}")
+    mode = "Dry-run" if args.dry_run else "Published"
+    for stream_name in args.streams:
+        queue = settings.queue(STREAM_CONFIGS[stream_name].queue_key)
+        print(f"{mode} {stream_name}: {counts[stream_name]} messages -> {queue['routing_key']}")
 
 
 if __name__ == "__main__":

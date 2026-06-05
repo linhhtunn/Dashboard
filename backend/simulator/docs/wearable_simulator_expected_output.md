@@ -43,6 +43,28 @@ vigorous_activity
 resting
 ```
 
+Generated patient profiles contain a v2 `wearable_baseline` used internally by
+timeline and signal generation:
+
+```json
+{
+  "resting_heart_rate": 81,
+  "respiratory_rate": 15.2,
+  "stress_score": 39,
+  "spo2": 98,
+  "hrv_rmssd_morning": 46,
+  "daily_step_tendency": 1.011,
+  "sleep_start_offset_minutes": 15,
+  "sleep_duration_tendency_minutes": 536,
+  "sleep_fragmentation_tendency": 0.152,
+  "deep_sleep_tendency": 0.196,
+  "rem_sleep_tendency": 0.217,
+  "ecg_noise_level": 0.006,
+  "ecg_amplitude": 0.923,
+  "ecg_rhythm": "sinus_rhythm"
+}
+```
+
 ## 2. Continuous Wearable Data
 
 File:

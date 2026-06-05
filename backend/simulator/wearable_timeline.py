@@ -42,21 +42,32 @@ def _random_int_between(rng: random.Random, bounds: list[int]) -> int:
     return rng.randint(int(bounds[0]), int(bounds[1]))
 
 
-def _sleep_session_for_day(day: date, seed: int) -> tuple[datetime, datetime]:
+def _sleep_session_for_day(profile: PatientProfile, day: date, seed: int) -> tuple[datetime, datetime]:
     rng = _sleep_rng(seed, day)
     start_jitter = _random_int_between(rng, SLEEP_GENERATION_RULES["sleep_start_jitter_minutes"])
-    duration_minutes = _random_int_between(rng, SLEEP_GENERATION_RULES["sleep_duration_minutes"])
-    sleep_start = _datetime_on(day, SLEEP_GENERATION_RULES["sleep_start"]) + timedelta(minutes=start_jitter)
+    duration_bounds = SLEEP_GENERATION_RULES["sleep_duration_minutes"]
+    duration_minutes = int(
+        max(
+            int(duration_bounds[0]),
+            min(
+                int(duration_bounds[1]),
+                rng.gauss(float(profile.wearable_baseline.sleep_duration_tendency_minutes), 35),
+            ),
+        )
+    )
+    sleep_start = _datetime_on(day, SLEEP_GENERATION_RULES["sleep_start"]) + timedelta(
+        minutes=start_jitter + int(profile.wearable_baseline.sleep_start_offset_minutes)
+    )
     sleep_end = sleep_start + timedelta(minutes=duration_minutes)
     return sleep_start, sleep_end
 
 
-def _sleep_sessions(start_time: datetime, end_time: datetime, seed: int) -> list[dict[str, Any]]:
+def _sleep_sessions(profile: PatientProfile, start_time: datetime, end_time: datetime, seed: int) -> list[dict[str, Any]]:
     sessions = []
     current_day = start_time.date() - timedelta(days=1)
     last_day = end_time.date()
     while current_day <= last_day:
-        sleep_start, sleep_end = _sleep_session_for_day(current_day, seed)
+        sleep_start, sleep_end = _sleep_session_for_day(profile, current_day, seed)
         if sleep_start < end_time and sleep_end > start_time:
             rng = _sleep_rng(seed, current_day)
             sessions.append(
@@ -64,7 +75,7 @@ def _sleep_sessions(start_time: datetime, end_time: datetime, seed: int) -> list
                     "date": current_day.isoformat(),
                     "sleep_start": sleep_start,
                     "sleep_end": sleep_end,
-                    "stages": _sleep_stages(sleep_start, sleep_end, rng),
+                    "stages": _sleep_stages(profile, sleep_start, sleep_end, rng),
                 }
             )
         current_day += timedelta(days=1)
@@ -88,14 +99,27 @@ def _add_sleep_stage(stages: list[dict[str, Any]], stage: str, start_time: datet
     stages.append({"stage": stage, "start_time": start_time, "end_time": end_time})
 
 
-def _cycle_stage_durations(rng: random.Random, cycle_seconds: int, phase: str) -> list[tuple[str, int]]:
+def _cycle_stage_durations(
+    profile: PatientProfile,
+    rng: random.Random,
+    cycle_seconds: int,
+    phase: str,
+) -> list[tuple[str, int]]:
     cycle_minutes = max(1, cycle_seconds // 60)
     if cycle_minutes < 20:
         return [("light", cycle_minutes * 60)]
 
     weights = SLEEP_GENERATION_RULES["cycle_stage_weights"][phase]
-    light_minutes = max(1, int(round(cycle_minutes * float(weights["light"]))))
-    deep_minutes = max(0, int(round(cycle_minutes * float(weights["deep"]))))
+    deep_multiplier = float(profile.wearable_baseline.deep_sleep_tendency) / 0.20
+    rem_multiplier = float(profile.wearable_baseline.rem_sleep_tendency) / 0.22
+    adjusted = {
+        "light": float(weights["light"]),
+        "deep": float(weights["deep"]) * deep_multiplier,
+        "rem": float(weights["rem"]) * rem_multiplier,
+    }
+    total_weight = sum(adjusted.values())
+    light_minutes = max(1, int(round(cycle_minutes * adjusted["light"] / total_weight)))
+    deep_minutes = max(0, int(round(cycle_minutes * adjusted["deep"] / total_weight)))
     rem_minutes = max(0, cycle_minutes - light_minutes - deep_minutes)
     first_light_minutes = max(1, int(round(light_minutes * rng.uniform(0.45, 0.65))))
     second_light_minutes = max(0, light_minutes - first_light_minutes)
@@ -107,7 +131,7 @@ def _cycle_stage_durations(rng: random.Random, cycle_seconds: int, phase: str) -
     ]
 
 
-def _sleep_stages(sleep_start: datetime, sleep_end: datetime, rng: random.Random) -> list[dict[str, Any]]:
+def _sleep_stages(profile: PatientProfile, sleep_start: datetime, sleep_end: datetime, rng: random.Random) -> list[dict[str, Any]]:
     stages = []
     cursor = sleep_start
     total_sleep_seconds = max(1, int((sleep_end - sleep_start).total_seconds()))
@@ -124,7 +148,7 @@ def _sleep_stages(sleep_start: datetime, sleep_end: datetime, rng: random.Random
         elapsed_ratio = (cursor - sleep_start).total_seconds() / total_sleep_seconds
         phase = _sleep_phase(elapsed_ratio)
 
-        for stage, duration_seconds in _cycle_stage_durations(rng, cycle_seconds, phase):
+        for stage, duration_seconds in _cycle_stage_durations(profile, rng, cycle_seconds, phase):
             stage_end = min(sleep_end, cursor + timedelta(seconds=duration_seconds))
             _add_sleep_stage(stages, stage, cursor, stage_end)
             cursor = stage_end
@@ -134,7 +158,9 @@ def _sleep_stages(sleep_start: datetime, sleep_end: datetime, rng: random.Random
         remaining_seconds = int((sleep_end - cursor).total_seconds())
         if remaining_seconds <= 0:
             break
-        if rng.random() < float(SLEEP_GENERATION_RULES["micro_awake_probability"]):
+        fragmentation_multiplier = float(profile.wearable_baseline.sleep_fragmentation_tendency) / 0.20
+        micro_awake_probability = float(SLEEP_GENERATION_RULES["micro_awake_probability"]) * fragmentation_multiplier
+        if rng.random() < min(0.80, micro_awake_probability):
             awake_minutes = _random_int_between(rng, SLEEP_GENERATION_RULES["micro_awake_duration_minutes"])
             awake_end = min(sleep_end, cursor + timedelta(minutes=awake_minutes))
             _add_sleep_stage(stages, "awake", cursor, awake_end)
@@ -186,7 +212,7 @@ def build_master_timeline(
     seed: int,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     end_time = start_time + timedelta(seconds=duration_seconds)
-    sleep_sessions = _sleep_sessions(start_time, end_time, seed)
+    sleep_sessions = _sleep_sessions(profile, start_time, end_time, seed)
     sleep_stage_segments = [
         {
             "kind": "sleep",

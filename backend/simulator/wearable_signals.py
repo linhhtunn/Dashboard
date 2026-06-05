@@ -8,11 +8,9 @@ from typing import Any, Iterator
 
 from backend.simulator.config.wearable_reference_config import (
     ACTIVITY_EFFECTS,
-    RESPIRATORY_RATE_BASELINE,
     SIGNAL_NOISE_RULES,
     SLEEP_GENERATION_RULES,
     SLEEP_STAGE_EFFECTS,
-    STRESS_BASELINE_BY_LIFESTYLE,
 )
 from backend.simulator.models import PatientProfile, format_utc_datetime
 from backend.simulator.wearable_timeline import find_master_segment
@@ -138,11 +136,10 @@ def generate_continuous_records(
     hr_window = deque(maxlen=int(windows["heart_rate_seconds"]))
     rr_window = deque(maxlen=int(windows["respiratory_rate_seconds"]))
 
-    base_hr = float(profile.baseline.heart_rate)
-    base_rr = float(RESPIRATORY_RATE_BASELINE.get(profile.age_group, 16))
-    base_stress = float(STRESS_BASELINE_BY_LIFESTYLE.get(profile.lifestyle, 35))
-    if profile.baseline.hrv_rmssd < 45:
-        base_stress += 5
+    wearable_baseline = profile.wearable_baseline
+    base_hr = float(wearable_baseline.resting_heart_rate)
+    base_rr = float(wearable_baseline.respiratory_rate)
+    base_stress = float(wearable_baseline.stress_score)
 
     current_hr = base_hr
     current_rr = base_rr
@@ -182,7 +179,8 @@ def generate_continuous_records(
         current_stress = _clamp(_smooth(current_stress, target_stress, 0.04, rng.gauss(0, 0.35)), 0, 99)
 
         step_bounds = effects["steps_per_minute"]
-        step_accumulator += rng.uniform(float(step_bounds[0]), float(step_bounds[1])) / 60.0
+        step_tendency = float(wearable_baseline.daily_step_tendency)
+        step_accumulator += rng.uniform(float(step_bounds[0]), float(step_bounds[1])) * step_tendency / 60.0
         while step_accumulator >= 1.0:
             cumulative_steps += 1
             step_accumulator -= 1.0
@@ -219,7 +217,7 @@ def generate_spo2_records(
     trigger_times = _scheduled_datetimes(start_time, end_time, wearable_config["trigger_schedule"].get("spo2", []))
     records = []
     for index, timestamp in enumerate(trigger_times, start=1):
-        spo2 = int(round(_clamp(profile.baseline.spo2 + rng.gauss(0, 0.35), 92, 100)))
+        spo2 = int(round(_clamp(profile.wearable_baseline.spo2 + rng.gauss(0, 0.35), 92, 100)))
         records.append(
             {
                 "message_id": f"msg_{profile.patient_id}_spo2_{index:06d}",
@@ -232,22 +230,37 @@ def generate_spo2_records(
     return records
 
 
-def _ecg_value(t_seconds: float, heart_period_seconds: float, rng: random.Random) -> float:
+def _ecg_value(
+    t_seconds: float,
+    heart_period_seconds: float,
+    rng: random.Random,
+    *,
+    amplitude: float,
+    noise_level: float,
+) -> float:
     phase = t_seconds % heart_period_seconds
 
     def wave(center: float, width: float, amplitude: float) -> float:
         return amplitude * math.exp(-((phase - center) ** 2) / (2 * width**2))
 
-    p_wave = wave(0.18 * heart_period_seconds, 0.035, 0.08)
-    q_wave = wave(0.36 * heart_period_seconds, 0.012, -0.10)
-    r_wave = wave(0.40 * heart_period_seconds, 0.010, 1.00)
-    s_wave = wave(0.43 * heart_period_seconds, 0.014, -0.22)
-    t_wave = wave(0.65 * heart_period_seconds, 0.060, 0.24)
+    p_wave = wave(0.18 * heart_period_seconds, 0.035, 0.08 * amplitude)
+    q_wave = wave(0.36 * heart_period_seconds, 0.012, -0.10 * amplitude)
+    r_wave = wave(0.40 * heart_period_seconds, 0.010, 1.00 * amplitude)
+    s_wave = wave(0.43 * heart_period_seconds, 0.014, -0.22 * amplitude)
+    t_wave = wave(0.65 * heart_period_seconds, 0.060, 0.24 * amplitude)
     baseline_wander = 0.025 * math.sin(2 * math.pi * 0.33 * t_seconds)
-    return p_wave + q_wave + r_wave + s_wave + t_wave + baseline_wander + rng.gauss(0, 0.008)
+    return p_wave + q_wave + r_wave + s_wave + t_wave + baseline_wander + rng.gauss(0, noise_level)
 
 
-def _ecg_points(duration_seconds: int, sampling_rate_hz: int, heart_rate: float, seed: int) -> list[dict[str, float]]:
+def _ecg_points(
+    duration_seconds: int,
+    sampling_rate_hz: int,
+    heart_rate: float,
+    seed: int,
+    *,
+    amplitude: float,
+    noise_level: float,
+) -> list[dict[str, float]]:
     rng = random.Random(seed)
     sample_count = duration_seconds * sampling_rate_hz
     heart_period_seconds = 60.0 / max(heart_rate, 1.0)
@@ -257,7 +270,16 @@ def _ecg_points(duration_seconds: int, sampling_rate_hz: int, heart_rate: float,
         points.append(
             {
                 "t_ms": int(round(t_seconds * 1000)),
-                "value": round(_ecg_value(t_seconds, heart_period_seconds, rng), 3),
+                "value": round(
+                    _ecg_value(
+                        t_seconds,
+                        heart_period_seconds,
+                        rng,
+                        amplitude=amplitude,
+                        noise_level=noise_level,
+                    ),
+                    3,
+                ),
             }
         )
     return points
@@ -283,7 +305,7 @@ def generate_ecg_records(
                 "device_id": f"SIM_WATCH_{profile.patient_id}",
                 "timestamp": format_utc_datetime(timestamp),
                 "ecg_result": "normal",
-                "ecg_rhythm": "sinus_rhythm",
+                "ecg_rhythm": profile.wearable_baseline.ecg_rhythm,
                 "ecg_abnormal_flags": [],
                 "ecg_lead": ecg_config["lead"],
                 "ecg_unit": ecg_config["unit"],
@@ -292,8 +314,10 @@ def generate_ecg_records(
                 "ecg_points": _ecg_points(
                     int(ecg_config["duration_seconds"]),
                     int(ecg_config["sampling_rate_hz"]),
-                    profile.baseline.heart_rate,
+                    profile.wearable_baseline.resting_heart_rate,
                     seed + index,
+                    amplitude=profile.wearable_baseline.ecg_amplitude,
+                    noise_level=profile.wearable_baseline.ecg_noise_level,
                 ),
             }
         )
@@ -316,7 +340,7 @@ def generate_daily_metrics(
         measured_at = session["sleep_end"] + timedelta(minutes=delay_minutes)
         if not start_time <= measured_at < end_time:
             continue
-        hrv = int(round(_clamp(profile.baseline.hrv_rmssd + rng.gauss(0, 4), 10, 120)))
+        hrv = int(round(_clamp(profile.wearable_baseline.hrv_rmssd_morning + rng.gauss(0, 4), 10, 120)))
         records.append(
             {
                 "patient_id": profile.patient_id,

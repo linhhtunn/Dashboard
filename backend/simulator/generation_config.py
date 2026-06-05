@@ -24,30 +24,6 @@ class OutputFileConfig:
 
 
 @dataclass(frozen=True)
-class TimelineSegmentConfig:
-    activity_state: str
-    activity_intensity: str
-    start_second: int
-    end_second: int
-    scenario_id: str | None = None
-    event_type: str | None = None
-    ground_truth_label: str = "NORMAL"
-    expected_severity: str = "LOW"
-    context_event: str | None = None
-    context_effects: dict[str, float] | None = None
-    source: str = "configured"
-
-
-@dataclass(frozen=True)
-class TimelineConfig:
-    segments: list[TimelineSegmentConfig]
-    scenario_id_template: str = "SCN_NORMAL_{patient_id}_{index:03d}"
-    mode: str = "generated"
-    generated_rules: dict[str, Any] | None = None
-    micro_event_rules: dict[str, Any] | None = None
-
-
-@dataclass(frozen=True)
 class GenerationConfig:
     config_path: Path
     run_name: str
