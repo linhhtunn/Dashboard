@@ -116,12 +116,14 @@ class DatabaseConnector:
         conn: Any,
         *,
         patient_id: str,
+        scenario_id: str | None,
         message_id: str | None,
         timestamp: datetime,
         raw_payload: dict[str, Any],
     ) -> None:
         table = self._db.raw_vitals_table
         pid_col = self._db.patient_id_column
+        scenario_col = "scenario_id"
         mid_col = self._db.message_id_column
         ts_col = self._db.timestamp_column
         payload_col = self._db.raw_payload_column
@@ -129,10 +131,10 @@ class DatabaseConnector:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                INSERT INTO {table} ({pid_col}, {mid_col}, {ts_col}, {payload_col})
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO {table} ({pid_col}, {scenario_col}, {mid_col}, {ts_col}, {payload_col})
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (patient_id, message_id, timestamp, Json(raw_payload)),
+                (patient_id, scenario_id, message_id, timestamp, Json(raw_payload)),
             )
 
     def _insert_clean_vital(self, conn: Any, record: CleanVitalRecord) -> None:
@@ -193,6 +195,7 @@ class DatabaseConnector:
             self._insert_raw_vital(
                 conn,
                 patient_id=record.patient_id,
+                scenario_id=record.scenario_id,
                 message_id=record.message_id,
                 timestamp=timestamp,
                 raw_payload=payload,
@@ -200,6 +203,9 @@ class DatabaseConnector:
 
             if record.data_state == DataState.VALID:
                 self._insert_clean_vital(conn, record)
+
+    def open_consumer_session(self) -> ConsumerWriteSession:
+        return ConsumerWriteSession(self)
 
     def count_rows(self) -> dict[str, int]:
         with self.connection() as conn:
@@ -326,3 +332,111 @@ class DatabaseConnector:
         with self.connection() as conn:
             rows = self._fetch_rows(conn, sql, (message_id,))
         return rows[0] if rows else None
+
+
+class ConsumerWriteSession:
+    """Reuse one DB connection + in-memory caches for fast RabbitMQ consumption."""
+
+    def __init__(self, connector: "DatabaseConnector") -> None:
+        self._connector = connector
+        self._db = connector._db
+        self._conn: Any | None = None
+        self._known_patients: set[str] = set()
+        self._seen_message_ids: set[str] = set()
+        self._pending_commits = 0
+        self.processed_count = 0
+        self.skipped_count = 0
+
+    def open(self) -> None:
+        self._conn = psycopg2.connect(
+            self._connector._database_url,
+            connect_timeout=self._db.connect_timeout_seconds,
+        )
+        self._load_known_patients()
+        logger.info(
+            "Consumer DB session open (batch_commit=%s, known_patients=%s)",
+            self._db.consumer_batch_commit_size,
+            len(self._known_patients),
+        )
+
+    def close(self) -> None:
+        if self._conn is None:
+            return
+        try:
+            if self._pending_commits:
+                self._conn.commit()
+                self._pending_commits = 0
+        finally:
+            self._conn.close()
+            self._conn = None
+            logger.info(
+                "Consumer DB session closed (processed=%s skipped=%s)",
+                self.processed_count,
+                self.skipped_count,
+            )
+
+    def _load_known_patients(self) -> None:
+        assert self._conn is not None
+        table = self._db.patients_table
+        col = self._db.patient_id_column
+        with self._conn.cursor() as cur:
+            cur.execute(f"SELECT {col} FROM {table}")
+            self._known_patients = {str(row[0]) for row in cur.fetchall()}
+
+    def _commit_if_needed(self, *, force: bool = False) -> None:
+        assert self._conn is not None
+        if force or self._pending_commits >= self._db.consumer_batch_commit_size:
+            self._conn.commit()
+            self._pending_commits = 0
+
+    def process_message(self, raw_payload: dict[str, Any], record: CleanVitalRecord) -> bool:
+        assert self._conn is not None
+        message_id = record.message_id
+
+        if message_id in self._seen_message_ids:
+            self.skipped_count += 1
+            return False
+
+        if self._connector._message_exists(self._conn, message_id):
+            self._seen_message_ids.add(message_id)
+            self.skipped_count += 1
+            logger.debug("Duplicate message_id=%s — skipped", message_id)
+            return False
+
+        if record.patient_id not in self._known_patients:
+            if not self._connector._patient_exists(self._conn, record.patient_id):
+                self.skipped_count += 1
+                logger.warning(
+                    "Unknown patient_id=%s for message_id=%s — skipped",
+                    record.patient_id,
+                    message_id,
+                )
+                return False
+            self._known_patients.add(record.patient_id)
+
+        try:
+            timestamp = _to_db_timestamp(record.timestamp)
+        except ValueError:
+            timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        payload = _enrich_raw_payload(
+            raw_payload,
+            record,
+            metadata_key=self._db.raw_payload_metadata_key,
+        )
+        self._connector._insert_raw_vital(
+            self._conn,
+            patient_id=record.patient_id,
+            scenario_id=record.scenario_id,
+            message_id=message_id,
+            timestamp=timestamp,
+            raw_payload=payload,
+        )
+        if record.data_state == DataState.VALID:
+            self._connector._insert_clean_vital(self._conn, record)
+
+        self._seen_message_ids.add(message_id)
+        self._pending_commits += 1
+        self.processed_count += 1
+        self._commit_if_needed()
+        return True

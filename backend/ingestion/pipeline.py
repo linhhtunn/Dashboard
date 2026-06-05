@@ -43,6 +43,8 @@ class IngestionPipeline:
             load_database_url(),
             db_settings=self._ingestion.database,
         )
+        self._consumer_session = None
+        self._messages_since_log = 0
 
     def ensure_ready(self) -> None:
         if not self._db.ping():
@@ -62,27 +64,50 @@ class IngestionPipeline:
             logger.error("Invalid JSON from broker: %s", exc)
             return
 
-        message_id = str(raw_dict.get("message_id", ""))
-        if message_id and self._db.message_exists(message_id):
-            logger.debug("Duplicate message_id=%s — skipped", message_id)
-            return
-
         _message, record = self._cleaner.clean_payload(raw_dict)
-        self._db.process_message(raw_dict, record)
-        logger.info(
-            "Processed message_id=%s patient_id=%s data_state=%s",
-            record.message_id,
-            record.patient_id,
-            record.data_state,
-        )
+        if self._consumer_session is not None:
+            inserted = self._consumer_session.process_message(raw_dict, record)
+            if not inserted:
+                return
+        else:
+            self._db.process_message(raw_dict, record)
+
+        self._messages_since_log += 1
+        every_n = self._ingestion.pipeline.log_every_n_messages
+        if self._messages_since_log >= every_n:
+            logger.info(
+                "Processed %s messages (latest message_id=%s patient_id=%s data_state=%s)",
+                self._messages_since_log,
+                record.message_id,
+                record.patient_id,
+                record.data_state,
+            )
+            self._messages_since_log = 0
+        else:
+            logger.debug(
+                "Processed message_id=%s patient_id=%s data_state=%s",
+                record.message_id,
+                record.patient_id,
+                record.data_state,
+            )
 
     def run_consumer(self) -> None:
-        consumer = VitalConsumer(
-            rabbitmq_url=load_rabbitmq_url(),
-            rabbitmq_settings=self._ingestion.rabbitmq,
-            on_message=self.handle_body,
-        )
-        consumer.run_forever()
+        session = self._db.open_consumer_session()
+        session.open()
+        self._consumer_session = session
+        try:
+            consumer = VitalConsumer(
+                rabbitmq_url=load_rabbitmq_url(),
+                rabbitmq_settings=self._ingestion.rabbitmq,
+                on_message=self.handle_body,
+            )
+            consumer.run_forever()
+        finally:
+            session.close()
+            self._consumer_session = None
+            if self._messages_since_log:
+                logger.info("Processed %s messages in final partial batch", self._messages_since_log)
+                self._messages_since_log = 0
 
     def run_file(self, path: Path) -> int:
         payloads = json.loads(path.read_text(encoding="utf-8"))
