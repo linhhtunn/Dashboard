@@ -1,8 +1,24 @@
 .codex/
 .agents/
 openspec
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.env
 project_sprint_plan.md
 E2E Simulation for AI Health - Proposal.md
 project_sprint_plan_v2.md
 *.pdf
-.env
+data/
+software-engineering-threat-model.md
+jira_scrum_backlog_import.csv
+.claude
+CLAUDE.md
+AGENTS.md
+backend/.venv
+*.json
+__pycache__/
+*.pyc
+backend/simulator/output/

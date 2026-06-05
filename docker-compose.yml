@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: clinical-postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: clinical-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ingestion:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clinical-ingestion
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  ai_agent:
+    build:
+      context: ./backend/ai_agent
+      dockerfile: Dockerfile
+    container_name: clinical-ai-agent
+    ports:
+      - "8005:8005"
+    environment:
+      - PORT=8005
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MEMORY_CHECKPOINTER=memory
+      - MEMORY_POSTGRES_DSN=postgresql://postgres:postgres@db:5432/postgres
+      - LOG_LEVEL=INFO
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  pgdata:
