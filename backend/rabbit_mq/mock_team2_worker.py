@@ -20,7 +20,6 @@ def utc_now() -> str:
 
 
 def build_feature_message(raw: dict[str, Any]) -> dict[str, Any]:
-    signals = raw["signals"]
     return {
         "feature_id": f"feat_{raw['message_id']}",
         "source_message_id": raw["message_id"],
@@ -31,12 +30,10 @@ def build_feature_message(raw: dict[str, Any]) -> dict[str, Any]:
             "size_seconds": 1,
         },
         "features": {
-            "heart_rate_current": signals["heart_rate"],
-            "spo2_current": signals["spo2"],
-            "systolic_bp_current": signals["systolic_bp"],
-            "diastolic_bp_current": signals["diastolic_bp"],
-            "acc_magnitude": signals["acc_magnitude"],
-            "gyro_magnitude": signals["gyro_magnitude"],
+            "steps_current": raw["steps"],
+            "heart_rate_current": raw["heart_rate"],
+            "respiratory_rate_current": raw["respiratory_rate"],
+            "stress_score_current": raw["stress_score"],
         },
         "data_state": "VALID",
         "created_at": utc_now(),
@@ -56,23 +53,50 @@ def build_fault_message(raw: dict[str, Any], reason: str, field: str | None = No
     }
 
 
-def validate_raw_vitals(raw: dict[str, Any]) -> tuple[bool, str | None, str | None]:
-    required_top_level = {"message_id", "patient_id", "timestamp", "signals"}
+def parse_int_field(raw: dict[str, Any], field: str) -> tuple[int | None, str | None]:
+    try:
+        return int(raw[field]), None
+    except (TypeError, ValueError):
+        return None, f"{field} must be an integer-compatible value"
+
+
+def validate_wearable_continuous(raw: dict[str, Any]) -> tuple[bool, str | None, str | None]:
+    """Mock Team 2 data-quality gate; invalid input is turned into data.fault."""
+    required_top_level = {
+        "message_id",
+        "patient_id",
+        "device_id",
+        "timestamp",
+        "steps",
+        "heart_rate",
+        "respiratory_rate",
+        "stress_score",
+    }
     missing = required_top_level - set(raw)
     if missing:
         return False, f"Missing top-level fields: {sorted(missing)}", None
 
-    signals = raw["signals"]
-    for field in ("heart_rate", "spo2", "systolic_bp", "diastolic_bp", "acc_magnitude", "gyro_magnitude"):
-        if field not in signals:
-            return False, f"Missing signal: {field}", f"signals.{field}"
+    steps, reason = parse_int_field(raw, "steps")
+    if reason:
+        return False, reason, "steps"
+    heart_rate, reason = parse_int_field(raw, "heart_rate")
+    if reason:
+        return False, reason, "heart_rate"
+    respiratory_rate, reason = parse_int_field(raw, "respiratory_rate")
+    if reason:
+        return False, reason, "respiratory_rate"
+    stress_score, reason = parse_int_field(raw, "stress_score")
+    if reason:
+        return False, reason, "stress_score"
 
-    if not 30 <= signals["heart_rate"] <= 220:
-        return False, "heart_rate out of mock valid range 30-220", "signals.heart_rate"
-    if not 0 <= signals["spo2"] <= 100:
-        return False, "spo2 out of mock valid range 0-100", "signals.spo2"
-    if signals["systolic_bp"] <= signals["diastolic_bp"]:
-        return False, "systolic_bp must be greater than diastolic_bp", "signals.systolic_bp"
+    if steps < 0:
+        return False, "steps must be non-negative", "steps"
+    if not 30 <= heart_rate <= 220:
+        return False, "heart_rate out of mock valid range 30-220", "heart_rate"
+    if not 5 <= respiratory_rate <= 45:
+        return False, "respiratory_rate out of mock valid range 5-45", "respiratory_rate"
+    if not 0 <= stress_score <= 99:
+        return False, "stress_score out of mock valid range 0-99", "stress_score"
 
     return True, None, None
 
@@ -82,7 +106,7 @@ def publish_json(channel, queue: dict[str, Any], payload: dict[str, Any], mandat
         exchange=queue["exchange"],
         routing_key=queue["routing_key"],
         body=json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8"),
-        properties=persistent_json_properties(queue["message_type"]),
+        properties=persistent_json_properties(),
         mandatory=mandatory,
     )
 
@@ -110,7 +134,7 @@ def reconnect_worker(settings: RabbitMQSettings, no_declare: bool, qos_queue_key
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Mock Team 2 worker: raw vitals -> features/data.fault.")
+    parser = argparse.ArgumentParser(description="Mock Team 2 worker: wearable continuous -> features/data.fault.")
     parser.add_argument("--limit", type=int, default=10, help="Stop after processing this many raw messages.")
     parser.add_argument("--idle-timeout-seconds", type=float, default=5.0, help="Stop after queue is idle this long.")
     parser.add_argument("--no-declare", action="store_true", help="Skip topology declaration and only consume/publish.")
@@ -123,12 +147,12 @@ def main() -> None:
 
     args = build_arg_parser().parse_args()
     settings = RabbitMQSettings.from_env()
-    connection, channel = open_worker_channel(settings, args.no_declare, "raw_vitals")
+    connection, channel = open_worker_channel(settings, args.no_declare, "wearable_continuous")
 
-    raw_queue = settings.queue("raw_vitals")
+    continuous_queue = settings.queue("wearable_continuous")
     features_queue = settings.queue("features")
     fault_queue = settings.queue("data_fault")
-    consumer_options = settings.consumer_options("raw_vitals")
+    consumer_options = settings.consumer_options("wearable_continuous")
     processed = 0
     reconnects = 0
     idle_started_at: float | None = None
@@ -137,7 +161,7 @@ def main() -> None:
         while processed < args.limit:
             try:
                 method_frame, _, body = channel.basic_get(
-                    queue=raw_queue["name"],
+                    queue=continuous_queue["name"],
                     auto_ack=consumer_options["auto_ack"],
                 )
             except (
@@ -150,14 +174,14 @@ def main() -> None:
                 if reconnects > args.max_reconnects:
                     raise
                 close_connection(connection)
-                connection, channel = reconnect_worker(settings, args.no_declare, "raw_vitals", exc)
+                connection, channel = reconnect_worker(settings, args.no_declare, "wearable_continuous", exc)
                 continue
 
             if method_frame is None:
                 if idle_started_at is None:
                     idle_started_at = time.monotonic()
                 if time.monotonic() - idle_started_at >= args.idle_timeout_seconds:
-                    print("No raw vitals messages ready")
+                    print("No wearable continuous messages ready")
                     break
                 time.sleep(0.5)
                 continue
@@ -166,7 +190,7 @@ def main() -> None:
 
             try:
                 raw = json.loads(body.decode("utf-8"))
-                is_valid, reason, field = validate_raw_vitals(raw)
+                is_valid, reason, field = validate_wearable_continuous(raw)
                 if is_valid:
                     publish_json(
                         channel,
@@ -196,7 +220,7 @@ def main() -> None:
                 if reconnects > args.max_reconnects:
                     raise
                 close_connection(connection)
-                connection, channel = reconnect_worker(settings, args.no_declare, "raw_vitals", exc)
+                connection, channel = reconnect_worker(settings, args.no_declare, "wearable_continuous", exc)
             except Exception:
                 if channel.is_open:
                     channel.basic_nack(delivery_tag=method_frame.delivery_tag, requeue=consumer_options["requeue_on_error"])
@@ -204,8 +228,9 @@ def main() -> None:
     finally:
         close_connection(connection)
 
-    print(f"Team2 processed raw messages: {processed}")
+    print(f"Team2 processed wearable continuous messages: {processed}")
 
 
 if __name__ == "__main__":
     main()
+

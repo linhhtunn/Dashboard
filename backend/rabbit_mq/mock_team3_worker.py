@@ -37,19 +37,21 @@ def build_alert(feature_message: dict[str, Any], alert_type: str, severity: str,
 
 def detect_alert(feature_message: dict[str, Any]) -> dict[str, Any] | None:
     features = feature_message["features"]
-    heart_rate = features["heart_rate_current"]
-    spo2 = features["spo2_current"]
-    systolic_bp = features["systolic_bp_current"]
-    acc_magnitude = features["acc_magnitude"]
+    heart_rate = int(features["heart_rate_current"])
+    respiratory_rate = int(features["respiratory_rate_current"])
+    stress_score = int(features["stress_score_current"])
 
-    if spo2 < 94:
-        return build_alert(feature_message, "low_spo2", "HIGH", {"spo2_current": spo2})
     if heart_rate > 175:
         return build_alert(feature_message, "heart_rate_abnormal", "HIGH", {"heart_rate_current": heart_rate})
-    if systolic_bp >= 185:
-        return build_alert(feature_message, "blood_pressure_abnormal", "MEDIUM", {"systolic_bp_current": systolic_bp})
-    if acc_magnitude >= 4:
-        return build_alert(feature_message, "possible_fall", "HIGH", {"acc_magnitude": acc_magnitude})
+    if respiratory_rate > 28:
+        return build_alert(
+            feature_message,
+            "respiratory_rate_abnormal",
+            "HIGH",
+            {"respiratory_rate_current": respiratory_rate},
+        )
+    if stress_score >= 85:
+        return build_alert(feature_message, "high_stress", "MEDIUM", {"stress_score_current": stress_score})
 
     return None
 
@@ -81,7 +83,7 @@ def publish_json(channel, queue: dict[str, Any], payload: dict[str, Any], mandat
         exchange=queue["exchange"],
         routing_key=queue["routing_key"],
         body=json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8"),
-        properties=persistent_json_properties(queue["message_type"]),
+        properties=persistent_json_properties(),
         mandatory=mandatory,
     )
 
@@ -211,3 +213,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

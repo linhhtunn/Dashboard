@@ -25,8 +25,8 @@ def main() -> None:
 
     rabbitmq_url = os.getenv("RABBITMQ_URL")
     exchange = os.getenv("RABBITMQ_EXCHANGE", "health.events")
-    routing_key = os.getenv("RABBITMQ_ROUTING_KEY", "vitals.raw")
-    test_queue = os.getenv("RABBITMQ_TEST_QUEUE", "q.team1.test_raw_vitals")
+    routing_key = os.getenv("RABBITMQ_ROUTING_KEY", "wearable.continuous")
+    test_queue = os.getenv("RABBITMQ_TEST_QUEUE", "q.team1.test_wearable_continuous")
 
     if not rabbitmq_url:
         raise RuntimeError("Missing RABBITMQ_URL in backend/.env")
@@ -49,23 +49,13 @@ def main() -> None:
 
     payload = {
         "message_id": f"msg_{uuid.uuid4().hex[:8]}",
-        "schema_version": "v1",
         "patient_id": "P001",
         "device_id": "SIM_WATCH_001",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "signals": {
-            "heart_rate": 82,
-            "hrv": 45,
-            "systolic_bp": 120,
-            "diastolic_bp": 80,
-            "spo2": 98,
-            "acc_x": 0.1,
-            "acc_y": 0.2,
-            "acc_z": 1.0,
-            "gyro_x": 0.01,
-            "gyro_y": 0.02,
-            "gyro_z": 0.03,
-        },
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "steps": 1245,
+        "heart_rate": 82,
+        "respiratory_rate": 16,
+        "stress_score": 34,
     }
 
     channel.basic_publish(
@@ -94,3 +84,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

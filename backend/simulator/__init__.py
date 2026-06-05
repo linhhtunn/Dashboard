@@ -1,2 +1,2 @@
-"""Synthetic biosignal simulator package."""
+"""Synthetic wearable simulator package."""
 
