@@ -17,8 +17,46 @@ from rabbit_mq.rabbitmq import (
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = BACKEND_DIR / "simulator" / "output"
-DEFAULT_VITALS_PATH = DEFAULT_OUTPUT_DIR / "generated_vitals_P001_2h.jsonl"
-DEFAULT_GROUND_TRUTH_PATH = DEFAULT_OUTPUT_DIR / "scenario_ground_truth_P001_2h.json"
+
+
+def _latest_simulator_output(pattern: str) -> Path | None:
+    if not DEFAULT_OUTPUT_DIR.is_dir():
+        return None
+    candidates = sorted(
+        DEFAULT_OUTPUT_DIR.glob(pattern),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
+
+
+def resolve_default_vitals_path() -> Path:
+    latest = _latest_simulator_output("generated_vitals_*.jsonl")
+    return latest or (DEFAULT_OUTPUT_DIR / "generated_vitals_P005_2h.jsonl")
+
+
+def resolve_default_ground_truth_path(vitals_path: Path) -> Path:
+    paired_name = vitals_path.name.replace("generated_vitals_", "scenario_ground_truth_").replace(
+        ".jsonl",
+        ".json",
+    )
+    paired_path = vitals_path.parent / paired_name
+    if paired_path.exists():
+        return paired_path
+    latest = _latest_simulator_output("scenario_ground_truth_*.json")
+    return latest or (DEFAULT_OUTPUT_DIR / "scenario_ground_truth_P005_2h.json")
+
+
+def require_simulator_output(path: Path, *, kind: str) -> None:
+    if path.exists():
+        return
+    raise FileNotFoundError(
+        f"{kind} not found: {path}\n"
+        "Generate simulator data first:\n"
+        "  cd /path/to/repo && python -m backend.simulator.generate_patient_simulation\n"
+        "Then replay (from backend/):\n"
+        f"  python -m rabbit_mq.replay_generated_data --vitals {path} --limit 50"
+    )
 
 
 def iter_jsonl(path: Path, limit: int | None = None, skip: int = 0) -> Iterator[dict]:
@@ -258,12 +296,17 @@ def replay_vitals_with_matching_ground_truth(
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Replay generated simulator files to RabbitMQ/CloudAMQP.")
-    parser.add_argument("--vitals", type=Path, default=DEFAULT_VITALS_PATH, help="Generated vitals JSONL file.")
+    parser.add_argument(
+        "--vitals",
+        type=Path,
+        default=None,
+        help="Generated vitals JSONL file. Defaults to newest simulator/output/generated_vitals_*.jsonl.",
+    )
     parser.add_argument(
         "--ground-truth",
         type=Path,
-        default=DEFAULT_GROUND_TRUTH_PATH,
-        help="Scenario ground truth JSON file.",
+        default=None,
+        help="Scenario ground truth JSON file. Defaults to the pair for --vitals.",
     )
     parser.add_argument("--limit", type=int, default=None, help="Limit vitals messages for safe testing.")
     parser.add_argument("--skip", type=int, default=0, help="Skip this many vitals messages before replaying.")
@@ -274,15 +317,40 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--strict-validation", action="store_true", help="Fail if any vitals message violates schema.")
     parser.add_argument("--declare-only", action="store_true", help="Declare RabbitMQ topology and exit without publishing.")
     parser.add_argument("--no-declare", action="store_true", help="Publish without declaring topology first.")
-    parser.add_argument("--env", type=Path, default=None, help="Optional .env path. Defaults to backend/rabbit_mq/.env.")
+    parser.add_argument("--env", type=Path, default=None, help="Optional .env path. Defaults to backend/.env.")
     return parser
 
 
 def main() -> None:
     args = build_arg_parser().parse_args()
 
-    vitals_messages = list(iter_jsonl(args.vitals, limit=args.limit, skip=args.skip)) if not args.skip_vitals else []
-    ground_truth_messages = list(iter_ground_truth(args.ground_truth)) if not args.skip_ground_truth else []
+    if args.declare_only and not args.dry_run:
+        settings = RabbitMQSettings.from_env(args.env) if args.env else RabbitMQSettings.from_env()
+        connection = connect(settings)
+        channel = connection.channel()
+        declare_team1_topology(channel, settings)
+        connection.close()
+        print("Declared RabbitMQ topology")
+        print(f"Exchange: {settings.events_exchange['name']}")
+        print(f"DLX: {settings.dlx_exchange['name']}")
+        for queue in settings.queues.values():
+            print(f"Queue: {queue['name']} <- {queue['routing_key']}")
+        return
+
+    vitals_path = args.vitals or resolve_default_vitals_path()
+    ground_truth_path = args.ground_truth or resolve_default_ground_truth_path(vitals_path)
+
+    if not args.skip_vitals:
+        require_simulator_output(vitals_path, kind="Vitals file")
+    if not args.skip_ground_truth:
+        require_simulator_output(ground_truth_path, kind="Ground truth file")
+
+    vitals_messages = (
+        list(iter_jsonl(vitals_path, limit=args.limit, skip=args.skip)) if not args.skip_vitals else []
+    )
+    ground_truth_messages = (
+        list(iter_ground_truth(ground_truth_path)) if not args.skip_ground_truth else []
+    )
 
     invalid_vitals_count = count_invalid_vitals_messages(vitals_messages)
     if args.strict_validation and invalid_vitals_count:
@@ -294,17 +362,6 @@ def main() -> None:
         settings = RabbitMQSettings.from_topology_for_dry_run()
     else:
         settings = RabbitMQSettings.from_env(args.env) if args.env else RabbitMQSettings.from_env()
-        if args.declare_only:
-            connection = connect(settings)
-            channel = connection.channel()
-            declare_team1_topology(channel, settings)
-            connection.close()
-            print("Declared RabbitMQ topology")
-            print(f"Exchange: {settings.events_exchange['name']}")
-            print(f"DLX: {settings.dlx_exchange['name']}")
-            for queue in settings.queues.values():
-                print(f"Queue: {queue['name']} <- {queue['routing_key']}")
-            return
 
     publisher = PublishSession(settings=settings, dry_run=args.dry_run, no_declare=args.no_declare)
     publisher.open()

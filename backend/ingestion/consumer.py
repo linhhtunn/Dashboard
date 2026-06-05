@@ -90,7 +90,7 @@ class VitalConsumer:
             except pika.exceptions.ChannelClosedByBroker as exc:
                 logger.error(
                     "Queue %s not available (%s). Declare topology first: "
-                    "python -m rabbit_mq.replay_generated_data --declare-only",
+                    "cd backend && python -m rabbit_mq.replay_generated_data --declare-only",
                     self._settings.queue_name,
                     exc,
                 )
