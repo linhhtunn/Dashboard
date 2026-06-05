@@ -111,23 +111,65 @@ class SensorData(BaseModel):
         """Flat numeric fields for range / fault checks in cleaner."""
         return {
             "heart_rate": self.heart_rate,
-            "hrv": self.hrv_rmssd,
-            "systolic_bp": self.blood_pressure.systolic,
-            "diastolic_bp": self.blood_pressure.diastolic,
             "spo2": self.spo2,
-            "acc_x": self.accelerometer.x,
-            "acc_y": self.accelerometer.y,
-            "acc_z": self.accelerometer.z,
-            "gyro_x": self.gyroscope.x,
-            "gyro_y": self.gyroscope.y,
-            "gyro_z": self.gyroscope.z,
+            "hrv_rmssd": self.hrv_rmssd,
+        }
+
+
+class WearableVitals(BaseModel):
+    """
+    Wearable v2 record (continuous or merged triggered fields).
+    Matches `backend/simulator/docs/wearable_simulator_expected_output.md`.
+    """
+
+    patient_id: str = Field(..., min_length=1)
+    timestamp: datetime
+    steps: Optional[int] = Field(None, ge=0)
+    distance_km: Optional[float] = Field(None, ge=0)
+    heart_rate: Optional[float] = Field(None, ge=0)
+    respiratory_rate: Optional[float] = Field(None, ge=0)
+    spo2: Optional[float] = Field(None, ge=0)
+    temperature_c: Optional[float] = None
+    hrv_rmssd: Optional[float] = Field(None, ge=0)
+    stress_score: Optional[int] = Field(None, ge=0, le=99)
+    ecg_status: Optional[str] = None
+    ecg_heart_rhythm: Optional[str] = None
+    sleep_stage: Optional[str] = None
+    sleep_quality: Optional[str] = None
+
+    def to_clean_vitals_row(self) -> Dict[str, Any]:
+        return {
+            "patient_id": self.patient_id,
+            "timestamp": self.timestamp,
+            "steps": self.steps,
+            "distance_km": self.distance_km,
+            "heart_rate": self.heart_rate,
+            "respiratory_rate": self.respiratory_rate,
+            "spo2": self.spo2,
+            "temperature_c": self.temperature_c,
+            "hrv_rmssd": self.hrv_rmssd,
+            "stress_score": self.stress_score,
+            "ecg_status": self.ecg_status,
+            "ecg_heart_rhythm": self.ecg_heart_rhythm,
+            "sleep_stage": self.sleep_stage,
+            "sleep_quality": self.sleep_quality,
+        }
+
+    def flat_signals(self) -> Dict[str, float | None]:
+        return {
+            "heart_rate": self.heart_rate,
+            "respiratory_rate": self.respiratory_rate,
+            "spo2": self.spo2,
+            "temperature_c": self.temperature_c,
+            "hrv_rmssd": self.hrv_rmssd,
+            "stress_score": float(self.stress_score) if self.stress_score is not None else None,
         }
 
 
 @dataclass(frozen=True)
 class ParsedQueueMessage:
     message_id: str
-    sensor: SensorData
+    sensor: Any
     scenario_id: str | None = None
 
 
@@ -232,6 +274,23 @@ def parse_queue_payload(data: dict[str, Any]) -> ParsedQueueMessage:
             ),
         )
         sensor = _finalize_constructed_sensor(sensor)
+    elif "patient_id" in data and "timestamp" in data and (
+        "heart_rate" in data
+        or "respiratory_rate" in data
+        or "stress_score" in data
+        or "steps" in data
+        or "spo2" in data
+        or "ecg_status" in data
+        or "sleep_stage" in data
+    ):
+        body = dict(data)
+        body.pop("schema_version", None)
+        body.pop("device_id", None)
+        body.pop("context", None)
+        body.pop("message_id", None)
+        if "timestamp" in body:
+            body["timestamp"] = _parse_timestamp(body["timestamp"])
+        sensor = WearableVitals.model_validate(body)
     else:
         body = {k: v for k, v in data.items() if k not in ("message_id", "schema_version", "device_id", "context")}
         if "timestamp" in body:

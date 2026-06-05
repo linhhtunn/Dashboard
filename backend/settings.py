@@ -57,51 +57,43 @@ def _safe_sql_identifier(name: str) -> str:
 
 
 DEFAULT_SIGNAL_RANGES: dict[str, NumericRange] = {
-    "heart_rate": NumericRange(30.0, 250.0),
-    "hrv": NumericRange(5.0, 300.0),
-    "systolic_bp": NumericRange(70.0, 250.0),
-    "diastolic_bp": NumericRange(40.0, 150.0),
+    # Wearable v2 continuous / triggered fields (see backend/simulator/docs/*expected_output.md)
+    "heart_rate": NumericRange(30.0, 220.0),
+    "respiratory_rate": NumericRange(5.0, 60.0),
     "spo2": NumericRange(70.0, 100.0),
-    "acc_x": NumericRange(-8.0, 8.0),
-    "acc_y": NumericRange(-8.0, 8.0),
-    "acc_z": NumericRange(-8.0, 8.0),
-    "gyro_x": NumericRange(-2000.0, 2000.0),
-    "gyro_y": NumericRange(-2000.0, 2000.0),
-    "gyro_z": NumericRange(-2000.0, 2000.0),
+    "temperature_c": NumericRange(30.0, 45.0),
+    "hrv_rmssd": NumericRange(0.0, 500.0),
+    "stress_score": NumericRange(0.0, 99.0),
 }
 
 DEFAULT_REQUIRED_TABLES: tuple[str, ...] = ("patients", "raw_vitals", "clean_vitals")
 DEFAULT_COUNT_TABLES: tuple[str, ...] = ("raw_vitals", "clean_vitals", "patients")
 DEFAULT_CLEAN_VITAL_INSERT_COLUMNS: tuple[str, ...] = (
+    # Must match actual Supabase `clean_vitals` columns (inspect with scripts/inspect_database.py)
+    "scenario_id",
+    "steps",
+    "distance_km",
     "heart_rate",
-    "rr_interval_ms",
-    "hrv_rmssd",
-    "systolic_bp",
-    "diastolic_bp",
+    "respiratory_rate",
     "spo2",
-    "acc_x",
-    "acc_y",
-    "acc_z",
-    "acc_magnitude",
-    "gyro_x",
-    "gyro_y",
-    "gyro_z",
-    "gyro_magnitude",
+    "temperature_c",
+    "hrv_rmssd",
+    "stress_score",
+    "ecg_status",
+    "ecg_heart_rhythm",
+    "sleep_stage",
+    "sleep_quality",
 )
 DEFAULT_INSPECT_EXPECTED_TABLES: tuple[str, ...] = (
     "patients",
     "raw_vitals",
     "clean_vitals",
-    "health_alerts",
-    "vital_features",
     "scenario_ground_truth",
 )
 DEFAULT_INSPECT_REQUIRED_CLEAN_COLUMNS: tuple[str, ...] = (
     "patient_id",
     "timestamp",
     "heart_rate",
-    "systolic_bp",
-    "diastolic_bp",
     "spo2",
 )
 
@@ -119,12 +111,12 @@ class ValidationSettings:
 class RabbitMQSettings:
     exchange_name: str = "health.events"
     exchange_type: str = "topic"
-    routing_key: str = "vitals.raw"
-    queue_name: str = "q.team2.raw_vitals"
+    routing_key: str = "wearable.continuous"
+    queue_name: str = "q.team2.wearable_continuous"
     dlq_name: str = "q.dead_letter"
     dlx_exchange_name: str = "health.dlx"
     dead_letter_routing_key: str = "dead"
-    prefetch_count: int = 30
+    prefetch_count: int = 100
     heartbeat_seconds: int = 30
     blocked_connection_timeout_seconds: int = 300
     reconnect_initial_backoff_seconds: int = 1
@@ -150,6 +142,7 @@ class DatabaseSettings:
     raw_payload_metadata_key: str = "_ingestion"
     clean_vital_insert_columns: tuple[str, ...] = DEFAULT_CLEAN_VITAL_INSERT_COLUMNS
     connect_timeout_seconds: int = 20
+    consumer_batch_commit_size: int = 25
 
 
 @dataclass(frozen=True)
@@ -194,6 +187,7 @@ class PipelineSettings:
     default_fixture_path: str = "tests/fixtures/sample_messages.json"
     log_level: str = "INFO"
     log_format: str = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+    log_every_n_messages: int = 50
 
 
 @dataclass(frozen=True)
@@ -230,12 +224,12 @@ def load_rabbitmq_settings(env: Mapping[str, str] | None = None) -> RabbitMQSett
     return RabbitMQSettings(
         exchange_name=_str_env(env, "RABBITMQ_EXCHANGE", _str_env(env, "INGESTION_EXCHANGE_NAME", "health.events")),
         exchange_type=_str_env(env, "INGESTION_EXCHANGE_TYPE", "topic"),
-        routing_key=_str_env(env, "RABBITMQ_ROUTING_KEY", _str_env(env, "INGESTION_ROUTING_KEY", "vitals.raw")),
-        queue_name=_str_env(env, "RABBITMQ_RAW_QUEUE", _str_env(env, "INGESTION_QUEUE_NAME", "q.team2.raw_vitals")),
+        routing_key=_str_env(env, "RABBITMQ_ROUTING_KEY", _str_env(env, "INGESTION_ROUTING_KEY", "wearable.continuous")),
+        queue_name=_str_env(env, "RABBITMQ_RAW_QUEUE", _str_env(env, "INGESTION_QUEUE_NAME", "q.team2.wearable_continuous")),
         dlq_name=_str_env(env, "RABBITMQ_DEAD_LETTER_QUEUE", _str_env(env, "INGESTION_DLQ_NAME", "q.dead_letter")),
         dlx_exchange_name=_str_env(env, "RABBITMQ_DLX_EXCHANGE", "health.dlx"),
         dead_letter_routing_key=_str_env(env, "RABBITMQ_DEAD_LETTER_ROUTING_KEY", "dead"),
-        prefetch_count=_int_env(env, "INGESTION_PREFETCH_COUNT", 30),
+        prefetch_count=_int_env(env, "INGESTION_PREFETCH_COUNT", 100),
         heartbeat_seconds=_int_env(env, "INGESTION_HEARTBEAT_SECONDS", 30),
         blocked_connection_timeout_seconds=_int_env(env, "INGESTION_BLOCKED_CONNECTION_TIMEOUT_SECONDS", 300),
         reconnect_initial_backoff_seconds=_int_env(env, "INGESTION_RECONNECT_INITIAL_BACKOFF_SECONDS", 1),
@@ -277,6 +271,7 @@ def load_database_settings(env: Mapping[str, str] | None = None) -> DatabaseSett
         raw_payload_metadata_key=_str_env(env, "INGESTION_RAW_PAYLOAD_METADATA_KEY", "_ingestion"),
         clean_vital_insert_columns=clean_columns,
         connect_timeout_seconds=_int_env(env, "INGESTION_DB_CONNECT_TIMEOUT_SECONDS", 20),
+        consumer_batch_commit_size=_int_env(env, "INGESTION_DB_BATCH_COMMIT_SIZE", 25),
     )
 
 
@@ -342,6 +337,7 @@ def load_pipeline_settings(env: Mapping[str, str] | None = None) -> PipelineSett
             "INGESTION_LOG_FORMAT",
             "%(asctime)s %(levelname)s [%(name)s] %(message)s",
         ),
+        log_every_n_messages=_int_env(env, "INGESTION_LOG_EVERY_N_MESSAGES", 50),
     )
 
 

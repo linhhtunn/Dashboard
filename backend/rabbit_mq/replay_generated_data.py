@@ -314,6 +314,18 @@ def main() -> None:
     else:
         settings = RabbitMQSettings.from_env(args.env) if args.env else RabbitMQSettings.from_env()
 
+    if args.declare_only and not args.dry_run:
+        connection = connect(settings)
+        channel = connection.channel()
+        declare_team1_topology(channel, settings)
+        connection.close()
+        print("Declared RabbitMQ topology")
+        print(f"Exchange: {settings.events_exchange['name']}")
+        print(f"DLX: {settings.dlx_exchange['name']}")
+        for queue in settings.queues.values():
+            print(f"Queue: {queue['name']} <- {queue['routing_key']}")
+        return
+
     items = load_publish_items(args)
     publisher = PublishSession(settings=settings, dry_run=args.dry_run, no_declare=args.no_declare)
     counts = {stream_name: 0 for stream_name in args.streams}

@@ -28,21 +28,23 @@ class CleanVitalRecord:
     patient_id: str
     timestamp: Any
     data_state: DataState
-    heart_rate: float | None = None
-    rr_interval_ms: float | None = None
-    hrv_rmssd: float | None = None
-    systolic_bp: float | None = None
-    diastolic_bp: float | None = None
-    spo2: float | None = None
-    acc_x: float | None = None
-    acc_y: float | None = None
-    acc_z: float | None = None
-    acc_magnitude: float | None = None
-    gyro_x: float | None = None
-    gyro_y: float | None = None
-    gyro_z: float | None = None
-    gyro_magnitude: float | None = None
+    # Wearable v2 fields (these map to `clean_vitals` columns on Supabase)
     scenario_id: str | None = None
+    steps: int | None = None
+    distance_km: float | None = None
+    heart_rate: float | None = None
+    # Legacy fields kept for backward-compatible tests/fixtures (not inserted into DB by default)
+    rr_interval_ms: float | None = None
+    respiratory_rate: float | None = None
+    spo2: float | None = None
+    temperature_c: float | None = None
+    hrv_rmssd: float | None = None
+    stress_score: int | None = None
+    acc_magnitude: float | None = None
+    ecg_status: str | None = None
+    ecg_heart_rhythm: str | None = None
+    sleep_stage: str | None = None
+    sleep_quality: str | None = None
     validation_notes: str | None = None
 
 
@@ -100,25 +102,10 @@ class VitalCleaner:
         tol = self._settings.zero_signal_abs_tol
 
         heart_rate = signals["heart_rate"]
-        spo2 = signals["spo2"]
+        spo2 = signals.get("spo2")
         if heart_rate is not None and spo2 is not None:
-            if _near_zero(heart_rate, tol) and spo2 >= self._settings.heart_rate_spo2_fault_threshold:
+            if _near_zero(float(heart_rate), tol) and float(spo2) >= self._settings.heart_rate_spo2_fault_threshold:
                 return DataState.SENSOR_FAULT, "heart_rate_zero_with_normal_spo2"
-
-        acc_x, acc_y, acc_z = signals["acc_x"], signals["acc_y"], signals["acc_z"]
-        gyro_x, gyro_y, gyro_z = signals["gyro_x"], signals["gyro_y"], signals["gyro_z"]
-        if acc_x is not None and acc_y is not None and acc_z is not None:
-            acc_flat = all(_near_zero(v, tol) for v in (acc_x, acc_y, acc_z))
-            if (
-                gyro_x is not None
-                and gyro_y is not None
-                and gyro_z is not None
-                and acc_flat
-                and all(_near_zero(v, tol) for v in (gyro_x, gyro_y, gyro_z))
-                and spo2 is not None
-                and spo2 >= self._settings.heart_rate_spo2_fault_threshold
-            ):
-                return DataState.FAULT, "flat_imu_with_normal_spo2"
 
         for field_name, value in signals.items():
             if value is None:
@@ -130,22 +117,6 @@ class VitalCleaner:
                 notes.append(f"out_of_range:{field_name}")
                 return DataState.INVALID, ",".join(notes)
 
-        systolic = signals["systolic_bp"]
-        diastolic = signals["diastolic_bp"]
-        if systolic is not None and diastolic is not None:
-            if systolic - diastolic < self._settings.min_systolic_diastolic_gap:
-                return DataState.INVALID, "bp_order_invalid"
-
-        if acc_x is not None and acc_y is not None and acc_z is not None and spo2 is not None:
-            acc_mag = _magnitude(acc_x, acc_y, acc_z)
-            if acc_mag <= tol and spo2 >= self._settings.heart_rate_spo2_fault_threshold:
-                return DataState.FAULT, "zero_acc_magnitude"
-
-            if gyro_x is not None and gyro_y is not None and gyro_z is not None:
-                gyro_mag = _magnitude(gyro_x, gyro_y, gyro_z)
-                if gyro_mag <= tol and acc_mag >= self._settings.gyro_motion_acc_threshold:
-                    return DataState.FAULT, "zero_gyro_with_high_acc"
-
         return DataState.VALID, None
 
     def _build_record(
@@ -155,26 +126,28 @@ class VitalCleaner:
         notes: str | None,
     ) -> CleanVitalRecord:
         row = parsed.sensor.to_clean_vitals_row()
+        # We support multiple simulator/broker shapes over time; only populate fields
+        # that exist in the current `CleanVitalRecord` + DB schema.
         return CleanVitalRecord(
             message_id=parsed.message_id,
             patient_id=row["patient_id"],
             timestamp=row["timestamp"],
             data_state=state,
-            heart_rate=row["heart_rate"],
-            rr_interval_ms=row["rr_interval_ms"],
-            hrv_rmssd=row["hrv_rmssd"],
-            systolic_bp=row["systolic_bp"],
-            diastolic_bp=row["diastolic_bp"],
-            spo2=row["spo2"],
-            acc_x=row["acc_x"],
-            acc_y=row["acc_y"],
-            acc_z=row["acc_z"],
-            acc_magnitude=row["acc_magnitude"],
-            gyro_x=row["gyro_x"],
-            gyro_y=row["gyro_y"],
-            gyro_z=row["gyro_z"],
-            gyro_magnitude=row["gyro_magnitude"],
             scenario_id=parsed.scenario_id,
+            steps=row.get("steps"),
+            distance_km=row.get("distance_km"),
+            heart_rate=row.get("heart_rate"),
+            rr_interval_ms=row.get("rr_interval_ms"),
+            respiratory_rate=row.get("respiratory_rate"),
+            spo2=row.get("spo2"),
+            temperature_c=row.get("temperature_c"),
+            hrv_rmssd=row.get("hrv_rmssd"),
+            stress_score=row.get("stress_score"),
+            acc_magnitude=row.get("acc_magnitude"),
+            ecg_status=row.get("ecg_status"),
+            ecg_heart_rhythm=row.get("ecg_heart_rhythm"),
+            sleep_stage=row.get("sleep_stage"),
+            sleep_quality=row.get("sleep_quality"),
             validation_notes=notes,
         )
 
