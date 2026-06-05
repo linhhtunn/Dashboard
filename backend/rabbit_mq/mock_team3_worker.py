@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.rabbit_mq.rabbitmq import (
+from rabbit_mq.rabbitmq import (
     RabbitMQSettings,
     apply_qos,
     connect,
@@ -213,3 +213,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

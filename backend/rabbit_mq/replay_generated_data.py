@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from backend.rabbit_mq.rabbitmq import (
+from rabbit_mq.rabbitmq import (
     RabbitMQSettings,
     connect,
     declare_team1_topology,
@@ -346,3 +346,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

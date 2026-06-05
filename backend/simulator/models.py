@@ -99,3 +99,4 @@ def parse_utc_datetime(value: str) -> datetime:
 
 def format_utc_datetime(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+

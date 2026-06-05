@@ -5,7 +5,7 @@ import random
 from datetime import timedelta
 from typing import Any, Iterable
 
-from backend.simulator.models import format_utc_datetime, parse_utc_datetime
+from simulator.models import format_utc_datetime, parse_utc_datetime
 
 
 def _weighted_fault_choice(rng: random.Random, probabilities: dict[str, float]) -> str | None:
@@ -159,3 +159,4 @@ def inject_wearable_faults(
         fault_log.append(log_entry)
 
     return output, fault_log
+

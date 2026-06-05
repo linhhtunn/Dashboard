@@ -3,19 +3,19 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from backend.simulator.exporters import write_json, write_jsonl
-from backend.simulator.generation_config import DEFAULT_CONFIG_PATH, load_generation_config, with_overrides
-from backend.simulator.models import PatientProfile, parse_utc_datetime
-from backend.simulator.profile_generator import generate_patient_profiles
-from backend.simulator.profiles import get_profile
-from backend.simulator.wearable_faults import inject_wearable_faults
-from backend.simulator.wearable_signals import (
+from simulator.exporters import write_json, write_jsonl
+from simulator.generation_config import DEFAULT_CONFIG_PATH, load_generation_config, with_overrides
+from simulator.models import PatientProfile, parse_utc_datetime
+from simulator.profile_generator import generate_patient_profiles
+from simulator.profiles import get_profile
+from simulator.wearable_faults import inject_wearable_faults
+from simulator.wearable_signals import (
     generate_continuous_records,
     generate_daily_metrics,
     generate_ecg_records,
     generate_spo2_records,
 )
-from backend.simulator.wearable_timeline import build_master_timeline, sleep_metrics_to_json, sleep_sessions_to_json
+from simulator.wearable_timeline import build_master_timeline, sleep_metrics_to_json, sleep_sessions_to_json
 
 
 def load_profile_for_run(config) -> PatientProfile:
@@ -154,3 +154,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

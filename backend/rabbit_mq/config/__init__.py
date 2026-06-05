@@ -1,2 +1,3 @@
 """RabbitMQ configuration package."""
 
+

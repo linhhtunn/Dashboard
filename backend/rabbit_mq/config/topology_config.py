@@ -159,3 +159,4 @@ QUEUES = {
         "consumer_config": "debug",
     },
 }
+

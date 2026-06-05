@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from backend.simulator.config.fault_injector_config import build_wearable_fault_injector_config
-from backend.simulator.config.profile_generation_config import build_profile_generator_config, build_selected_user
-from backend.simulator.config.wearable_dev_config import (
+from simulator.config.fault_injector_config import build_wearable_fault_injector_config
+from simulator.config.profile_generation_config import build_profile_generator_config, build_selected_user
+from simulator.config.wearable_dev_config import (
     CONTINUOUS_INTERVAL_SECONDS,
     ECG,
     OUTPUT_FILES,
@@ -102,3 +102,4 @@ LAYERS = {
         "fault_injection_enabled": FAULT_INJECTION_ENABLED,
     },
 }
+

@@ -23,3 +23,4 @@ def write_jsonl(path: Path, rows: Iterable[dict]) -> int:
             count += 1
     return count
 
+

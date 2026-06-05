@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.simulator.models import PatientProfile
+from simulator.models import PatientProfile
 
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent / "config" / "patient_profiles.json"
@@ -19,4 +19,5 @@ def get_profile(patient_id: str, path: Path = DEFAULT_PROFILES_PATH) -> PatientP
         if profile.patient_id == patient_id:
             return profile
     raise ValueError(f"Patient profile not found: {patient_id}")
+
 

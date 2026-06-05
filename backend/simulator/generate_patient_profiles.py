@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from backend.simulator.exporters import write_json
-from backend.simulator.generation_config import DEFAULT_CONFIG_PATH, _load_python_config
-from backend.simulator.profile_generator import generate_patient_profiles
+from simulator.exporters import write_json
+from simulator.generation_config import DEFAULT_CONFIG_PATH, _load_python_config
+from simulator.profile_generator import generate_patient_profiles
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -33,3 +33,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

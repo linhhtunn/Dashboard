@@ -300,3 +300,4 @@ def build_selected_user(
     }
     _validate_selected_user(selected_user)
     return selected_user
+

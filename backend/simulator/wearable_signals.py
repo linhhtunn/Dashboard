@@ -6,14 +6,14 @@ from collections import deque
 from datetime import datetime, time, timedelta
 from typing import Any, Iterator
 
-from backend.simulator.config.wearable_reference_config import (
+from simulator.config.wearable_reference_config import (
     ACTIVITY_EFFECTS,
     SIGNAL_NOISE_RULES,
     SLEEP_GENERATION_RULES,
     SLEEP_STAGE_EFFECTS,
 )
-from backend.simulator.models import PatientProfile, format_utc_datetime
-from backend.simulator.wearable_timeline import find_master_segment
+from simulator.models import PatientProfile, format_utc_datetime
+from simulator.wearable_timeline import find_master_segment
 
 
 def _clamp(value: float, minimum: float, maximum: float) -> float:
@@ -350,3 +350,4 @@ def generate_daily_metrics(
             }
         )
     return records[0] if len(records) == 1 else records
+

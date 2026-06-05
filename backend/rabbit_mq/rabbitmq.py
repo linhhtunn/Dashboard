@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from backend.rabbit_mq.config import topology_config
+from rabbit_mq.config import topology_config
 
 
 RABBIT_MQ_DIR = Path(__file__).resolve().parent
@@ -151,3 +151,4 @@ def persistent_json_properties() -> Any:
 def apply_qos(channel: Any, settings: RabbitMQSettings, queue_key: str) -> None:
     options = settings.consumer_options(queue_key)
     channel.basic_qos(prefetch_count=options["prefetch_count"])
+

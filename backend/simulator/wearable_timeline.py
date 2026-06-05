@@ -4,11 +4,11 @@ import random
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
-from backend.simulator.config.wearable_reference_config import (
+from simulator.config.wearable_reference_config import (
     AWAKE_ACTIVITY_RULES_BY_LIFESTYLE,
     SLEEP_GENERATION_RULES,
 )
-from backend.simulator.models import PatientProfile, format_utc_datetime
+from simulator.models import PatientProfile, format_utc_datetime
 
 
 def _parse_hhmm(value: str) -> time:
@@ -344,3 +344,4 @@ def find_master_segment(segments: list[dict[str, Any]], timestamp: datetime) -> 
         if segment["start_time"] <= timestamp < segment["end_time"]:
             return segment
     return segments[-1]
+
