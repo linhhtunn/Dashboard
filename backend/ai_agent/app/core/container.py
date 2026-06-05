@@ -7,6 +7,7 @@ from app.memory.store import create_async_store, create_store
 from app.memory.policy import SlidingWindowPolicy
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
+from app.repositories.hybrid import HybridAlertRepository, HybridPatientRepository
 from app.repositories.ports import PatientRepository
 from app.tools import ToolRegistry
 from app.tools.clinical import PatientContextTool, VitalsSummaryTool
@@ -30,8 +31,14 @@ def build_agent_service(
     if dsn:
         logger.info("postgres_dsn_detected instantiating_db_repositories")
         db_connector = PostgresConnector(dsn)
-        patient_repository = PostgresPatientRepository(db_connector)
-        alert_repository = PostgresAlertRepository(db_connector)
+        patient_repository = HybridPatientRepository(
+            primary=PostgresPatientRepository(db_connector),
+            fallback=FixturePatientRepository(),
+        )
+        alert_repository = HybridAlertRepository(
+            primary=PostgresAlertRepository(db_connector),
+            fallback=FixtureAlertRepository(),
+        )
     else:
         logger.info("postgres_dsn_absent falling_back_to_fixture_repositories")
         db_connector = None
@@ -82,8 +89,14 @@ async def build_agent_service_async(
     if dsn:
         logger.info("postgres_dsn_detected instantiating_db_repositories")
         db_connector = PostgresConnector(dsn)
-        patient_repository = PostgresPatientRepository(db_connector)
-        alert_repository = PostgresAlertRepository(db_connector)
+        patient_repository = HybridPatientRepository(
+            primary=PostgresPatientRepository(db_connector),
+            fallback=FixturePatientRepository(),
+        )
+        alert_repository = HybridAlertRepository(
+            primary=PostgresAlertRepository(db_connector),
+            fallback=FixtureAlertRepository(),
+        )
     else:
         logger.info("postgres_dsn_absent falling_back_to_fixture_repositories")
         db_connector = None

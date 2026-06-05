@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from app.agents.clinical import ClinicalAgent
 from app.api.schemas.agent_requests import SummaryRequest
-from app.contracts.agent_response import AgentResponse, ResponseType
+from app.contracts.agent_response import AgentResponse, ChatIntent, ResponseType
 from app.repositories.ports import PatientRepository, RepositoryItemNotFoundError
 from app.services.fallback import build_summary_fallback
 from app.services.generation import GenerationService
@@ -34,6 +34,7 @@ class SummaryWorkflow:
         result = await self.generation_service.generate_with_contract(
             user_prompt=prompt,
             expected_response_type=ResponseType.SUMMARY,
+            expected_intent=ChatIntent.PATIENT_SUMMARY,
             expected_patient_id=request.patient_id,
             expected_source_id=request.patient_id,
             fallback=lambda reason: build_summary_fallback(

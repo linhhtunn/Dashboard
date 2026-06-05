@@ -1,10 +1,6 @@
+import type { AIConfidence, Evidence, Locale, VitalMetric } from "@/types";
 import type {
-  AIConfidence,
-  Evidence,
-  Locale,
-  VitalMetric,
-} from "@/types";
-import type {
+  AgentChatIntent,
   AgentComparisonPayload,
   AgentInsightPayload,
   AgentResponseType,
@@ -33,13 +29,21 @@ export function adaptBackendResponse({
   const answer = extractAnswer(raw, locale);
   const evidence = extractEvidence(raw);
   const keyFindings = extractKeyFindings(raw, answer, evidence, locale);
-  const suggestedIssueIds = inferIssueIds(answer, keyFindings, evidence);
+  const intent = extractIntent(raw);
+  const focusMetrics = extractFocusMetrics(raw, evidence);
+  const recommendedIssueId = extractRecommendedIssueId(raw, focusMetrics);
+  const fallbackIssueIds = inferIssueIds(answer, keyFindings, evidence);
+  const suggestedIssueIds = dedupeIssues(
+    recommendedIssueId ? [recommendedIssueId, ...fallbackIssueIds] : fallbackIssueIds,
+    focusMetrics,
+  );
   const confidence = extractConfidence(raw, evidence);
   const generatedAt = extractGeneratedAt(raw);
   const visualization = extractVisualization(raw);
   const comparison = extractComparison(raw);
   const responseType = extractResponseType(raw);
   const sourceId = extractSourceId(raw, title);
+  const nextActions = extractNextActions(raw);
 
   return {
     title,
@@ -47,7 +51,11 @@ export function adaptBackendResponse({
     patientId,
     sourceId,
     generatedAt,
+    intent,
     suggestedIssueIds,
+    recommendedIssueId,
+    focusMetrics,
+    nextActions,
     summary: {
       patientId,
       locale,
@@ -108,20 +116,20 @@ function extractKeyFindings(
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim())
       .filter(Boolean)
-      .slice(0, 3);
+      .slice(0, 4);
 
     if (normalized.length > 0) return normalized;
   }
 
   if (evidence.length > 0) {
-    return evidence.slice(0, 3).map((item) => buildEvidenceFinding(item, locale));
+    return evidence.slice(0, 4).map((item) => buildEvidenceFinding(item, locale));
   }
 
   const fallback = answer
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 4);
 
   return fallback.length > 0
     ? fallback
@@ -130,6 +138,69 @@ function extractKeyFindings(
           ? "Cần rà soát thêm phản hồi gốc từ AI."
           : "Further review of the raw AI response is needed.",
       ];
+}
+
+function extractIntent(raw: unknown): AgentChatIntent {
+  const record = asRecord(raw);
+  const value = asString(record?.intent)?.toLowerCase();
+
+  if (
+    value === "general_chat" ||
+    value === "patient_summary" ||
+    value === "patient_metric_or_protocol"
+  ) {
+    return value;
+  }
+
+  return "patient_summary";
+}
+
+function extractFocusMetrics(raw: unknown, evidence: Evidence[]) {
+  const record = asRecord(raw);
+  const candidate = record?.focus_metrics ?? record?.focusMetrics;
+  const metrics = Array.isArray(candidate)
+    ? candidate
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+  if (metrics.length > 0) return metrics;
+
+  return evidence
+    .map((item) => item.metric)
+    .filter((metric): metric is VitalMetric => Boolean(metric));
+}
+
+function extractRecommendedIssueId(
+  raw: unknown,
+  focusMetrics: string[],
+): DashboardIssueId | null {
+  const record = asRecord(raw);
+  const explicit = asString(
+    record?.recommended_issue_id ?? record?.recommendedIssueId,
+  );
+  const normalizedExplicit = normalizeIssueId(explicit);
+  if (normalizedExplicit) return normalizedExplicit;
+
+  for (const metric of focusMetrics) {
+    const inferred = mapMetricToIssue(metric);
+    if (inferred) return inferred;
+  }
+
+  return null;
+}
+
+function extractNextActions(raw: unknown) {
+  const record = asRecord(raw);
+  const candidate = record?.next_actions ?? record?.nextActions;
+  if (!Array.isArray(candidate)) return [];
+
+  return candidate
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
 }
 
 function extractEvidence(raw: unknown): Evidence[] {
@@ -153,7 +224,7 @@ function extractEvidence(raw: unknown): Evidence[] {
     if (mapped) evidence.push(mapped);
   }
 
-  return evidence.slice(0, 6);
+  return evidence.slice(0, 8);
 }
 
 function extractVisualization(raw: unknown): AgentVisualizationPayload {
@@ -247,6 +318,19 @@ function mapComparisonRow(value: unknown): Evidence | null {
   };
 }
 
+function dedupeIssues(
+  issues: DashboardIssueId[],
+  focusMetrics: string[],
+): DashboardIssueId[] {
+  const ordered = [...issues];
+  for (const metric of focusMetrics) {
+    const issue = mapMetricToIssue(metric);
+    if (issue) ordered.push(issue);
+  }
+
+  return Array.from(new Set(ordered)).slice(0, 3);
+}
+
 function inferIssueIds(
   answer: string,
   findings: string[],
@@ -260,7 +344,6 @@ function inferIssueIds(
 
   if (
     text.includes("spo2") ||
-    text.includes("spo₂") ||
     text.includes("oxygen") ||
     metrics.has("spo2")
   ) {
@@ -271,7 +354,7 @@ function inferIssueIds(
     text.includes("blood pressure") ||
     text.includes("systolic") ||
     text.includes("diastolic") ||
-    text.includes("huyết áp") ||
+    text.includes("huyet ap") ||
     metrics.has("systolic_bp") ||
     metrics.has("diastolic_bp")
   ) {
@@ -280,7 +363,7 @@ function inferIssueIds(
 
   if (
     text.includes("heart rate") ||
-    text.includes("nhịp tim") ||
+    text.includes("nhip tim") ||
     text.includes("hrv") ||
     metrics.has("heart_rate") ||
     metrics.has("hrv_rmssd")
@@ -288,7 +371,7 @@ function inferIssueIds(
     issues.push("heart_rate");
   }
 
-  return issues.length > 0 ? issues : ["spo2"];
+  return issues.length > 0 ? issues : [];
 }
 
 function extractConfidence(raw: unknown, evidence: Evidence[]): AIConfidence {
@@ -373,6 +456,40 @@ function getMetricDisplayLabel(metric: VitalMetric, locale: Locale) {
   return map[metric][locale];
 }
 
+function normalizeIssueId(value: string | undefined): DashboardIssueId | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "spo2" || normalized === "low_oxygen") return "spo2";
+  if (
+    normalized === "blood_pressure" ||
+    normalized === "high_blood_pressure" ||
+    normalized === "low_blood_pressure"
+  ) {
+    return "blood_pressure";
+  }
+  if (
+    normalized === "heart_rate" ||
+    normalized === "high_heart_rate" ||
+    normalized === "low_heart_rate"
+  ) {
+    return "heart_rate";
+  }
+  return null;
+}
+
+function mapMetricToIssue(metric: string | undefined): DashboardIssueId | null {
+  const normalized = normalizeMetric(metric);
+  if (!normalized) return null;
+  if (normalized === "spo2") return "spo2";
+  if (normalized === "systolic_bp" || normalized === "diastolic_bp") {
+    return "blood_pressure";
+  }
+  if (normalized === "heart_rate" || normalized === "hrv_rmssd") {
+    return "heart_rate";
+  }
+  return null;
+}
+
 function normalizeMetric(value: unknown): VitalMetric | undefined {
   const metric = asString(value)?.toLowerCase();
   switch (metric) {
@@ -385,7 +502,6 @@ function normalizeMetric(value: unknown): VitalMetric | undefined {
     case "hrv":
       return "hrv_rmssd";
     case "spo2":
-    case "spo₂":
     case "oxygen_saturation":
       return "spo2";
     case "systolic_bp":

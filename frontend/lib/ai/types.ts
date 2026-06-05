@@ -2,6 +2,10 @@ import type { AskAIRequest, AskAIResponse } from "@/types";
 
 export type DashboardIssueId = "spo2" | "blood_pressure" | "heart_rate";
 export type AgentResponseType = "chat" | "summary" | "explain-alert";
+export type AgentChatIntent =
+  | "general_chat"
+  | "patient_summary"
+  | "patient_metric_or_protocol";
 
 export type AgentVisualizationPoint = {
   timestamp: string;
@@ -31,7 +35,11 @@ export type AgentInsightPayload = {
   patientId: string;
   sourceId: string;
   generatedAt: string;
+  intent: AgentChatIntent;
   suggestedIssueIds: DashboardIssueId[];
+  recommendedIssueId: DashboardIssueId | null;
+  focusMetrics: string[];
+  nextActions: string[];
   summary: AskAIResponse;
   visualization: AgentVisualizationPayload;
   comparison: AgentComparisonPayload;
@@ -84,4 +92,14 @@ export type ThreadMeta = {
   title: string;
   updatedAt: string;
   lastIssue: string;
+};
+
+export type ThreadMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ThreadDetail = {
+  meta: ThreadMeta;
+  messages: ThreadMessage[];
 };

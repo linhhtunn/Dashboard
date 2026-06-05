@@ -13,7 +13,11 @@ def contract_instruction(response_type: str, patient_id: str, source_id: str) ->
         "Tra ve dung mot JSON object Contract 6 v1, khong boc trong Markdown. "
         f"`schema_version` phai la `v1`, `response_type` phai la `{response_type}`, "
         f"`patient_id` phai la `{patient_id}`, `source_id` phai la `{source_id}`. "
+        "`intent` phai la mot trong: 'general_chat', 'patient_summary', 'patient_metric_or_protocol'. "
         "`generated_at` co the bo trong response vi backend se overwrite. "
+        "`key_findings` va `next_actions` phai la list string ngan, ro nghia. "
+        "`focus_metrics` la list metric code nhu heart_rate, hrv_rmssd, spo2, systolic_bp, diastolic_bp. "
+        "`recommended_issue_id` chi duoc la null, 'spo2', 'blood_pressure', hoac 'heart_rate'. "
         "Moi `visualizations.data_points` phai co `timestamp`, `metric`, `value`, `unit`, `status`. "
         "Moi `comparisons.comparison_type` phai thuoc: 'vitals-vs-activity', 'alert-evidence', hoac 'vitals-trend'. "
         "Moi dong trong `comparisons.rows` phai la mot list cac string dung thu tu voi `headers` (vi du: [[\"heart_rate\", \"78\", \"NORMAL\", \"Low movement\"]]), KHONG duoc la dictionary. "
@@ -85,4 +89,14 @@ def build_chat_prompt(
         f"{ltm_section}"
         f"- User message: {message}\n\n"
         f"{contract_instruction('chat', patient_id, source_id)}"
+    )
+
+
+def build_general_chat_prompt(*, message: str) -> str:
+    return (
+        "Ban la tro ly AI ho tro bac si trong he thong theo doi lam sang. "
+        "Hay tra loi gon, ro, lich su, va khong dua ra chan doan hoac ke don thuoc. "
+        "Neu cau hoi la chao hoi, gioi thieu vai tro va kha nang ho tro cua ban.\n"
+        f"- User message: {message}\n\n"
+        f"{contract_instruction('chat', 'GENERAL', 'general-chat')}"
     )

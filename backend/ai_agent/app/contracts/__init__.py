@@ -1,5 +1,6 @@
 from app.contracts.agent_response import (
     AgentResponse,
+    ChatIntent,
     Comparison,
     ComparisonType,
     ContractModel,
@@ -12,6 +13,7 @@ from app.contracts.agent_response import (
 
 __all__ = [
     "AgentResponse",
+    "ChatIntent",
     "Comparison",
     "ComparisonType",
     "ContractModel",
@@ -23,6 +25,7 @@ __all__ = [
 ]
 from app.contracts.agent_response import (
     AgentResponse,
+    ChatIntent,
     Comparison,
     ResponseType,
     Visualization,
@@ -38,6 +41,7 @@ from app.contracts.tool_response import (
 
 __all__ = [
     "AgentResponse",
+    "ChatIntent",
     "Comparison",
     "ResponseType",
     "ToolResponse",

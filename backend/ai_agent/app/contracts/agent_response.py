@@ -11,6 +11,12 @@ class ResponseType(StrEnum):
     EXPLAIN_ALERT = "explain-alert"
 
 
+class ChatIntent(StrEnum):
+    GENERAL_CHAT = "general_chat"
+    PATIENT_SUMMARY = "patient_summary"
+    PATIENT_METRIC_OR_PROTOCOL = "patient_metric_or_protocol"
+
+
 class ComparisonType(StrEnum):
     VITALS_VS_ACTIVITY = "vitals-vs-activity"
     ALERT_EVIDENCE = "alert-evidence"
@@ -83,7 +89,12 @@ class AgentResponse(ContractModel):
     patient_id: str = Field(min_length=1)
     source_id: str = Field(min_length=1)
     generated_at: datetime = Field(default_factory=utc_now)
+    intent: ChatIntent = ChatIntent.PATIENT_SUMMARY
     narrative_summary: str = Field(min_length=1)
+    key_findings: list[str] = Field(default_factory=list)
+    focus_metrics: list[str] = Field(default_factory=list)
+    recommended_issue_id: str | None = None
+    next_actions: list[str] = Field(default_factory=list)
     visualizations: Visualization
     comparisons: Comparison
 

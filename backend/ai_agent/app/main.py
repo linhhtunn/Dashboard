@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routers.agent import router as agent_router
+from app.api.routers.data import router as data_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 
@@ -13,6 +14,7 @@ app = FastAPI(
     description="FastAPI foundation for the Team 5 AI Agent service.",
 )
 app.include_router(agent_router)
+app.include_router(data_router)
 
 
 @app.get("/")

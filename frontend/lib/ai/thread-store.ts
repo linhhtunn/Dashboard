@@ -1,8 +1,22 @@
-"use client";
+import type { ThreadDetail, ThreadMessage, ThreadMeta } from "@/lib/ai/types";
 
-import type { ThreadMeta } from "@/lib/ai/types";
+type ThreadMetaDto = {
+  conversation_id: string;
+  doctor_id: string;
+  patient_id: string | null;
+  title: string;
+  last_message_at: string;
+  last_issue: string | null;
+  last_intent: string | null;
+};
 
-const THREAD_INDEX_STORAGE_KEY = "care-signal-thread-index";
+type ThreadDetailDto = {
+  meta: ThreadMetaDto;
+  messages: Array<{
+    role: string;
+    content: string;
+  }>;
+};
 
 export function createThreadId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -12,40 +26,66 @@ export function createThreadId() {
   return `thread-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
-export function listThreadMeta(patientId: string): ThreadMeta[] {
-  if (typeof window === "undefined") return [];
-
-  const stored = window.localStorage.getItem(THREAD_INDEX_STORAGE_KEY);
-  if (!stored) return [];
-
-  try {
-    const parsed = JSON.parse(stored) as ThreadMeta[];
-    return parsed
-      .filter((item) => item.patientId === patientId)
-      .sort(
-        (left, right) =>
-          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
-      );
-  } catch {
-    return [];
-  }
+function mapThreadMeta(dto: ThreadMetaDto): ThreadMeta {
+  return {
+    threadId: dto.conversation_id,
+    patientId: dto.patient_id ?? "GENERAL",
+    title: dto.title,
+    updatedAt: dto.last_message_at,
+    lastIssue: dto.last_issue ?? dto.last_intent ?? "General",
+  };
 }
 
-export function upsertThreadMeta(meta: ThreadMeta) {
-  if (typeof window === "undefined") return;
-
-  const current = listAllThreadMeta();
-  const next = [meta, ...current.filter((item) => item.threadId !== meta.threadId)];
-  window.localStorage.setItem(THREAD_INDEX_STORAGE_KEY, JSON.stringify(next));
+function mapThreadMessages(
+  messages: ThreadDetailDto["messages"],
+): ThreadMessage[] {
+  return messages
+    .filter(
+      (message): message is { role: "user" | "assistant"; content: string } =>
+        (message.role === "user" || message.role === "assistant") &&
+        typeof message.content === "string",
+    )
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }
 
-function listAllThreadMeta(): ThreadMeta[] {
-  const stored = window.localStorage.getItem(THREAD_INDEX_STORAGE_KEY);
-  if (!stored) return [];
+export async function listThreadMeta(
+  patientId: string,
+  doctorId: string,
+): Promise<ThreadMeta[]> {
+  const search = new URLSearchParams();
+  search.set("doctor_id", doctorId);
+  if (patientId) search.set("patient_id", patientId);
 
-  try {
-    return JSON.parse(stored) as ThreadMeta[];
-  } catch {
-    return [];
+  const response = await fetch(`/api/threads?${search.toString()}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(await response.text());
   }
+
+  const payload = (await response.json()) as ThreadMetaDto[];
+  return payload.map(mapThreadMeta);
+}
+
+export async function getThreadDetail(
+  conversationId: string,
+): Promise<ThreadDetail | null> {
+  const response = await fetch(`/api/threads/${conversationId}`, {
+    cache: "no-store",
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const payload = (await response.json()) as ThreadDetailDto;
+  return {
+    meta: mapThreadMeta(payload.meta),
+    messages: mapThreadMessages(payload.messages),
+  };
 }

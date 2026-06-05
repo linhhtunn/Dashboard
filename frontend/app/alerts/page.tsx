@@ -6,11 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AgentInsightCard } from "@/components/agent/AgentInsightCard";
 import { PanelCard } from "@/components/common/PanelCard";
-import { useLocale } from "@/components/providers/LocaleProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { fetchAgentAlertExplanation } from "@/lib/ai/chat-client";
 import type { AgentInsightPayload } from "@/lib/ai/types";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/lib/i18n";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
+import type { Alert, Patient } from "@/types";
 
 type AlertInsightState = {
   requestKey: string | null;
@@ -29,10 +30,11 @@ type AlertInsightState = {
 
 export default function AlertsPage() {
   const { locale } = useLocale();
-  const alerts = useMemo(() => alertRepository.listOpen(), []);
-  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(
-    alerts[0]?.id ?? null,
-  );
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [patientsById, setPatientsById] = useState<Record<string, Patient>>({});
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
   const [insightState, setInsightState] = useState<AlertInsightState>({
     requestKey: null,
     payload: null,
@@ -43,14 +45,51 @@ export default function AlertsPage() {
     () => alerts.find((alert) => alert.id === selectedAlertId) ?? null,
     [alerts, selectedAlertId],
   );
-  const selectedPatient = useMemo(
-    () =>
-      selectedAlert
-        ? patientRepository.findById(selectedAlert.patientId)
-        : null,
-    [selectedAlert],
-  );
+  const selectedPatient = selectedAlert ? patientsById[selectedAlert.patientId] ?? null : null;
   const requestKey = selectedAlert ? `${selectedAlert.id}:${locale}` : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    setAlertsLoading(true);
+
+    void alertRepository
+      .listOpen()
+      .then(async (nextAlerts) => {
+        if (cancelled) return;
+        setAlerts(nextAlerts);
+        setSelectedAlertId((current) => current ?? nextAlerts[0]?.id ?? null);
+        const linkedPatients = await Promise.all(
+          Array.from(new Set(nextAlerts.map((item) => item.patientId))).map(async (patientId) => [
+            patientId,
+            await patientRepository.findById(patientId),
+          ] as const),
+        );
+        if (cancelled) return;
+        setPatientsById(
+          Object.fromEntries(
+            linkedPatients.filter((pair): pair is readonly [string, Patient] => Boolean(pair[1])),
+          ),
+        );
+        setAlertsError(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setAlertsError(
+          error instanceof Error
+            ? error.message
+            : locale === "vi"
+              ? "Không thể tải danh sách cảnh báo."
+              : "Unable to load alerts.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setAlertsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
 
   useEffect(() => {
     if (!selectedAlert || !requestKey) return;
@@ -64,16 +103,10 @@ export default function AlertsPage() {
     })
       .then((nextPayload) => {
         if (cancelled) return;
-
-        setInsightState({
-          requestKey,
-          payload: nextPayload,
-          error: null,
-        });
+        setInsightState({ requestKey, payload: nextPayload, error: null });
       })
       .catch((nextError: unknown) => {
         if (cancelled) return;
-
         setInsightState({
           requestKey,
           payload: null,
@@ -92,18 +125,14 @@ export default function AlertsPage() {
   }, [locale, requestKey, selectedAlert]);
 
   const loading = Boolean(requestKey) && insightState.requestKey !== requestKey;
-  const payload =
-    insightState.requestKey === requestKey ? insightState.payload : null;
+  const payload = insightState.requestKey === requestKey ? insightState.payload : null;
   const error = insightState.requestKey === requestKey ? insightState.error : null;
 
   const historyItems: SidebarHistoryItem[] = useMemo(
     () => [
       {
         id: "alerts-history-1",
-        title:
-          locale === "vi"
-            ? "Giải thích cảnh báo oxy thấp"
-            : "Explain low oxygen alert",
+        title: locale === "vi" ? "Giải thích cảnh báo oxy thấp" : "Explain low oxygen alert",
         timestamp: "09:25",
         issue: "SpO₂",
       },
@@ -118,10 +147,7 @@ export default function AlertsPage() {
       },
       {
         id: "alerts-history-3",
-        title:
-          locale === "vi"
-            ? "Tổng hợp cảnh báo đang mở"
-            : "Summarize open alerts",
+        title: locale === "vi" ? "Tổng hợp cảnh báo đang mở" : "Summarize open alerts",
         timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
         issue: locale === "vi" ? "Danh sách" : "List",
       },
@@ -166,51 +192,61 @@ export default function AlertsPage() {
             </div>
 
             <div className="space-y-3">
-              {alerts.map((alert) => {
-                const patient = patientRepository.findById(alert.patientId);
-                const selected = alert.id === selectedAlertId;
+              {alertsLoading ? (
+                <PanelCard className="px-4 py-4 text-[14px] text-[color:var(--cs-text-soft)]">
+                  {locale === "vi" ? "Đang tải cảnh báo..." : "Loading alerts..."}
+                </PanelCard>
+              ) : alertsError ? (
+                <PanelCard className="px-4 py-4 text-[14px] text-[color:var(--cs-danger)]">
+                  {alertsError}
+                </PanelCard>
+              ) : (
+                alerts.map((alert) => {
+                  const patient = patientsById[alert.patientId];
+                  const selected = alert.id === selectedAlertId;
 
-                return (
-                  <button
-                    key={alert.id}
-                    type="button"
-                    onClick={() => setSelectedAlertId(alert.id)}
-                    className={[
-                      "dashboard-surface flex w-full items-start justify-between rounded-[1.35rem] px-4 py-4 text-left transition",
-                      selected
-                        ? "border-[color:rgba(13,71,161,0.28)] shadow-[0_18px_34px_rgba(13,71,161,0.08)]"
-                        : "hover:border-[color:rgba(13,71,161,0.18)]",
-                    ].join(" ")}
-                  >
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-[color:rgba(13,71,161,0.08)] px-3 py-1 text-xs font-semibold text-[color:var(--cs-primary)]">
-                          {getAlertSeverityLabel(alert.severity, locale)}
-                        </span>
-                        <span className="text-xs text-[color:var(--cs-text-soft)]">
-                          {formatAlertTimestamp(alert.timestamp, locale)}
-                        </span>
+                  return (
+                    <button
+                      key={alert.id}
+                      type="button"
+                      onClick={() => setSelectedAlertId(alert.id)}
+                      className={[
+                        "dashboard-surface flex w-full items-start justify-between rounded-[1.35rem] px-4 py-4 text-left transition",
+                        selected
+                          ? "border-[color:rgba(13,71,161,0.28)] shadow-[0_18px_34px_rgba(13,71,161,0.08)]"
+                          : "hover:border-[color:rgba(13,71,161,0.18)]",
+                      ].join(" ")}
+                    >
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-[color:rgba(13,71,161,0.08)] px-3 py-1 text-xs font-semibold text-[color:var(--cs-primary)]">
+                            {getAlertSeverityLabel(alert.severity, locale)}
+                          </span>
+                          <span className="text-xs text-[color:var(--cs-text-soft)]">
+                            {formatAlertTimestamp(alert.timestamp, locale)}
+                          </span>
+                        </div>
+
+                        <p className="text-base font-semibold text-[color:var(--cs-heading)]">
+                          {getAlertTypeLabel(alert.type, locale)}
+                        </p>
+
+                        <p className="text-sm text-[color:var(--cs-text)]">
+                          {patient?.name ?? alert.patientId}
+                        </p>
+
+                        <p className="text-sm text-[color:var(--cs-text-soft)]">
+                          {patient
+                            ? `MRN ${patient.mrn} · ${patient.age} ${locale === "vi" ? "tuổi" : "years"}`
+                            : alert.patientId}
+                        </p>
                       </div>
 
-                      <p className="text-base font-semibold text-[color:var(--cs-heading)]">
-                        {getAlertTypeLabel(alert.type, locale)}
-                      </p>
-
-                      <p className="text-sm text-[color:var(--cs-text)]">
-                        {patient?.name ?? alert.patientId}
-                      </p>
-
-                      <p className="text-sm text-[color:var(--cs-text-soft)]">
-                        {patient
-                          ? `MRN ${patient.mrn} · ${patient.age} ${locale === "vi" ? "tuổi" : "years"}`
-                          : alert.patientId}
-                      </p>
-                    </div>
-
-                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[color:var(--cs-text-soft)]" />
-                  </button>
-                );
-              })}
+                      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[color:var(--cs-text-soft)]" />
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
         </section>
@@ -258,13 +294,7 @@ export default function AlertsPage() {
   );
 }
 
-function AlertStatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function AlertStatCard({ label, value }: { label: string; value: number }) {
   return (
     <PanelCard className="px-4 py-4">
       <p className="text-sm text-[color:var(--cs-text-soft)]">{label}</p>

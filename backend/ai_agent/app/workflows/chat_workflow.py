@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from app.agents.clinical import ClinicalAgent
 from app.api.schemas.agent_requests import ChatRequest
-from app.contracts.agent_response import AgentResponse, ResponseType
+from app.contracts.agent_response import AgentResponse, ChatIntent, ResponseType
 from app.memory.workflow import ChatGenerationResult, ChatMemoryWorkflow
 from app.repositories.ports import PatientRepository, RepositoryItemNotFoundError
 from app.services.fallback import build_chat_fallback
@@ -23,6 +23,7 @@ class ChatWorkflow:
     log_fallback: Callable[..., AgentResponse]
 
     async def run(self, request: ChatRequest) -> AgentResponse:
+        intent = classify_intent(request.message)
         safety = classify_prompt_injection(request.message)
         logger.info(
             "safety_gateway_decision endpoint=chat decision=%s matched_rules=%s",
@@ -40,6 +41,9 @@ class ChatWorkflow:
                 patient_id=request.patient_id,
                 reason=safety.reason,
             )
+
+        if intent == ChatIntent.GENERAL_CHAT:
+            return await self._run_general_chat(request)
 
         try:
             patient = self.patient_repository.get_by_id(request.patient_id)
@@ -73,6 +77,7 @@ class ChatWorkflow:
             result = await self.generation_service.generate_with_contract(
                 user_prompt=prompt,
                 expected_response_type=ResponseType.CHAT,
+                expected_intent=intent,
                 expected_patient_id=request.patient_id,
                 expected_source_id=source_id,
                 fallback=lambda reason: build_chat_fallback(
@@ -94,3 +99,54 @@ class ChatWorkflow:
             generate_response=generate_from_memory,
             doctor_id=request.doctor_id,
         )
+
+    async def _run_general_chat(self, request: ChatRequest) -> AgentResponse:
+        source_id = request.conversation_id or request.patient_id
+        prompt = self.clinical_agent.build_general_chat_prompt(message=request.message)
+        result = await self.generation_service.generate_with_contract(
+            user_prompt=prompt,
+            expected_response_type=ResponseType.CHAT,
+            expected_intent=ChatIntent.GENERAL_CHAT,
+            expected_patient_id=request.patient_id,
+            expected_source_id=source_id,
+            fallback=lambda reason: build_chat_fallback(
+                patient_id=request.patient_id,
+                conversation_id=request.conversation_id,
+                reason=reason,
+            ),
+            log_fallback=self.log_fallback,
+        )
+        return result.response
+
+
+def classify_intent(message: str) -> ChatIntent:
+    text = message.strip().lower()
+    general_tokens = [
+        "chao",
+        "xin chao",
+        "hello",
+        "hi",
+        "ban la ai",
+        "ban giup",
+        "ban co the",
+        "gioi thieu",
+    ]
+    if any(token in text for token in general_tokens):
+        return ChatIntent.GENERAL_CHAT
+
+    metric_tokens = [
+        "spo2",
+        "spo",
+        "oxy",
+        "nhip tim",
+        "heart rate",
+        "hrv",
+        "huyet ap",
+        "blood pressure",
+        "phac do",
+        "protocol",
+    ]
+    if any(token in text for token in metric_tokens):
+        return ChatIntent.PATIENT_METRIC_OR_PROTOCOL
+
+    return ChatIntent.PATIENT_SUMMARY

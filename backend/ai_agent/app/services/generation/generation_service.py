@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from app.agents.clinical.prompts.templates import SYSTEM_PROMPT
-from app.contracts.agent_response import AgentResponse, ResponseType, validate_agent_response
+from app.contracts.agent_response import AgentResponse, ChatIntent, ResponseType, validate_agent_response
 from app.infrastructure.llm.ports import LLMConfigurationError, LLMProvider
 from app.infrastructure.resilience import run_with_llm_retry, run_with_repair_retry
 from app.services.safety import check_clinical_safety
@@ -31,6 +31,7 @@ class GenerationService:
         *,
         user_prompt: str,
         expected_response_type: ResponseType,
+        expected_intent: ChatIntent,
         expected_patient_id: str,
         expected_source_id: str,
         fallback: Callable[[str], AgentResponse],
@@ -70,6 +71,7 @@ class GenerationService:
             return self._normalize_response(
                 parsed,
                 response_type=expected_response_type,
+                intent=expected_intent,
                 patient_id=expected_patient_id,
                 source_id=expected_source_id,
             )
@@ -122,12 +124,14 @@ class GenerationService:
         response: AgentResponse,
         *,
         response_type: ResponseType,
+        intent: ChatIntent,
         patient_id: str,
         source_id: str,
     ) -> AgentResponse:
         payload = response.model_dump(mode="json")
         payload["schema_version"] = "v1"
         payload["response_type"] = response_type.value
+        payload["intent"] = intent.value
         payload["patient_id"] = patient_id
         payload["source_id"] = source_id
         return validate_agent_response(payload)

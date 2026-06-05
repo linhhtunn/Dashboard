@@ -9,7 +9,6 @@ import {
   type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { MVP_BACKEND_PATIENT_ID } from "@/lib/ai/mvp-demo";
 import { formatShortClockTime, localizeText } from "@/lib/i18n";
 import type { AISummary } from "@/types";
 
@@ -128,7 +127,7 @@ export function AIAnswerCard({
 
           <button
             type="button"
-            onClick={() => router.push(`/patients/${MVP_BACKEND_PATIENT_ID}`)}
+            onClick={() => router.push(`/patients/${summary.patientId}`)}
             className="inline-flex items-center gap-2 rounded-full border border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.08)] px-3 py-1.5 text-[14px] font-medium text-[color:var(--cs-teal)] transition hover:bg-[color:rgba(0,150,136,0.14)]"
           >
             {locale === "vi" ? "Xem toàn bộ chỉ số" : "View all metrics"}

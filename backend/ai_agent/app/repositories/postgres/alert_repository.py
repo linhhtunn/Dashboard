@@ -86,3 +86,38 @@ class PostgresAlertRepository:
         except Exception as exc:
             logger.error("database_query_error alert_id=%s reason=%s", alert_id, exc, exc_info=True)
             raise RuntimeError(f"Database query failed: {exc}") from exc
+
+    def list_open(self) -> list[dict[str, Any]]:
+        logger.info("listing_open_alerts_from_db")
+        try:
+            with self.db_connector.connection() as conn, conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT alert_id, patient_id, alert_type, severity, confidence, evidence, message, timestamp
+                    FROM health_alerts
+                    ORDER BY timestamp DESC
+                    LIMIT 50
+                    """
+                )
+                rows = cur.fetchall()
+
+            return [
+                {
+                    "id": row["alert_id"],
+                    "patient_id": row["patient_id"],
+                    "type": row["alert_type"],
+                    "severity": str(row["severity"]).lower(),
+                    "score": round(float(row["confidence"] or 0) * 10, 1),
+                    "timestamp": row["timestamp"].strftime("%Y-%m-%dT%H:%M:%SZ") if row["timestamp"] else None,
+                    "acknowledged": False,
+                    "message": row["message"],
+                    "evidence": row["evidence"] or [],
+                }
+                for row in rows
+            ]
+        except Exception as exc:
+            logger.error("database_query_error alert_list reason=%s", exc, exc_info=True)
+            raise RuntimeError(f"Database query failed: {exc}") from exc
+
+    def list_by_patient(self, patient_id: str) -> list[dict[str, Any]]:
+        return [item for item in self.list_open() if item["patient_id"] == patient_id]

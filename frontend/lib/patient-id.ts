@@ -1,4 +1,4 @@
-import { MVP_BACKEND_PATIENT_ID } from "@/lib/ai/mvp-demo";
+const DEFAULT_DEMO_PATIENT_ID = "P001";
 
 export function normalizePatientId(patientId: string) {
   const trimmed = patientId.trim();
@@ -8,7 +8,7 @@ export function normalizePatientId(patientId: string) {
   }
 
   if (trimmed.toLowerCase() === "patient-a") {
-    return MVP_BACKEND_PATIENT_ID;
+    return DEFAULT_DEMO_PATIENT_ID;
   }
 
   return trimmed.toUpperCase();

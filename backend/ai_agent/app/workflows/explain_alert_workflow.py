@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from app.agents.clinical import ClinicalAgent
 from app.api.schemas.agent_requests import ExplainAlertRequest
-from app.contracts.agent_response import AgentResponse, ResponseType
+from app.contracts.agent_response import AgentResponse, ChatIntent, ResponseType
 from app.repositories.ports import AlertRepository, PatientRepository, RepositoryItemNotFoundError
 from app.services.fallback import build_explain_alert_fallback
 from app.services.generation import GenerationService
@@ -37,6 +37,7 @@ class ExplainAlertWorkflow:
         result = await self.generation_service.generate_with_contract(
             user_prompt=prompt,
             expected_response_type=ResponseType.EXPLAIN_ALERT,
+            expected_intent=ChatIntent.PATIENT_METRIC_OR_PROTOCOL,
             expected_patient_id=patient["patient_id"],
             expected_source_id=request.alert_id,
             fallback=lambda reason: build_explain_alert_fallback(

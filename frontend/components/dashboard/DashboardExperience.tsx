@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AIWorkspacePanel } from "@/components/dashboard/AIWorkspacePanel";
 import {
@@ -12,13 +12,12 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientContextPanel } from "@/components/dashboard/PatientContextPanel";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { MVP_BACKEND_PATIENT_ID } from "@/lib/ai/mvp-demo";
 import {
   createThreadId,
+  getThreadDetail,
   listThreadMeta,
-  upsertThreadMeta,
 } from "@/lib/ai/thread-store";
-import type { ThreadMeta } from "@/lib/ai/types";
+import type { ThreadMessage, ThreadMeta } from "@/lib/ai/types";
 import { formatShortClockTime, localizeText } from "@/lib/i18n";
 
 export type SidebarHistoryItem = {
@@ -35,11 +34,27 @@ export function DashboardExperience() {
   const [activeIssueId, setActiveIssueId] = useState<IssueId | null>(null);
   const [patientPanelOpen, setPatientPanelOpen] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState(createThreadId());
-  const [currentThreadTitle, setCurrentThreadTitle] = useState<string | null>(null);
   const [hasConversation, setHasConversation] = useState(false);
-  const [storedThreads, setStoredThreads] = useState<ThreadMeta[]>(() =>
-    listThreadMeta(dashboardPatient.id),
-  );
+  const [storedThreads, setStoredThreads] = useState<ThreadMeta[]>([]);
+  const [initialMessages, setInitialMessages] = useState<ThreadMessage[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void listThreadMeta(dashboardPatient.id, DEMO_USER_ID)
+      .then((threads) => {
+        if (cancelled) return;
+        setStoredThreads(threads);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStoredThreads([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const historyItems = useMemo(
     () =>
@@ -56,6 +71,11 @@ export function DashboardExperience() {
     () => dashboardIssues.find((issue) => issue.id === activeIssueId) ?? null,
     [activeIssueId],
   );
+
+  const refreshThreads = async () => {
+    const nextThreads = await listThreadMeta(dashboardPatient.id, DEMO_USER_ID);
+    setStoredThreads(nextThreads);
+  };
 
   const handleToggleIssue = (issueId: IssueId) => {
     setActiveIssueId((current) => {
@@ -76,34 +96,24 @@ export function DashboardExperience() {
 
   const handleCreateNewChat = () => {
     setCurrentThreadId(createThreadId());
-    setCurrentThreadTitle(null);
+    setInitialMessages([]);
     setActiveIssueId(null);
     setPatientPanelOpen(false);
     setHasConversation(false);
   };
 
-  const handlePersistThread = (meta: { title: string; lastIssue: string }) => {
-    setHasConversation(true);
-    const nextMeta: ThreadMeta = {
-      threadId: currentThreadId,
-      patientId: dashboardPatient.id,
-      title: meta.title,
-      updatedAt: new Date().toISOString(),
-      lastIssue: meta.lastIssue,
-    };
-
-    setCurrentThreadTitle(meta.title);
-    upsertThreadMeta(nextMeta);
-    setStoredThreads(listThreadMeta(dashboardPatient.id));
+  const handleThreadUpdated = async () => {
+    await refreshThreads();
   };
 
-  const handleSelectThread = (threadId: string) => {
-    const selected = storedThreads.find((item) => item.threadId === threadId);
+  const handleSelectThread = async (threadId: string) => {
     setCurrentThreadId(threadId);
-    setCurrentThreadTitle(selected?.title ?? null);
-    setHasConversation(true);
     setActiveIssueId(null);
     setPatientPanelOpen(false);
+
+    const detail = await getThreadDetail(threadId);
+    setInitialMessages(detail?.messages ?? []);
+    setHasConversation((detail?.messages.length ?? 0) > 0);
   };
 
   return (
@@ -111,9 +121,11 @@ export function DashboardExperience() {
       activeNav="dashboard"
       activeThreadId={currentThreadId}
       historyItems={historyItems}
-      historyDisabled={!hasConversation && storedThreads.length === 0}
+      historyDisabled={!hasConversation}
       onCreateNewChat={handleCreateNewChat}
-      onSelectThread={handleSelectThread}
+      onSelectThread={(threadId) => {
+        void handleSelectThread(threadId);
+      }}
       patientPanelOpen={patientPanelOpen}
       topBar={<DashboardTopBar />}
       leftPanel={
@@ -121,12 +133,12 @@ export function DashboardExperience() {
           key={`${locale}-${currentThreadId}`}
           activeIssueId={activeIssueId}
           currentThreadId={currentThreadId}
-          patientId={MVP_BACKEND_PATIENT_ID}
-          resumeThreadTitle={currentThreadTitle}
+          initialMessages={initialMessages}
+          patientId={dashboardPatient.id}
           userId={DEMO_USER_ID}
           onConversationStateChange={setHasConversation}
           onOpenIssue={handleOpenIssue}
-          onPersistThread={handlePersistThread}
+          onThreadUpdated={handleThreadUpdated}
           onToggleIssue={handleToggleIssue}
         />
       }

@@ -1,68 +1,74 @@
 "use client";
 
 import type { ChangeEvent, FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AIComposer } from "@/components/dashboard/AIComposer";
 import {
   ConversationThread,
   type ChatMessage,
 } from "@/components/dashboard/ConversationThread";
+import { SuggestedPromptList } from "@/components/dashboard/SuggestedPromptList";
 import { type IssueId } from "@/components/dashboard/dashboard-demo-data";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { SuggestedPromptList } from "@/components/dashboard/SuggestedPromptList";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
 import { streamAgentChat } from "@/lib/ai/chat-client";
-import type { DashboardIssueId } from "@/lib/ai/types";
+import type { DashboardIssueId, ThreadMessage } from "@/lib/ai/types";
 import type { AISummary } from "@/types";
 
 type AIWorkspacePanelProps = {
   activeIssueId: IssueId | null;
   currentThreadId: string;
+  initialMessages: ThreadMessage[];
   patientId: string;
-  resumeThreadTitle: string | null;
   userId: string;
   onConversationStateChange: (hasConversation: boolean) => void;
   onOpenIssue: (issueId: IssueId) => void;
-  onPersistThread: (meta: { title: string; lastIssue: string }) => void;
+  onThreadUpdated: (meta: { title: string; lastIssue: string }) => Promise<void> | void;
   onToggleIssue: (issueId: IssueId) => void;
 };
 
 export function AIWorkspacePanel({
   activeIssueId,
   currentThreadId,
+  initialMessages,
   patientId,
-  resumeThreadTitle,
   userId,
   onConversationStateChange,
   onOpenIssue,
-  onPersistThread,
+  onThreadUpdated,
   onToggleIssue,
 }: AIWorkspacePanelProps) {
   const { locale } = useLocale();
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(
-    resumeThreadTitle
-      ? [
-          {
-            id: "resume-thread-note",
-            role: "system",
-            content:
-              locale === "vi"
-                ? `Đang tiếp tục đoạn chat: ${resumeThreadTitle}. Hãy gửi câu hỏi tiếp theo để backend AI nối lại ngữ cảnh.`
-                : `Continuing the chat: ${resumeThreadTitle}. Send the next prompt to resume the AI context.`,
-          },
-        ]
-      : [],
-  );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [summaryIssueIds, setSummaryIssueIds] = useState<DashboardIssueId[]>([]);
   const [isThinking, setIsThinking] = useState(false);
 
+  useEffect(() => {
+    setMessages(
+      initialMessages.map((message, index) => ({
+        id: `${currentThreadId}-${message.role}-${index}`,
+        role: message.role,
+        content: message.content,
+      })),
+    );
+    setSummary(null);
+    setSummaryIssueIds([]);
+    setDraft("");
+  }, [currentThreadId, initialMessages]);
+
+  useEffect(() => {
+    onConversationStateChange(
+      messages.some((message) => message.role === "user" || message.role === "assistant"),
+    );
+  }, [messages, onConversationStateChange]);
+
   const greeting = useMemo(() => getGreetingByHour(locale), [locale]);
   const prompts = useMemo(() => getPrompts(locale), [locale]);
   const placeholders = useMemo(() => getEmptyStatePlaceholders(locale), [locale]);
-  const hasConversation = messages.some((message) => message.role !== "system");
+  const hasConversation = messages.length > 0;
 
   const handleSubmit = async (promptOverride?: string) => {
     const nextPrompt = (promptOverride ?? draft).trim();
@@ -70,16 +76,13 @@ export function AIWorkspacePanel({
 
     const nextHistory = messages
       .filter(
-        (
-          message,
-        ): message is ChatMessage & { role: "user" | "assistant" } =>
+        (message): message is ChatMessage & { role: "user" | "assistant" } =>
           message.role === "user" || message.role === "assistant",
       )
       .map((message) => ({
         role: message.role,
         content: message.content,
-      }))
-      .filter((message) => message.content.trim().length > 0);
+      }));
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -101,7 +104,6 @@ export function AIWorkspacePanel({
     setIsThinking(true);
     setSummary(null);
     setSummaryIssueIds([]);
-    onConversationStateChange(true);
 
     try {
       const payload = await streamAgentChat(
@@ -115,13 +117,6 @@ export function AIWorkspacePanel({
           history: nextHistory,
         },
         {
-          onMeta: (event) => {
-            const primaryIssue = event.suggestedIssueIds[0];
-            onPersistThread({
-              title: event.title,
-              lastIssue: getIssueDisplayLabel(primaryIssue, locale),
-            });
-          },
           onDelta: (event) => {
             setMessages((current) =>
               current.map((message) =>
@@ -134,15 +129,16 @@ export function AIWorkspacePanel({
           onComplete: (event) => {
             setSummary(event.payload.summary);
             setSummaryIssueIds(event.payload.suggestedIssueIds);
-            if (event.payload.suggestedIssueIds[0]) {
-              onOpenIssue(event.payload.suggestedIssueIds[0] as IssueId);
+            const primaryIssue = event.payload.recommendedIssueId ?? event.payload.suggestedIssueIds[0];
+            if (primaryIssue) {
+              onOpenIssue(primaryIssue as IssueId);
             }
           },
         },
       );
 
-      const primaryIssue = payload.suggestedIssueIds[0];
-      onPersistThread({
+      const primaryIssue = payload.recommendedIssueId ?? payload.suggestedIssueIds[0];
+      await onThreadUpdated({
         title: payload.title,
         lastIssue: getIssueDisplayLabel(primaryIssue, locale),
       });
@@ -169,7 +165,7 @@ export function AIWorkspacePanel({
     }
   };
 
-  if (!hasConversation && !isThinking && !resumeThreadTitle) {
+  if (!hasConversation && !isThinking) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-4">
@@ -185,9 +181,9 @@ export function AIWorkspacePanel({
                 placeholders={placeholders}
                 value={draft}
                 onValueChange={setDraft}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  setDraft(event.target.value)
-                }
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  setDraft(event.target.value);
+                }}
                 onSubmit={(event: FormEvent<HTMLFormElement>) => {
                   event.preventDefault();
                   void handleSubmit();
@@ -224,14 +220,18 @@ export function AIWorkspacePanel({
           <div className="mb-1.5 pl-1">
             <SuggestedPromptList
               prompts={prompts}
-              onSelect={(prompt) => void handleSubmit(prompt)}
+              onSelect={(prompt) => {
+                void handleSubmit(prompt);
+              }}
             />
           </div>
           <AIComposer
             className="mx-auto w-full"
             value={draft}
             onChange={setDraft}
-            onSubmit={() => void handleSubmit()}
+            onSubmit={() => {
+              void handleSubmit();
+            }}
           />
         </div>
       </div>
@@ -282,7 +282,7 @@ function getGreetingByHour(locale: "vi" | "en") {
 }
 
 function getIssueDisplayLabel(
-  issueId: DashboardIssueId | undefined,
+  issueId: DashboardIssueId | undefined | null,
   locale: "vi" | "en",
 ) {
   if (!issueId) {

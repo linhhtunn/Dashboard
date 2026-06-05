@@ -4,6 +4,7 @@ from typing import Any
 from app.agents.clinical.prompts.builders import (
     build_chat_prompt,
     build_explain_alert_prompt,
+    build_general_chat_prompt,
     build_summary_prompt,
 )
 
@@ -34,3 +35,6 @@ class ClinicalAgent:
             long_term_watchlist=long_term_watchlist,
             doctor_preferences=doctor_preferences,
         )
+
+    def build_general_chat_prompt(self, *, message: str) -> str:
+        return build_general_chat_prompt(message=message)

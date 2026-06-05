@@ -6,11 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertItem } from "@/components/alerts";
 import { AgentInsightCard } from "@/components/agent/AgentInsightCard";
 import { PanelCard } from "@/components/common/PanelCard";
-import { useLocale } from "@/components/providers/LocaleProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { MetricCard, TimeRangeSelector } from "@/components/vitals";
 import { fetchAgentSummary } from "@/lib/ai/chat-client";
 import type { AgentInsightPayload } from "@/lib/ai/types";
@@ -18,6 +18,7 @@ import { getConditionLabel, getSymptomLabel, localizeText } from "@/lib/i18n";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
+import type { Alert, MetricSummary, Patient, VitalSignalSample } from "@/types";
 
 type SummaryState = {
   requestKey: string | null;
@@ -29,23 +30,56 @@ export default function PatientDetailPage() {
   const { locale } = useLocale();
   const params = useParams<{ patientId: string }>();
   const patientId = params.patientId;
-
-  const patient = useMemo(
-    () => patientRepository.findById(patientId),
-    [patientId],
-  );
-  const vitals = useMemo(() => vitalRepository.listByPatient(patientId), [patientId]);
-  const summaries = useMemo(
-    () => vitalRepository.listMetricSummaries(patientId),
-    [patientId],
-  );
-  const alerts = useMemo(() => alertRepository.listByPatient(patientId), [patientId]);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [vitals, setVitals] = useState<VitalSignalSample[]>([]);
+  const [summaries, setSummaries] = useState<MetricSummary[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loadingRecord, setLoadingRecord] = useState(true);
+  const [recordError, setRecordError] = useState<string | null>(null);
   const [summaryState, setSummaryState] = useState<SummaryState>({
     requestKey: null,
     payload: null,
     error: null,
   });
+
   const requestKey = patient ? `${patient.id}:${locale}` : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingRecord(true);
+
+    void Promise.all([
+      patientRepository.findById(patientId),
+      vitalRepository.listByPatient(patientId),
+      vitalRepository.listMetricSummaries(patientId),
+      alertRepository.listByPatient(patientId),
+    ])
+      .then(([nextPatient, nextVitals, nextSummaries, nextAlerts]) => {
+        if (cancelled) return;
+        setPatient(nextPatient);
+        setVitals(nextVitals);
+        setSummaries(nextSummaries);
+        setAlerts(nextAlerts);
+        setRecordError(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setRecordError(
+          error instanceof Error
+            ? error.message
+            : locale === "vi"
+              ? "Không thể tải hồ sơ bệnh nhân."
+              : "Unable to load patient record.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRecord(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [locale, patientId]);
 
   useEffect(() => {
     if (!patient || !requestKey) return;
@@ -55,16 +89,10 @@ export default function PatientDetailPage() {
     void fetchAgentSummary({ patientId: patient.id, locale })
       .then((payload) => {
         if (cancelled) return;
-
-        setSummaryState({
-          requestKey,
-          payload,
-          error: null,
-        });
+        setSummaryState({ requestKey, payload, error: null });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-
         setSummaryState({
           requestKey,
           payload: null,
@@ -107,8 +135,7 @@ export default function PatientDetailPage() {
       },
       {
         id: "patient-history-3",
-        title:
-          locale === "vi" ? "Rà soát cảnh báo đang mở" : "Review open alerts",
+        title: locale === "vi" ? "Rà soát cảnh báo đang mở" : "Review open alerts",
         timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
         issue: locale === "vi" ? "Cảnh báo" : "Alerts",
       },
@@ -127,14 +154,18 @@ export default function PatientDetailPage() {
           <section className="flex h-full items-center justify-center px-4 py-4">
             <div className="dashboard-surface rounded-[1.25rem] px-5 py-6 text-center">
               <h1 className="text-[1.55rem] font-semibold text-[color:var(--cs-heading)]">
-                {locale === "vi"
-                  ? "Không tìm thấy hồ sơ bệnh nhân"
-                  : "Patient record not found"}
+                {locale === "vi" ? "Không tìm thấy hồ sơ bệnh nhân" : "Patient record not found"}
               </h1>
               <p className="mt-2 text-[13px] text-[color:var(--cs-text-soft)]">
-                {locale === "vi"
-                  ? `Mã hồ sơ ${patientId} hiện chưa có trong dữ liệu mô phỏng.`
-                  : `Record ID ${patientId} is not available in the mock dataset.`}
+                {loadingRecord
+                  ? locale === "vi"
+                    ? "Đang tải hồ sơ bệnh nhân..."
+                    : "Loading patient record..."
+                  : recordError
+                    ? recordError
+                    : locale === "vi"
+                      ? `Mã hồ sơ ${patientId} hiện chưa có trong backend.`
+                      : `Record ID ${patientId} is not available in the backend.`}
               </p>
             </div>
           </section>
@@ -173,11 +204,7 @@ export default function PatientDetailPage() {
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {summaries.map((summary) => (
-                    <MetricCard
-                      key={summary.metric}
-                      summary={summary}
-                      vitals={vitals}
-                    />
+                    <MetricCard key={summary.metric} summary={summary} vitals={vitals} />
                   ))}
                 </div>
               </PanelCard>
@@ -206,10 +233,7 @@ export default function PatientDetailPage() {
                       </p>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {patient.underlyingConditionCodes.map((code) => (
-                          <span
-                            key={code}
-                            className="rounded-full bg-white/72 px-2.5 py-1"
-                          >
+                          <span key={code} className="rounded-full bg-white/72 px-2.5 py-1">
                             {getConditionLabel(code, locale)}
                           </span>
                         ))}
@@ -223,10 +247,7 @@ export default function PatientDetailPage() {
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {patient.recentSymptomCodes.length > 0 ? (
                           patient.recentSymptomCodes.map((code) => (
-                            <span
-                              key={code}
-                              className="rounded-full bg-white/72 px-2.5 py-1"
-                            >
+                            <span key={code} className="rounded-full bg-white/72 px-2.5 py-1">
                               {getSymptomLabel(code, locale)}
                             </span>
                           ))
@@ -252,8 +273,7 @@ export default function PatientDetailPage() {
                               className="rounded-[0.9rem] bg-white/72 px-3.5 py-2.5"
                             >
                               <p className="font-medium text-[color:var(--cs-heading)]">
-                                {localizeText(medication.medication, locale)} ·{" "}
-                                {medication.dosage}
+                                {localizeText(medication.medication, locale)} · {medication.dosage}
                               </p>
                               <p className="mt-0.5 text-[12px] text-[color:var(--cs-text-soft)]">
                                 {localizeText(medication.schedule, locale)}
@@ -277,9 +297,7 @@ export default function PatientDetailPage() {
                     {locale === "vi" ? "Cảnh báo theo dõi" : "Monitoring alerts"}
                   </p>
                   <h2 className="mt-1.5 text-[1.25rem] font-semibold text-[color:var(--cs-heading)]">
-                    {locale === "vi"
-                      ? "Danh sách cảnh báo đang hoạt động"
-                      : "Active alert list"}
+                    {locale === "vi" ? "Danh sách cảnh báo đang hoạt động" : "Active alert list"}
                   </h2>
 
                   <div className="mt-4 space-y-2.5">
