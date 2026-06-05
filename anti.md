@@ -1,13 +1,24 @@
-Ran command: `clear`
+Ran command: `cd ..`
+Ran command: `cd ai_agent/`
+Ran command: `uvicorn app.main:app --reload --port 8005`
+Ran command: `-G6-AHP:~/Desktop/python/VinUni/software-engin
+cuong@cuong-ThinkBook-14-G6-AHP:~/Desktop/python/VinUni/software-engin
+cuong@cuong-ThinkBook-14-G6-AHP:~/Desktop/python/VinUni/software-engineering$ curl -X POST "http://localhost:8005/api/agent/chat" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "patient_id": "P001",
+       "message": "Hãy cho tôi biết tóm tắt các chỉ số sinh hiệu gần đây của bệnh nhân này"
+     }'`
+Ran command: `l -X POST "http://localhost:8005/api/agent/summary" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "patient_id": "P001"
+     }'`
 
-Yêu cầu `GET /favicon.ico` xuất hiện trong log của bạn là do hành vi mặc định của **Trình duyệt web** (như Chrome, Firefox, Edge, Safari) khi bạn truy cập vào các đường dẫn của dự án (ví dụ như trang Swagger `/docs` hoặc trang `/health`).
+Để tiến hành lưu trữ (archive) thay đổi thông qua quy trình `openspec-archive-change`, vui lòng xác nhận bạn muốn lưu trữ đề xuất nào trong số các thay đổi đang hoạt động dưới đây:
 
-Cơ chế hoạt động cụ thể như sau:
+1. **`integrate-supabase-db-and-dynamic-prompting`** (Thay đổi chúng ta vừa hoàn thành)
+2. **`remove-redundant-chat-history`**
+3. **`add-ai-agent-langgraph-short-term-memory`**
 
-### 1. Tại sao lại có yêu cầu `/favicon.ico`?
-Khi bạn dùng trình duyệt mở một trang web bất kỳ, trình duyệt sẽ luôn tự động gửi thêm một yêu cầu phụ tới đường dẫn `/favicon.ico` ở thư mục gốc của server để lấy biểu tượng nhỏ (icon) hiển thị trên tab của trình duyệt. 
-* Do ứng dụng FastAPI của bạn không khai báo route cho `/favicon.ico`, server sẽ trả về lỗi **`404 Not Found`**. Đây là điều hoàn toàn bình thường đối với các API backend thuần túy.
-
-### 2. Sự khác nhau giữa các địa chỉ IP trong log của bạn:
-* **IP `172.17.0.1` (gặp lỗi `favicon.ico 404`):** Đây là IP gateway của Docker bridge (trỏ từ máy thật của bạn vào container). Điều này chứng tỏ **bạn vừa dùng trình duyệt từ máy thật** để truy cập vào ứng dụng trong container.
-* **IP `127.0.0.1` (gọi thành công `/health 200`):** Đây là localhost *bên trong* container. Yêu cầu này sinh ra do tiến trình **`HEALTHCHECK`** (được cấu hình trong `Dockerfile`) tự động gọi kiểm tra sức khỏe hệ thống định kỳ mỗi 30 giây bằng lệnh `urllib.request.urlopen`.
+Bạn muốn lưu trữ thay đổi nào? Vui lòng phản hồi tên hoặc số thứ tự của thay đổi đó để tôi thực hiện bước tiếp theo.
