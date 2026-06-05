@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
 import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { AlertItem } from "@/components/alerts";
+import { AgentInsightCard } from "@/components/agent/AgentInsightCard";
 import { PanelCard } from "@/components/common/PanelCard";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -11,10 +12,18 @@ import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperie
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
 import { MetricCard, TimeRangeSelector } from "@/components/vitals";
+import { fetchAgentSummary } from "@/lib/ai/chat-client";
+import type { AgentInsightPayload } from "@/lib/ai/types";
 import { getConditionLabel, getSymptomLabel, localizeText } from "@/lib/i18n";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
+
+type SummaryState = {
+  requestKey: string | null;
+  payload: AgentInsightPayload | null;
+  error: string | null;
+};
 
 export default function PatientDetailPage() {
   const { locale } = useLocale();
@@ -25,18 +34,59 @@ export default function PatientDetailPage() {
     () => patientRepository.findById(patientId),
     [patientId],
   );
-  const vitals = useMemo(
-    () => vitalRepository.listByPatient(patientId),
-    [patientId],
-  );
+  const vitals = useMemo(() => vitalRepository.listByPatient(patientId), [patientId]);
   const summaries = useMemo(
     () => vitalRepository.listMetricSummaries(patientId),
     [patientId],
   );
-  const alerts = useMemo(
-    () => alertRepository.listByPatient(patientId),
-    [patientId],
-  );
+  const alerts = useMemo(() => alertRepository.listByPatient(patientId), [patientId]);
+  const [summaryState, setSummaryState] = useState<SummaryState>({
+    requestKey: null,
+    payload: null,
+    error: null,
+  });
+  const requestKey = patient ? `${patient.id}:${locale}` : null;
+
+  useEffect(() => {
+    if (!patient || !requestKey) return;
+
+    let cancelled = false;
+
+    void fetchAgentSummary({ patientId: patient.id, locale })
+      .then((payload) => {
+        if (cancelled) return;
+
+        setSummaryState({
+          requestKey,
+          payload,
+          error: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+
+        setSummaryState({
+          requestKey,
+          payload: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : locale === "vi"
+                ? "Không thể tải tóm tắt từ backend AI."
+                : "Unable to load the AI summary.",
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [locale, patient, requestKey]);
+
+  const summaryLoading = Boolean(requestKey) && summaryState.requestKey !== requestKey;
+  const agentSummary =
+    summaryState.requestKey === requestKey ? summaryState.payload : null;
+  const summaryError =
+    summaryState.requestKey === requestKey ? summaryState.error : null;
 
   const historyItems: SidebarHistoryItem[] = useMemo(
     () => [
@@ -74,14 +124,14 @@ export default function PatientDetailPage() {
         onCreateNewChat={() => undefined}
         topBar={<DashboardTopBar />}
         leftPanel={
-          <section className="flex h-full items-center justify-center px-5 py-5">
-            <div className="dashboard-surface rounded-[1.5rem] px-6 py-8 text-center">
-              <h1 className="text-[1.8rem] font-semibold text-[color:var(--cs-heading)]">
+          <section className="flex h-full items-center justify-center px-4 py-4">
+            <div className="dashboard-surface rounded-[1.25rem] px-5 py-6 text-center">
+              <h1 className="text-[1.55rem] font-semibold text-[color:var(--cs-heading)]">
                 {locale === "vi"
                   ? "Không tìm thấy hồ sơ bệnh nhân"
                   : "Patient record not found"}
               </h1>
-              <p className="mt-3 text-sm text-[color:var(--cs-text-soft)]">
+              <p className="mt-2 text-[13px] text-[color:var(--cs-text-soft)]">
                 {locale === "vi"
                   ? `Mã hồ sơ ${patientId} hiện chưa có trong dữ liệu mô phỏng.`
                   : `Record ID ${patientId} is not available in the mock dataset.`}
@@ -101,18 +151,18 @@ export default function PatientDetailPage() {
       onCreateNewChat={() => undefined}
       topBar={<DashboardTopBar />}
       leftPanel={
-        <section className="dashboard-scroll-area h-full overflow-y-auto px-3 py-3">
-          <div className="mx-auto max-w-[1800px] space-y-5">
+        <section className="dashboard-scroll-area h-full overflow-y-auto px-2.5 py-2.5">
+          <div className="mx-auto max-w-[1800px] space-y-4">
             <PatientSummaryHeader patient={patient} />
 
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,0.6fr)]">
-              <PanelCard className="px-5 py-5">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(300px,0.88fr)]">
+              <PanelCard className="px-4 py-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-[color:var(--cs-teal)]">
                       {locale === "vi" ? "Chỉ số sinh tồn" : "Vital signs"}
                     </p>
-                    <h2 className="mt-2 text-[1.45rem] font-semibold text-[color:var(--cs-heading)]">
+                    <h2 className="mt-1.5 text-[1.25rem] font-semibold text-[color:var(--cs-heading)]">
                       {locale === "vi"
                         ? "Theo dõi 15 phút gần nhất"
                         : "Latest 15-minute monitoring"}
@@ -121,7 +171,7 @@ export default function PatientDetailPage() {
                   <TimeRangeSelector />
                 </div>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {summaries.map((summary) => (
                     <MetricCard
                       key={summary.metric}
@@ -132,21 +182,33 @@ export default function PatientDetailPage() {
                 </div>
               </PanelCard>
 
-              <div className="space-y-5">
-                <PanelCard className="px-5 py-5">
+              <div className="space-y-4">
+                <AgentInsightCard
+                  title={locale === "vi" ? "Tóm tắt từ AI" : "AI summary"}
+                  payload={agentSummary}
+                  loading={summaryLoading}
+                  error={summaryError}
+                  emptyCopy={{
+                    vi: "Chưa có tóm tắt từ backend AI cho bệnh nhân này.",
+                    en: "No AI summary is available for this patient yet.",
+                  }}
+                />
+
+                <PanelCard className="px-4 py-4">
                   <p className="text-sm font-medium text-[color:var(--cs-teal)]">
                     {locale === "vi" ? "Bối cảnh bệnh nhân" : "Patient context"}
                   </p>
-                  <div className="mt-4 space-y-4 text-sm text-[color:var(--cs-text)]">
+
+                  <div className="mt-3 space-y-3 text-[13px] text-[color:var(--cs-text)]">
                     <div>
                       <p className="font-semibold text-[color:var(--cs-heading)]">
                         {locale === "vi" ? "Bệnh nền" : "Underlying conditions"}
                       </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {patient.underlyingConditionCodes.map((code) => (
                           <span
                             key={code}
-                            className="rounded-full bg-white/72 px-3 py-1.5"
+                            className="rounded-full bg-white/72 px-2.5 py-1"
                           >
                             {getConditionLabel(code, locale)}
                           </span>
@@ -156,22 +218,20 @@ export default function PatientDetailPage() {
 
                     <div>
                       <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi"
-                          ? "Triệu chứng gần đây"
-                          : "Recent symptoms"}
+                        {locale === "vi" ? "Triệu chứng gần đây" : "Recent symptoms"}
                       </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {patient.recentSymptomCodes.length > 0 ? (
                           patient.recentSymptomCodes.map((code) => (
                             <span
                               key={code}
-                              className="rounded-full bg-white/72 px-3 py-1.5"
+                              className="rounded-full bg-white/72 px-2.5 py-1"
                             >
                               {getSymptomLabel(code, locale)}
                             </span>
                           ))
                         ) : (
-                          <span className="rounded-full bg-white/72 px-3 py-1.5">
+                          <span className="rounded-full bg-white/72 px-2.5 py-1">
                             {locale === "vi"
                               ? "Chưa ghi nhận triệu chứng mới"
                               : "No newly recorded symptoms"}
@@ -182,28 +242,26 @@ export default function PatientDetailPage() {
 
                     <div>
                       <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi"
-                          ? "Liều thuốc tiếp theo"
-                          : "Next medication dose"}
+                        {locale === "vi" ? "Liều thuốc tiếp theo" : "Next medication dose"}
                       </p>
-                      <div className="mt-2 space-y-2">
+                      <div className="mt-1.5 space-y-1.5">
                         {patient.medicationCycle.length > 0 ? (
                           patient.medicationCycle.map((medication) => (
                             <div
                               key={`${localizeText(medication.medication, locale)}-${medication.nextDoseAt ?? "none"}`}
-                              className="rounded-[1rem] bg-white/72 px-4 py-3"
+                              className="rounded-[0.9rem] bg-white/72 px-3.5 py-2.5"
                             >
                               <p className="font-medium text-[color:var(--cs-heading)]">
                                 {localizeText(medication.medication, locale)} ·{" "}
                                 {medication.dosage}
                               </p>
-                              <p className="mt-1 text-sm text-[color:var(--cs-text-soft)]">
+                              <p className="mt-0.5 text-[12px] text-[color:var(--cs-text-soft)]">
                                 {localizeText(medication.schedule, locale)}
                               </p>
                             </div>
                           ))
                         ) : (
-                          <div className="rounded-[1rem] bg-white/72 px-4 py-3 text-sm text-[color:var(--cs-text-soft)]">
+                          <div className="rounded-[0.9rem] bg-white/72 px-3.5 py-2.5 text-[12px] text-[color:var(--cs-text-soft)]">
                             {locale === "vi"
                               ? "Chưa có lịch dùng thuốc tiếp theo."
                               : "No upcoming medication schedule."}
@@ -213,29 +271,22 @@ export default function PatientDetailPage() {
                     </div>
                   </div>
                 </PanelCard>
-                <PanelCard className="px-5 py-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-[color:var(--cs-teal)]">
-                        {locale === "vi"
-                          ? "Cảnh báo theo dõi"
-                          : "Monitoring alerts"}
-                      </p>
-                      <h2 className="mt-2 text-[1.45rem] font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi"
-                          ? "Danh sách cảnh báo đang hoạt động"
-                          : "Active alert list"}
-                      </h2>
-                    </div>
-                  </div>
 
-                  <div className="mt-5 space-y-3">
+                <PanelCard className="px-4 py-4">
+                  <p className="text-sm font-medium text-[color:var(--cs-teal)]">
+                    {locale === "vi" ? "Cảnh báo theo dõi" : "Monitoring alerts"}
+                  </p>
+                  <h2 className="mt-1.5 text-[1.25rem] font-semibold text-[color:var(--cs-heading)]">
+                    {locale === "vi"
+                      ? "Danh sách cảnh báo đang hoạt động"
+                      : "Active alert list"}
+                  </h2>
+
+                  <div className="mt-4 space-y-2.5">
                     {alerts.length > 0 ? (
-                      alerts.map((alert) => (
-                        <AlertItem key={alert.id} alert={alert} />
-                      ))
+                      alerts.map((alert) => <AlertItem key={alert.id} alert={alert} />)
                     ) : (
-                      <div className="rounded-[1.2rem] bg-white/72 px-4 py-5 text-sm text-[color:var(--cs-text-soft)]">
+                      <div className="rounded-[1rem] bg-white/72 px-4 py-4 text-[13px] text-[color:var(--cs-text-soft)]">
                         {locale === "vi"
                           ? "Chưa có cảnh báo nào đang mở cho bệnh nhân này."
                           : "There are no open alerts for this patient."}

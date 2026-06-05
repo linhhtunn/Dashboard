@@ -38,7 +38,7 @@ const medicationCycle: MedicationCycle[] = [
 ];
 
 export const dashboardPatient: Patient = {
-  id: "patient-a",
+  id: "P001",
   mrn: "12345678",
   name: "Bệnh nhân A",
   age: 68,
@@ -62,7 +62,7 @@ export const dashboardPatient: Patient = {
 
 export function getDashboardSummary(locale: Locale): AISummary {
   return {
-    patientId: "patient-a",
+    patientId: "P001",
     locale,
     question:
       locale === "vi"
@@ -114,7 +114,7 @@ export function getDashboardSummary(locale: Locale): AISummary {
         timestamp: "2026-06-02T09:40:00Z",
       },
     ],
-    generatedAt: locale === "vi" ? "09:41 hôm nay" : "09:41 today",
+    generatedAt: new Date().toISOString(),
     disclaimerKey: "ai_support_only",
   };
 }

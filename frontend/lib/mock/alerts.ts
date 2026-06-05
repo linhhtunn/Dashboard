@@ -3,7 +3,7 @@ import type { Alert } from "@/types";
 export const mockAlerts: Alert[] = [
   {
     id: "alert-001",
-    patientId: "p-001",
+    patientId: "P001",
     type: "low_oxygen",
     severity: "warning",
     score: 7.2,
@@ -22,7 +22,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-002",
-    patientId: "p-003",
+    patientId: "P003",
     type: "high_blood_pressure",
     severity: "critical",
     score: 8.4,
@@ -41,7 +41,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-003",
-    patientId: "p-006",
+    patientId: "P006",
     type: "high_blood_pressure",
     severity: "warning",
     score: 6.8,
@@ -61,7 +61,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-004",
-    patientId: "p-007",
+    patientId: "P007",
     type: "stroke_risk",
     severity: "critical",
     score: 9.1,
@@ -78,7 +78,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-005",
-    patientId: "p-008",
+    patientId: "P008",
     type: "low_oxygen",
     severity: "warning",
     score: 7.5,
@@ -97,7 +97,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-006",
-    patientId: "p-012",
+    patientId: "P012",
     type: "high_heart_rate",
     severity: "info",
     score: 5.4,
@@ -117,7 +117,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-007",
-    patientId: "p-013",
+    patientId: "P013",
     type: "deterioration_risk",
     severity: "warning",
     score: 6.9,
@@ -137,7 +137,7 @@ export const mockAlerts: Alert[] = [
   },
   {
     id: "alert-008",
-    patientId: "p-014",
+    patientId: "P014",
     type: "high_blood_pressure",
     severity: "critical",
     score: 8.9,

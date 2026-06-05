@@ -1,0 +1,104 @@
+const DEFAULT_CHAT_PATH = "/api/agent/chat";
+const DEFAULT_SUMMARY_PATH = "/api/agent/summary";
+const DEFAULT_EXPLAIN_ALERT_PATH = "/api/agent/explain-alert";
+
+export function getAgentBaseUrl() {
+  return process.env.AI_AGENT_BASE_URL;
+}
+
+export function getAgentPath(kind: "chat" | "summary" | "explain-alert") {
+  switch (kind) {
+    case "summary":
+      return process.env.AI_AGENT_SUMMARY_PATH ?? DEFAULT_SUMMARY_PATH;
+    case "explain-alert":
+      return process.env.AI_AGENT_EXPLAIN_ALERT_PATH ?? DEFAULT_EXPLAIN_ALERT_PATH;
+    case "chat":
+    default:
+      return process.env.AI_AGENT_CHAT_PATH ?? DEFAULT_CHAT_PATH;
+  }
+}
+
+export async function callAgentEndpoint({
+  baseUrl,
+  configuredPath,
+  defaultPath,
+  body,
+}: {
+  baseUrl: string;
+  configuredPath: string;
+  defaultPath: string;
+  body: string;
+}) {
+  const attemptedPaths = Array.from(
+    new Set([configuredPath, defaultPath]),
+  ).filter(Boolean);
+
+  let backendResponse: Response | null = null;
+  let lastError: unknown = null;
+
+  for (const path of attemptedPaths) {
+    try {
+      const candidate = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body,
+        cache: "no-store",
+      });
+
+      if (candidate.status === 404 && path !== defaultPath) {
+        continue;
+      }
+
+      backendResponse = candidate;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!backendResponse) {
+    throw new Error(
+      lastError instanceof Error
+        ? `Không thể kết nối backend AI: ${lastError.message}`
+        : "Không thể kết nối backend AI.",
+    );
+  }
+
+  if (!backendResponse.ok) {
+    const detail = await backendResponse.text();
+    throw new BackendAgentError(
+      detail || `Backend AI trả lời ${backendResponse.status}.`,
+      backendResponse.status,
+    );
+  }
+
+  return parseBackendResponse(backendResponse);
+}
+
+export class BackendAgentError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "BackendAgentError";
+  }
+}
+
+async function parseBackendResponse(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  return response.text();
+}
+
+export const agentDefaultPaths = {
+  chat: DEFAULT_CHAT_PATH,
+  summary: DEFAULT_SUMMARY_PATH,
+  explainAlert: DEFAULT_EXPLAIN_ALERT_PATH,
+} as const;

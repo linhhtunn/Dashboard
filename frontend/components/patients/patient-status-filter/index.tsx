@@ -54,7 +54,7 @@ export function PatientStatusFilter({
 
   return (
     <div
-      className="flex flex-wrap gap-2.5"
+      className="flex flex-wrap gap-2"
       aria-label={locale === "vi" ? "Lọc theo trạng thái" : "Filter by status"}
     >
       {filters.map((filter) => {
@@ -67,7 +67,7 @@ export function PatientStatusFilter({
             aria-pressed={isActive}
             onClick={() => onChange(isActive ? "all" : filter.value)}
             className={[
-              "inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition",
+              "inline-flex items-center rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition",
               filterClasses[filter.value],
               isActive
                 ? "shadow-[0_10px_22px_rgba(13,71,161,0.08)] ring-1 ring-white/60"

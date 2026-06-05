@@ -6,39 +6,44 @@ import { useLocale } from "@/components/providers/LocaleProvider";
 import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
 
 type ChatHistoryPanelProps = {
+  activeThreadId?: string;
   collapsed?: boolean;
   disabled?: boolean;
   items: SidebarHistoryItem[];
+  onSelectThread: (threadId: string) => void;
 };
 
 function HistoryGroup({
   title,
   items,
+  activeThreadId,
   disabled,
-  todayLabel,
+  onSelectThread,
 }: {
   title: string;
   items: SidebarHistoryItem[];
+  activeThreadId?: string;
   disabled: boolean;
-  todayLabel: string;
+  onSelectThread: (threadId: string) => void;
 }) {
   return (
-    <div className="space-y-1.5">
-      <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--cs-text-soft)]">
+    <div className="space-y-1">
+      <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-text-soft)]">
         {title}
       </p>
 
-      <div className="space-y-1">
-        {items.map((item, index) => {
-          const active = title === todayLabel && index === 0;
+      <div className="space-y-0.5">
+        {items.map((item) => {
+          const active = item.id === activeThreadId;
 
           return (
             <button
               key={item.id}
               type="button"
               disabled={disabled}
+              onClick={() => onSelectThread(item.id)}
               className={[
-                "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left transition-all duration-200",
+                "flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left transition-all duration-200",
                 disabled
                   ? "cursor-default opacity-45"
                   : active
@@ -47,8 +52,8 @@ function HistoryGroup({
               ].join(" ")}
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{item.title}</p>
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-[color:var(--cs-text-soft)]">
+                <p className="truncate text-[13px] font-medium">{item.title}</p>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-[color:var(--cs-text-soft)]">
                   <span>{item.timestamp}</span>
                   <span className="h-1 w-1 rounded-full bg-[color:var(--cs-border-strong)]" />
                   <span className="truncate">{item.issue}</span>
@@ -56,7 +61,7 @@ function HistoryGroup({
               </div>
 
               {active ? (
-                <span className="ml-3 h-2.5 w-2.5 shrink-0 rounded-full bg-[color:var(--cs-primary)]" />
+                <span className="ml-2.5 h-2 w-2 shrink-0 rounded-full bg-[color:var(--cs-primary)]" />
               ) : null}
             </button>
           );
@@ -67,16 +72,20 @@ function HistoryGroup({
 }
 
 export function ChatHistoryPanel({
+  activeThreadId,
   collapsed = false,
   disabled = false,
   items,
+  onSelectThread,
 }: ChatHistoryPanelProps) {
   const { locale } = useLocale();
   const todayLabel = locale === "vi" ? "Hôm nay" : "Today";
   const previousLabel = locale === "vi" ? "Trước đó" : "Earlier";
   const historyLabel = locale === "vi" ? "Lịch sử chat" : "Chat history";
   const sessionsLabel =
-    locale === "vi" ? `${items.length} phiên` : `${items.length} session${items.length === 1 ? "" : "s"}`;
+    locale === "vi"
+      ? `${items.length} phiên`
+      : `${items.length} session${items.length === 1 ? "" : "s"}`;
   const recentLabel =
     locale === "vi" ? "Lịch sử chat gần đây" : "Recent chat history";
   const todayItems = items.slice(0, 3);
@@ -88,7 +97,7 @@ export function ChatHistoryPanel({
         type="button"
         disabled={disabled}
         className={[
-          "flex w-full items-center justify-center rounded-2xl px-2 py-2.5 text-[color:var(--cs-text-soft)] transition",
+          "flex w-full items-center justify-center rounded-xl px-2 py-2 text-[color:var(--cs-text-soft)] transition",
           disabled
             ? "cursor-default opacity-45"
             : "hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] hover:text-[color:var(--cs-primary)]",
@@ -96,35 +105,37 @@ export function ChatHistoryPanel({
         aria-label={recentLabel}
         title={recentLabel}
       >
-        <History className="h-4.5 w-4.5" />
+        <History className="h-4 w-4" />
       </button>
     );
   }
 
   return (
     <section className="flex min-h-0 flex-col">
-      <div className="mb-3 flex items-center justify-between px-2">
-        <p className="text-sm font-semibold text-[color:var(--cs-heading)]">
+      <div className="mb-2 flex items-center justify-between px-2">
+        <p className="text-[13px] font-semibold text-[color:var(--cs-heading)]">
           {historyLabel}
         </p>
-        <span className="text-[11px] text-[color:var(--cs-text-soft)]">
+        <span className="text-[10px] text-[color:var(--cs-text-soft)]">
           {sessionsLabel}
         </span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <HistoryGroup
           title={todayLabel}
           items={todayItems}
+          activeThreadId={activeThreadId}
           disabled={disabled}
-          todayLabel={todayLabel}
+          onSelectThread={onSelectThread}
         />
         {previousItems.length > 0 ? (
           <HistoryGroup
             title={previousLabel}
             items={previousItems}
+            activeThreadId={activeThreadId}
             disabled={disabled}
-            todayLabel={todayLabel}
+            onSelectThread={onSelectThread}
           />
         ) : null}
       </div>

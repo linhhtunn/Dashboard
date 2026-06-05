@@ -18,10 +18,12 @@ import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperie
 
 type DashboardSidebarProps = {
   activeItem?: "dashboard" | "patients" | "alerts" | "settings";
+  activeThreadId?: string;
   collapsed?: boolean;
   historyItems: SidebarHistoryItem[];
   historyDisabled?: boolean;
   onCreateNewChat: () => void;
+  onSelectThread: (threadId: string) => void;
   onToggle?: () => void;
 };
 
@@ -47,16 +49,16 @@ function BrandLockup({
         collapsed ? "justify-center" : "gap-3 px-2",
       ].join(" ")}
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.15rem] bg-white shadow-[0_10px_28px_rgba(13,71,161,0.12)] ring-1 ring-[color:rgba(13,71,161,0.08)]">
-        <ShieldPlus className="h-5 w-5 text-[color:var(--cs-primary)]" />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] bg-white shadow-[0_10px_24px_rgba(13,71,161,0.12)] ring-1 ring-[color:rgba(13,71,161,0.08)]">
+        <ShieldPlus className="h-4.5 w-4.5 text-[color:var(--cs-primary)]" />
       </div>
 
       {!collapsed ? (
         <div className="min-w-0">
-          <p className="truncate text-[1.8rem] font-semibold leading-none text-[color:var(--cs-heading)]">
+          <p className="truncate text-[1.55rem] font-semibold leading-none text-[color:var(--cs-heading)]">
             CareSignal<span className="text-[color:var(--cs-teal)]">AI</span>
           </p>
-          <p className="mt-1 text-[11px] text-[color:var(--cs-text-soft)]">
+          <p className="mt-0.5 text-[10px] text-[color:var(--cs-text-soft)]">
             {subtitle}
           </p>
         </div>
@@ -73,7 +75,7 @@ function SidebarNav({
   items: NavItem[];
 }) {
   return (
-    <nav className="mt-5 shrink-0 space-y-1.5">
+    <nav className="mt-4 shrink-0 space-y-1">
       {items.map((item) => {
         const Icon = item.icon;
         const active = item.key === activeItem;
@@ -87,8 +89,8 @@ function SidebarNav({
             className={[
               "group flex rounded-2xl transition-all duration-200",
               collapsed
-                ? "justify-center px-0 py-1.5"
-                : "items-center justify-between px-3 py-2.5",
+                ? "justify-center px-0 py-1"
+                : "items-center justify-between px-2.5 py-2",
               active
                 ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.72))] text-white shadow-[0_14px_32px_rgba(13,71,161,0.22)]"
                 : "text-[color:var(--cs-heading)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary)]",
@@ -102,29 +104,29 @@ function SidebarNav({
             >
               <span
                 className={[
-                  "relative flex h-9 w-9 items-center justify-center rounded-2xl transition-all duration-200",
+                  "relative flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
                   active
                     ? "bg-white/12 text-white"
                     : "bg-white/78 text-[color:var(--cs-primary)] group-hover:bg-white/90 group-hover:text-[color:var(--cs-primary-strong)]",
                 ].join(" ")}
               >
-                <Icon className="h-4.5 w-4.5" />
+                <Icon className="h-4 w-4" />
                 {collapsed && item.badge ? (
-                  <span className="absolute -right-1 -top-1 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-[color:var(--cs-danger)] px-1 text-[10px] font-semibold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[color:var(--cs-danger)] px-1 text-[9px] font-semibold text-white">
                     {item.badge}
                   </span>
                 ) : null}
               </span>
 
               {!collapsed ? (
-                <span className="text-[15px] font-medium">{item.label}</span>
+                <span className="text-[14px] font-medium">{item.label}</span>
               ) : null}
             </span>
 
             {!collapsed && item.badge ? (
               <span
                 className={[
-                  "flex h-6 min-w-[24px] items-center justify-center rounded-full px-2 text-[11px] font-semibold",
+                  "flex h-5.5 min-w-[22px] items-center justify-center rounded-full px-2 text-[10px] font-semibold",
                   active
                     ? "bg-white text-[color:var(--cs-danger)]"
                     : "bg-[color:var(--cs-danger)] text-white",
@@ -142,10 +144,12 @@ function SidebarNav({
 
 export function DashboardSidebar({
   activeItem,
+  activeThreadId,
   collapsed = false,
   historyItems,
   historyDisabled = false,
   onCreateNewChat,
+  onSelectThread,
   onToggle,
 }: DashboardSidebarProps) {
   const { locale } = useLocale();
@@ -225,13 +229,13 @@ export function DashboardSidebar({
     <aside
       className={[
         "hidden h-full min-h-0 flex-col overflow-hidden border-r border-[color:rgba(217,226,236,0.64)] bg-white/22 lg:flex",
-        collapsed ? "px-2 py-3" : "px-3 py-4",
+        collapsed ? "px-2 py-2.5" : "px-2.5 py-3",
       ].join(" ")}
     >
       <div
         className={[
           "flex w-full shrink-0 items-center",
-          collapsed ? "flex-col justify-center gap-3" : "justify-between",
+          collapsed ? "flex-col justify-center gap-2.5" : "justify-between",
         ].join(" ")}
       >
         <BrandLockup collapsed={collapsed} subtitle={copy.subtitle} />
@@ -239,11 +243,11 @@ export function DashboardSidebar({
         <button
           type="button"
           onClick={onToggle}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.1),rgba(0,150,136,0.08))]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.1),rgba(0,150,136,0.08))]"
           aria-label={collapsed ? copy.expand : copy.collapse}
           title={collapsed ? copy.expand : copy.collapse}
         >
-          <ToggleIcon className="h-4.5 w-4.5" />
+          <ToggleIcon className="h-4 w-4" />
         </button>
       </div>
       {activeItem === "dashboard" ? (
@@ -251,17 +255,17 @@ export function DashboardSidebar({
           type="button"
           onClick={onCreateNewChat}
           className={[
-            "mt-4 flex rounded-2xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition-all duration-200 hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary-strong)]",
-            collapsed
-              ? "items-center justify-center px-0 py-2.5"
-              : "items-center gap-2 px-3.5 py-2.5",
-          ].join(" ")}
-        >
-          <Plus className="h-4.5 w-4.5" />
-          {!collapsed ? (
-            <span className="text-sm font-medium">{copy.newChat}</span>
+          "mt-3 flex rounded-xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition-all duration-200 hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary-strong)]",
+          collapsed
+              ? "items-center justify-center px-0 py-2"
+              : "items-center gap-2 px-3 py-2",
+        ].join(" ")}
+      >
+        <Plus className="h-4 w-4" />
+        {!collapsed ? (
+            <span className="text-[13px] font-medium">{copy.newChat}</span>
           ) : null}
-        </button>
+      </button>
       ) : null}
       <SidebarNav
         activeItem={activeItem}
@@ -270,18 +274,20 @@ export function DashboardSidebar({
       />
 
       {activeItem === "dashboard" ? (
-        <div className="mt-5 flex min-h-0 flex-1 flex-col">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col">
           {!collapsed ? (
-            <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--cs-text-soft)]">
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-text-soft)]">
               {copy.recentChats}
             </p>
           ) : null}
 
           <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto pr-1">
             <ChatHistoryPanel
+              activeThreadId={activeThreadId}
               collapsed={collapsed}
               disabled={historyDisabled}
               items={historyItems}
+              onSelectThread={onSelectThread}
             />
           </div>
         </div>

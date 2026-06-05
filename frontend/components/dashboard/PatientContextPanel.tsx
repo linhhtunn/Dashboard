@@ -123,13 +123,13 @@ export function PatientContextPanel({
     });
 
   return (
-    <div className="dashboard-glass dashboard-fade-up h-full min-h-0 rounded-[1.45rem] p-3 shadow-[0_26px_60px_rgba(13,71,161,0.14)]">
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.2rem] bg-white/36">
+    <div className="dashboard-glass dashboard-fade-up h-full min-h-0 rounded-[1.25rem] p-2.5 shadow-[0_26px_60px_rgba(13,71,161,0.14)]">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.05rem] bg-white/36">
         <div className="flex justify-end px-1 pb-2 pt-1">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/72 text-[color:var(--cs-primary)] transition hover:bg-white"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/72 text-[color:var(--cs-primary)] transition hover:bg-white"
             aria-label={
               locale === "vi" ? "Đóng phần xem phác đồ" : "Close protocol view"
             }
@@ -139,13 +139,13 @@ export function PatientContextPanel({
         </div>
 
         <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-          <div className="flex min-h-full flex-col gap-3">
+          <div className="flex min-h-full flex-col gap-2.5">
             <PatientSummaryHeader patient={dashboardPatient} />
 
-            <PanelCard className="px-4 py-4">
+            <PanelCard className="px-3.5 py-3.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-[1.2rem] font-semibold text-[color:var(--cs-heading)]">
+                  <h4 className="text-[1.05rem] font-semibold text-[color:var(--cs-heading)]">
                     {locale === "vi" ? "Biểu đồ chỉ số" : "Metric chart"}{" "}
                     {issueMetrics.map((metric) => metric.title).join(", ")}
                   </h4>
@@ -155,14 +155,14 @@ export function PatientContextPanel({
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3">
+              <div className="mt-3 grid gap-2.5">
                 {issueMetrics.map((metric) => {
                   const Icon = metric.icon;
 
                   return (
                     <div
                       key={metric.key}
-                      className="dashboard-glass-soft rounded-[1.1rem] px-4 py-4"
+                      className="dashboard-glass-soft rounded-[1rem] px-3.5 py-3.5"
                     >
                       <div className="flex items-center gap-2.5">
                         <Icon className={`h-5 w-5 ${metric.iconColor}`} />
@@ -172,7 +172,7 @@ export function PatientContextPanel({
                       </div>
 
                       <div className="mt-4 flex items-end gap-2">
-                        <span className="text-[2.1rem] font-semibold leading-none text-[color:var(--cs-heading)]">
+                        <span className="text-[1.8rem] font-semibold leading-none text-[color:var(--cs-heading)]">
                           {metric.value}
                         </span>
                         <span className="pb-1 text-[1rem] text-[color:var(--cs-text-soft)]">
@@ -180,7 +180,7 @@ export function PatientContextPanel({
                         </span>
                       </div>
 
-                      <p className="mt-2 text-[0.98rem] font-medium text-[color:var(--cs-teal)]">
+                      <p className="mt-1.5 text-[13px] font-medium text-[color:var(--cs-teal)]">
                         {metric.changeLabel}
                       </p>
 

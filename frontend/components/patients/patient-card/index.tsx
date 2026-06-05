@@ -46,16 +46,16 @@ export function PatientCard({ item }: PatientCardProps) {
     getSymptomLabel(patient.recentSymptomCodes[0], locale);
 
   return (
-    <article className="dashboard-surface rounded-[1.4rem] p-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)_auto] xl:items-center">
+    <article className="dashboard-surface rounded-[1.2rem] p-3.5">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(240px,0.9fr)_auto] xl:items-center">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h3 className="truncate text-[1.1rem] font-semibold text-[color:var(--cs-heading)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-[1rem] font-semibold text-[color:var(--cs-heading)]">
               {patient.name}
             </h3>
             <span
               className={[
-                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+                "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
                 statusClasses[patient.status],
               ].join(" ")}
             >
@@ -63,7 +63,7 @@ export function PatientCard({ item }: PatientCardProps) {
             </span>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[color:var(--cs-text-soft)]">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-[color:var(--cs-text-soft)]">
             <span>MRN {patient.mrn}</span>
             <span>•</span>
             <span>
@@ -82,20 +82,20 @@ export function PatientCard({ item }: PatientCardProps) {
             ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2 text-sm text-[color:var(--cs-text)]">
-            <span className="rounded-full bg-white/72 px-3 py-1.5">
+          <div className="mt-2.5 flex flex-wrap gap-1.5 text-[13px] text-[color:var(--cs-text)]">
+            <span className="rounded-full bg-white/72 px-2.5 py-1">
               {locale === "vi" ? "Nhịp tim" : "Heart rate"}:{" "}
               <strong className="text-[color:var(--cs-heading)]">
                 {latestVital?.vitals.heartRate ?? "--"} bpm
               </strong>
             </span>
-            <span className="rounded-full bg-white/72 px-3 py-1.5">
+            <span className="rounded-full bg-white/72 px-2.5 py-1">
               SpO₂:{" "}
               <strong className="text-[color:var(--cs-heading)]">
                 {latestVital?.vitals.spo2 ?? "--"}%
               </strong>
             </span>
-            <span className="rounded-full bg-white/72 px-3 py-1.5">
+            <span className="rounded-full bg-white/72 px-2.5 py-1">
               {locale === "vi" ? "Huyết áp" : "Blood pressure"}:{" "}
               <strong className="text-[color:var(--cs-heading)]">
                 {formatBloodPressure(latestVital)} mmHg
@@ -104,7 +104,7 @@ export function PatientCard({ item }: PatientCardProps) {
           </div>
         </div>
 
-        <div className="grid gap-2 rounded-[1.15rem] border border-white/50 bg-white/50 px-4 py-3 text-sm text-[color:var(--cs-text)]">
+        <div className="grid gap-1.5 rounded-[1rem] border border-white/50 bg-white/50 px-3.5 py-2.5 text-[13px] text-[color:var(--cs-text)]">
           <p className="font-medium text-[color:var(--cs-heading)]">
             {openAlertCount > 0
               ? locale === "vi"
@@ -129,7 +129,7 @@ export function PatientCard({ item }: PatientCardProps) {
         <div className="flex items-center justify-end">
           <Link
             href={`/patients/${patient.id}`}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.78))] px-4 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(13,71,161,0.18)] transition hover:brightness-105"
+            className="inline-flex h-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.78))] px-3.5 text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(13,71,161,0.18)] transition hover:brightness-105"
           >
             {locale === "vi" ? "Xem hồ sơ" : "View record"}
           </Link>

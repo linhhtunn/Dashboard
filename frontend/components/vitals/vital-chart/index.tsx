@@ -1,14 +1,16 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import {
-  ResponsiveContainer,
-  LineChart,
   Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ReferenceLine,
 } from "recharts";
+
 import type { VitalMetric, VitalSignalSample } from "@/types";
 
 type VitalChartProps = {
@@ -19,42 +21,48 @@ type VitalChartProps = {
 };
 
 const metricColors: Record<VitalMetric, string> = {
-  heart_rate:   "#0D47A1",
-  hrv_rmssd:    "#009688",
-  spo2:         "#009688",
-  systolic_bp:  "#F5B300",
+  heart_rate: "#0D47A1",
+  hrv_rmssd: "#009688",
+  spo2: "#009688",
+  systolic_bp: "#F5B300",
   diastolic_bp: "#FB923C",
 };
 
 const metricFloor: Record<VitalMetric, number> = {
-  heart_rate:   40,
-  hrv_rmssd:    0,
-  spo2:         75,
-  systolic_bp:  60,
+  heart_rate: 40,
+  hrv_rmssd: 0,
+  spo2: 75,
+  systolic_bp: 60,
   diastolic_bp: 40,
 };
 
-// Alert thresholds — draws a subtle reference line
 const metricAlertThreshold: Partial<Record<VitalMetric, number>> = {
-  heart_rate:  100,
-  spo2:        94,
+  heart_rate: 100,
+  spo2: 94,
   systolic_bp: 140,
 };
 
+const subscribeToMount = () => () => undefined;
+
 function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
   switch (metric) {
-    case "heart_rate":    return vital.vitals.heartRate   ?? 0;
-    case "hrv_rmssd":    return vital.vitals.hrvRmssd    ?? 0;
-    case "spo2":         return vital.vitals.spo2         ?? 0;
-    case "systolic_bp":  return vital.vitals.systolicBp  ?? 0;
-    case "diastolic_bp": return vital.vitals.diastolicBp ?? 0;
+    case "heart_rate":
+      return vital.vitals.heartRate ?? 0;
+    case "hrv_rmssd":
+      return vital.vitals.hrvRmssd ?? 0;
+    case "spo2":
+      return vital.vitals.spo2 ?? 0;
+    case "systolic_bp":
+      return vital.vitals.systolicBp ?? 0;
+    case "diastolic_bp":
+      return vital.vitals.diastolicBp ?? 0;
   }
 }
 
 function formatTimestamp(iso: string) {
-  const d = new Date(iso);
-  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(
-    d.getUTCMinutes(),
+  const date = new Date(iso);
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
+    date.getUTCMinutes(),
   ).padStart(2, "0")}`;
 }
 
@@ -64,32 +72,38 @@ export function VitalChart({
   height = 160,
   className = "",
 }: VitalChartProps) {
+  const isMounted = useSyncExternalStore(
+    subscribeToMount,
+    () => true,
+    () => false,
+  );
   const color = metricColors[metric];
   const floor = metricFloor[metric];
   const threshold = metricAlertThreshold[metric];
 
-  const chartData = data.map((v) => ({
-    time:  formatTimestamp(v.timestamp),
-    value: getMetricValue(v, metric),
+  const chartData = data.map((sample) => ({
+    time: formatTimestamp(sample.timestamp),
+    value: getMetricValue(sample, metric),
   }));
 
-  const values   = chartData.map((d) => d.value);
-  const dataMin  = values.length ? Math.min(...values) : floor;
-  const dataMax  = values.length ? Math.max(...values) : floor + 60;
-  const pad      = Math.max((dataMax - dataMin) * 0.2, 4);
-  const yMin     = Math.floor(Math.min(dataMin - pad, floor));
-  const yMax     = Math.ceil(dataMax + pad);
+  const values = chartData.map((item) => item.value);
+  const dataMin = values.length ? Math.min(...values) : floor;
+  const dataMax = values.length ? Math.max(...values) : floor + 60;
+  const pad = Math.max((dataMax - dataMin) * 0.2, 4);
+  const yMin = Math.floor(Math.min(dataMin - pad, floor));
+  const yMax = Math.ceil(dataMax + pad);
 
   return (
     <div
       className={[
-        "w-full overflow-hidden rounded-[var(--radius-lg)] bg-white/60",
-        "backdrop-blur-sm border border-white/70",
+        "w-full overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm",
         className,
       ].join(" ")}
       style={{ height }}
     >
-      {chartData.length === 0 ? (
+      {!isMounted ? (
+        <div className="h-full w-full" />
+      ) : chartData.length === 0 ? (
         <div className="flex h-full items-center justify-center text-[12px] text-slate-400">
           Chưa có dữ liệu
         </div>
@@ -126,9 +140,9 @@ export function VitalChart({
               }}
               itemStyle={{ color }}
               cursor={{ stroke: color, strokeOpacity: 0.2, strokeWidth: 1 }}
-              formatter={(value: number) => [value, metric.replace(/_/g, " ")]}
+              formatter={(value) => [value ?? "-", metric.replace(/_/g, " ")]}
             />
-            {threshold !== undefined && (
+            {threshold !== undefined ? (
               <ReferenceLine
                 y={threshold}
                 stroke={color}
@@ -136,7 +150,7 @@ export function VitalChart({
                 strokeOpacity={0.35}
                 strokeWidth={1}
               />
-            )}
+            ) : null}
             <Line
               type="monotone"
               dataKey="value"

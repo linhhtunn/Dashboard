@@ -75,10 +75,10 @@ export default function PatientsPage() {
       onCreateNewChat={() => undefined}
       topBar={<DashboardTopBar />}
       leftPanel={
-        <section className="dashboard-scroll-area h-full overflow-y-auto px-3 py-3">
-          <div className="mx-auto flex h-full max-w-[1320px] min-h-0 flex-col gap-3">
+        <section className="dashboard-scroll-area h-full overflow-y-auto px-2.5 py-2.5">
+          <div className="mx-auto flex h-full max-w-[1320px] min-h-0 flex-col gap-2.5">
             <div className="px-1">
-              <h1 className="text-[1.8rem] font-semibold leading-tight text-[color:var(--cs-heading)]">
+              <h1 className="text-[1.55rem] font-semibold leading-tight text-[color:var(--cs-heading)]">
                 {locale === "vi" ? "Bệnh nhân" : "Patients"}
               </h1>
             </div>

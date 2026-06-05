@@ -11,10 +11,10 @@ export function PatientSearch({ value, onChange }: PatientSearchProps) {
   const { locale } = useLocale();
 
   return (
-    <label className="dashboard-input flex h-12 items-center gap-3 rounded-full bg-white/72 px-4">
+    <label className="dashboard-input flex h-10 items-center gap-2.5 rounded-full bg-white/72 px-3.5">
       <svg
         aria-hidden="true"
-        className="h-4.5 w-4.5 shrink-0 text-[color:var(--cs-text-soft)]"
+        className="h-4 w-4 shrink-0 text-[color:var(--cs-text-soft)]"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -35,7 +35,7 @@ export function PatientSearch({ value, onChange }: PatientSearchProps) {
             ? "Tìm theo tên bệnh nhân, MRN hoặc mã hồ sơ"
             : "Search by patient name, MRN, or record ID"
         }
-        className="h-full w-full bg-transparent text-sm text-[color:var(--cs-heading)] outline-none placeholder:text-[color:var(--cs-text-soft)]"
+        className="h-full w-full bg-transparent text-[13px] text-[color:var(--cs-heading)] outline-none placeholder:text-[color:var(--cs-text-soft)]"
       />
     </label>
   );

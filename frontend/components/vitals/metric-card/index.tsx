@@ -111,27 +111,27 @@ export function MetricCard({
   return (
     <article
       className={[
-        "dashboard-surface rounded-[1.35rem] px-4 py-4",
+        "dashboard-surface rounded-[1.15rem] px-3.5 py-3.5",
         className,
       ].join(" ")}
     >
-      <div className="mb-4 flex min-w-0 items-center gap-3">
-        <Icon className="h-5 w-5 shrink-0" style={{ color: metricColor }} />
+      <div className="mb-3 flex min-w-0 items-center gap-2.5">
+        <Icon className="h-4.5 w-4.5 shrink-0" style={{ color: metricColor }} />
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-[color:var(--cs-heading)]">
+          <h3 className="text-[15px] font-semibold text-[color:var(--cs-heading)]">
             {getMetricLabel(summary.metric, locale)}
           </h3>
-          <p className="text-sm text-[color:var(--cs-text-soft)]">
+          <p className="text-[12px] text-[color:var(--cs-text-soft)]">
             {formatTrend(summary, locale)}
           </p>
         </div>
       </div>
 
-      <div className="mb-4 flex items-end gap-2">
-        <p className="text-[2rem] font-semibold leading-none text-[color:var(--cs-heading)]">
+      <div className="mb-3 flex items-end gap-1.5">
+        <p className="text-[1.7rem] font-semibold leading-none text-[color:var(--cs-heading)]">
           {summary.displayValue ?? summary.currentValue}
         </p>
-        <span className="pb-1 text-sm text-[color:var(--cs-text-soft)]">
+        <span className="pb-0.5 text-[12px] text-[color:var(--cs-text-soft)]">
           {summary.unit}
         </span>
       </div>

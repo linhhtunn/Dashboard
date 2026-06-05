@@ -1,118 +1,196 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import { useMemo, useState } from "react";
 
-import { useLocale } from "@/components/providers/LocaleProvider";
 import { AIComposer } from "@/components/dashboard/AIComposer";
 import {
   ConversationThread,
   type ChatMessage,
 } from "@/components/dashboard/ConversationThread";
 import { type IssueId } from "@/components/dashboard/dashboard-demo-data";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { SuggestedPromptList } from "@/components/dashboard/SuggestedPromptList";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
+import { streamAgentChat } from "@/lib/ai/chat-client";
+import type { DashboardIssueId } from "@/lib/ai/types";
+import type { AISummary } from "@/types";
 
 type AIWorkspacePanelProps = {
-  sessionId: number;
   activeIssueId: IssueId | null;
+  currentThreadId: string;
+  patientId: string;
+  resumeThreadTitle: string | null;
+  userId: string;
   onConversationStateChange: (hasConversation: boolean) => void;
   onOpenIssue: (issueId: IssueId) => void;
-  onStartConversation: (prompt: string) => void;
+  onPersistThread: (meta: { title: string; lastIssue: string }) => void;
   onToggleIssue: (issueId: IssueId) => void;
 };
 
 export function AIWorkspacePanel({
-  sessionId,
   activeIssueId,
+  currentThreadId,
+  patientId,
+  resumeThreadTitle,
+  userId,
   onConversationStateChange,
   onOpenIssue,
-  onStartConversation,
+  onPersistThread,
   onToggleIssue,
 }: AIWorkspacePanelProps) {
   const { locale } = useLocale();
   const [draft, setDraft] = useState("");
-  const [hasConversation, setHasConversation] = useState(false);
-  const [isThinking, setIsThinking] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    buildSeededMessages(locale),
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    resumeThreadTitle
+      ? [
+          {
+            id: "resume-thread-note",
+            role: "system",
+            content:
+              locale === "vi"
+                ? `Đang tiếp tục đoạn chat: ${resumeThreadTitle}. Hãy gửi câu hỏi tiếp theo để backend AI nối lại ngữ cảnh.`
+                : `Continuing the chat: ${resumeThreadTitle}. Send the next prompt to resume the AI context.`,
+          },
+        ]
+      : [],
   );
+  const [summary, setSummary] = useState<AISummary | null>(null);
+  const [summaryIssueIds, setSummaryIssueIds] = useState<DashboardIssueId[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
 
   const greeting = useMemo(() => getGreetingByHour(locale), [locale]);
   const prompts = useMemo(() => getPrompts(locale), [locale]);
   const placeholders = useMemo(() => getEmptyStatePlaceholders(locale), [locale]);
+  const hasConversation = messages.some((message) => message.role !== "system");
 
-  useEffect(() => {
-    onConversationStateChange(false);
-  }, [onConversationStateChange, sessionId]);
-
-  useEffect(() => {
-    if (!isThinking) return;
-
-    const timer = window.setTimeout(() => {
-      setMessages((current) => {
-        const lastUserMessage = [...current]
-          .reverse()
-          .find((item) => item.role === "user");
-        const prompt = lastUserMessage?.content ?? "";
-
-        return [
-          ...current,
-          {
-            id: `assistant-${Date.now()}`,
-            role: "assistant",
-            content: buildAssistantReply(prompt, locale),
-          },
-        ];
-      });
-      setIsThinking(false);
-      setHasConversation(true);
-      onConversationStateChange(true);
-    }, 1100);
-
-    return () => window.clearTimeout(timer);
-  }, [isThinking, locale, onConversationStateChange]);
-
-  const handleSubmit = (promptOverride?: string) => {
+  const handleSubmit = async (promptOverride?: string) => {
     const nextPrompt = (promptOverride ?? draft).trim();
     if (!nextPrompt || isThinking) return;
 
-    if (!hasConversation) {
-      onStartConversation(nextPrompt);
-    }
+    const nextHistory = messages
+      .filter(
+        (
+          message,
+        ): message is ChatMessage & { role: "user" | "assistant" } =>
+          message.role === "user" || message.role === "assistant",
+      )
+      .map((message) => ({
+        role: message.role,
+        content: message.content,
+      }))
+      .filter((message) => message.content.trim().length > 0);
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: nextPrompt,
+    };
+    const assistantMessageId = `assistant-${Date.now()}`;
 
     setMessages((current) => [
       ...current,
+      userMessage,
       {
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: nextPrompt,
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
       },
     ]);
     setDraft("");
     setIsThinking(true);
-    setHasConversation(true);
+    setSummary(null);
+    setSummaryIssueIds([]);
+    onConversationStateChange(true);
+
+    try {
+      const payload = await streamAgentChat(
+        {
+          threadId: currentThreadId,
+          patientId,
+          locale,
+          question: nextPrompt,
+          message: nextPrompt,
+          userId,
+          history: nextHistory,
+        },
+        {
+          onMeta: (event) => {
+            const primaryIssue = event.suggestedIssueIds[0];
+            onPersistThread({
+              title: event.title,
+              lastIssue: getIssueDisplayLabel(primaryIssue, locale),
+            });
+          },
+          onDelta: (event) => {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content: `${message.content}${event.text}` }
+                  : message,
+              ),
+            );
+          },
+          onComplete: (event) => {
+            setSummary(event.payload.summary);
+            setSummaryIssueIds(event.payload.suggestedIssueIds);
+            if (event.payload.suggestedIssueIds[0]) {
+              onOpenIssue(event.payload.suggestedIssueIds[0] as IssueId);
+            }
+          },
+        },
+      );
+
+      const primaryIssue = payload.suggestedIssueIds[0];
+      onPersistThread({
+        title: payload.title,
+        lastIssue: getIssueDisplayLabel(primaryIssue, locale),
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : locale === "vi"
+            ? "Không thể lấy phản hồi từ backend AI."
+            : "Unable to reach the AI backend.";
+
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content: errorMessage,
+              }
+            : message,
+        ),
+      );
+    } finally {
+      setIsThinking(false);
+    }
   };
 
-  if (!hasConversation && !isThinking) {
+  if (!hasConversation && !isThinking && !resumeThreadTitle) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex min-h-0 flex-1 items-center justify-center px-5 py-5">
+        <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-4">
           <div className="flex w-full max-w-[740px] flex-col items-center justify-center">
-            <h1 className="text-center text-[2.75rem] font-semibold leading-[1.1] tracking-[-0.05em] text-[color:var(--cs-heading)]">
+            <h1 className="text-center text-[2.35rem] font-semibold leading-[1.05] tracking-[-0.045em] text-[color:var(--cs-heading)]">
               {greeting}
             </h1>
 
-            <div className="mt-8 w-full">
+            <div className="mt-6 w-full">
               <PlaceholdersAndVanishInput
                 autoFocus
                 className="mx-auto w-full max-w-[680px]"
                 placeholders={placeholders}
                 value={draft}
                 onValueChange={setDraft}
-                onChange={(event) => setDraft(event.target.value)}
-                onSubmit={(event) => {
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setDraft(event.target.value)
+                }
+                onSubmit={(event: FormEvent<HTMLFormElement>) => {
                   event.preventDefault();
-                  handleSubmit();
+                  void handleSubmit();
                 }}
               />
             </div>
@@ -123,29 +201,37 @@ export function AIWorkspacePanel({
   }
 
   return (
-    <div className="flex h-full max-h-full flex-col">
-      <div className="dashboard-scroll-area max-h-full flex-1 overflow-y-auto px-6 pb-3 pt-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-1.5">
         <div className="mx-auto flex min-h-full w-full max-w-[820px] flex-col">
           <ConversationThread
-            messages={messages}
+            messages={messages.filter(
+              (message) =>
+                message.role !== "assistant" || message.content.trim().length > 0,
+            )}
             activeIssueId={activeIssueId}
             isThinking={isThinking}
             onOpenIssue={onOpenIssue}
             onToggleIssue={onToggleIssue}
+            summary={summary}
+            summaryIssueIds={summaryIssueIds}
           />
         </div>
       </div>
 
-      <div className="shrink-0 px-6 pb-2 pt-1">
+      <div className="shrink-0 px-5 pb-1.5 pt-0.5">
         <div className="mx-auto w-full max-w-[720px]">
-          <div className="mb-2 pl-1">
-            <SuggestedPromptList prompts={prompts} onSelect={handleSubmit} />
+          <div className="mb-1.5 pl-1">
+            <SuggestedPromptList
+              prompts={prompts}
+              onSelect={(prompt) => void handleSubmit(prompt)}
+            />
           </div>
           <AIComposer
             className="mx-auto w-full"
             value={draft}
             onChange={setDraft}
-            onSubmit={() => handleSubmit()}
+            onSubmit={() => void handleSubmit()}
           />
         </div>
       </div>
@@ -185,36 +271,6 @@ function getEmptyStatePlaceholders(locale: "vi" | "en") {
       ];
 }
 
-function buildSeededMessages(locale: "vi" | "en"): ChatMessage[] {
-  return locale === "vi"
-    ? [
-        {
-          id: "seed-user-1",
-          role: "user",
-          content: "Tóm tắt nhanh diễn biến trong ca trực vừa rồi.",
-        },
-        {
-          id: "seed-assistant-1",
-          role: "assistant",
-          content:
-            "Trong 2 giờ gần nhất, bệnh nhân ổn định tương đối, chưa có cảnh báo critical mới. SpO₂ thấp hơn baseline nhẹ và huyết áp tâm thu tăng nhẹ khi nghỉ.",
-        },
-      ]
-    : [
-        {
-          id: "seed-user-1",
-          role: "user",
-          content: "Give me a quick summary of the last shift.",
-        },
-        {
-          id: "seed-assistant-1",
-          role: "assistant",
-          content:
-            "Over the last 2 hours, the patient has remained relatively stable with no new critical alerts. SpO₂ is slightly below baseline and systolic blood pressure is mildly elevated at rest.",
-        },
-      ];
-}
-
 function getGreetingByHour(locale: "vi" | "en") {
   const hour = new Date().getHours();
 
@@ -225,35 +281,21 @@ function getGreetingByHour(locale: "vi" | "en") {
   return hour < 12 ? "Good morning, Doctor" : "Good afternoon, Doctor";
 }
 
-function buildAssistantReply(prompt: string, locale: "vi" | "en") {
-  const lowerPrompt = prompt.toLowerCase();
-
-  if (lowerPrompt.includes("spo2") || lowerPrompt.includes("oxy")) {
-    return locale === "vi"
-      ? "SpO₂ hiện thấp hơn baseline nhẹ. Nên mở phác đồ SpO₂ để kiểm tra cảm biến, đối chiếu triệu chứng hô hấp và theo dõi xu hướng 15 phút tới."
-      : "SpO₂ is slightly below baseline. Open the SpO₂ protocol to verify the sensor, compare respiratory symptoms, and watch the next 15-minute trend.";
+function getIssueDisplayLabel(
+  issueId: DashboardIssueId | undefined,
+  locale: "vi" | "en",
+) {
+  if (!issueId) {
+    return locale === "vi" ? "Theo dõi tổng quát" : "General monitoring";
   }
 
-  if (
-    lowerPrompt.includes("huyết áp") ||
-    lowerPrompt.includes("blood pressure")
-  ) {
-    return locale === "vi"
-      ? "Huyết áp tâm thu đang tăng nhẹ khi nghỉ. Nên rà soát lại tư thế đo, thời điểm dùng thuốc và so sánh với cửa sổ 15 phút gần nhất."
-      : "Systolic blood pressure is mildly elevated at rest. Review measurement posture, medication timing, and compare it with the latest 15-minute window.";
+  if (issueId === "spo2") {
+    return locale === "vi" ? "SpO₂ thấp" : "Low SpO₂";
   }
 
-  if (
-    lowerPrompt.includes("nhịp tim") ||
-    lowerPrompt.includes("heart rate") ||
-    lowerPrompt.includes("hrv")
-  ) {
-    return locale === "vi"
-      ? "Nhịp tim và HRV cần được đặt trong cùng bối cảnh với SpO₂ và mức hoạt động nghỉ ngơi. Có thể mở phác đồ nhịp tim để xem chỉ số liên quan."
-      : "Heart rate and HRV should be interpreted alongside SpO₂ and resting activity level. You can open the heart rate protocol to review related metrics.";
+  if (issueId === "blood_pressure") {
+    return locale === "vi" ? "Huyết áp" : "Blood pressure";
   }
 
-  return locale === "vi"
-    ? "Tổng quan hiện tại cho thấy bệnh nhân chưa có dấu hiệu cần can thiệp khẩn, nhưng vẫn nên tiếp tục theo dõi SpO₂ và huyết áp tâm thu vì cả hai đang lệch nhẹ so với baseline gần đây."
-    : "The current overview suggests the patient does not need urgent intervention, but SpO₂ and systolic blood pressure should continue to be monitored because both are slightly offset from recent baseline.";
+  return locale === "vi" ? "Nhịp tim" : "Heart rate";
 }

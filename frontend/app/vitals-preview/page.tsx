@@ -21,8 +21,8 @@ const historyItems: SidebarHistoryItem[] = [
   },
 ];
 
-const previewVitals = vitalRepository.listByPatient("p-001");
-const previewSummaries = vitalRepository.listMetricSummaries("p-001");
+const previewVitals = vitalRepository.listByPatient("P001");
+const previewSummaries = vitalRepository.listMetricSummaries("P001");
 
 export default function VitalsPreviewPage() {
   return (

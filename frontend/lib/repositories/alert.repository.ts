@@ -1,4 +1,5 @@
 import { mockAlerts } from "@/lib/mock";
+import { normalizePatientId } from "@/lib/patient-id";
 
 export const alertRepository = {
   list() {
@@ -10,6 +11,9 @@ export const alertRepository = {
   },
 
   listByPatient(patientId: string) {
-    return mockAlerts.filter((alert) => alert.patientId === patientId);
+    const normalizedPatientId = normalizePatientId(patientId);
+    return mockAlerts.filter(
+      (alert) => normalizePatientId(alert.patientId) === normalizedPatientId,
+    );
   },
 };

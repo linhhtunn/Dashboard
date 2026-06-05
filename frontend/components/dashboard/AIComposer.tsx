@@ -14,8 +14,8 @@ type AIComposerProps = {
   className?: string;
 };
 
-const MIN_HEIGHT = 40;
-const MAX_HEIGHT = 80;
+const MIN_HEIGHT = 36;
+const MAX_HEIGHT = 72;
 
 export function AIComposer({
   value,
@@ -55,7 +55,7 @@ export function AIComposer({
         onSubmit();
       }}
       className={[
-        "dashboard-glass relative rounded-[1.35rem] border border-[color:rgba(217,226,236,0.72)] bg-white/80 px-5 py-3.5 backdrop-blur-[22px]",
+        "dashboard-glass relative rounded-[1.2rem] border border-[color:rgba(217,226,236,0.72)] bg-white/80 px-4 py-2.5 backdrop-blur-[22px]",
         className ?? "",
       ]
         .join(" ")
@@ -74,16 +74,16 @@ export function AIComposer({
           }
         }}
         placeholder={resolvedPlaceholder}
-        className="max-h-[80px] min-h-[40px] w-full resize-none bg-transparent pr-14 text-[18px] font-medium leading-8 text-slate-800 outline-none placeholder:text-[rgba(51,65,85,0.72)]"
+        className="max-h-[72px] min-h-[36px] w-full resize-none bg-transparent pr-12 text-[16px] font-medium leading-7 text-slate-800 outline-none placeholder:text-[rgba(51,65,85,0.72)]"
       />
 
       {hasValue ? (
         <button
           type="submit"
-          className="absolute bottom-3.5 right-3.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_12px_24px_rgba(13,71,161,0.2)] transition hover:scale-[1.02]"
+          className="absolute bottom-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_12px_24px_rgba(13,71,161,0.2)] transition hover:scale-[1.02]"
           aria-label={submitLabel}
         >
-          <SendHorizontal className="h-4.5 w-4.5" />
+          <SendHorizontal className="h-4 w-4" />
         </button>
       ) : null}
     </form>

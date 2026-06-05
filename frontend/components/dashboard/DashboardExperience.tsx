@@ -3,14 +3,22 @@
 import { useMemo, useState } from "react";
 
 import { AIWorkspacePanel } from "@/components/dashboard/AIWorkspacePanel";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import {
   dashboardIssues,
+  dashboardPatient,
   type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import { PatientContextPanel } from "@/components/dashboard/PatientContextPanel";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { MVP_BACKEND_PATIENT_ID } from "@/lib/ai/mvp-demo";
+import {
+  createThreadId,
+  listThreadMeta,
+  upsertThreadMeta,
+} from "@/lib/ai/thread-store";
+import type { ThreadMeta } from "@/lib/ai/types";
 import { formatShortClockTime, localizeText } from "@/lib/i18n";
 
 export type SidebarHistoryItem = {
@@ -20,19 +28,28 @@ export type SidebarHistoryItem = {
   issue: string;
 };
 
+const DEMO_USER_ID = "clinician-local";
+
 export function DashboardExperience() {
   const { locale } = useLocale();
   const [activeIssueId, setActiveIssueId] = useState<IssueId | null>(null);
   const [patientPanelOpen, setPatientPanelOpen] = useState(false);
-  const [chatSessionId, setChatSessionId] = useState(0);
+  const [currentThreadId, setCurrentThreadId] = useState(createThreadId());
+  const [currentThreadTitle, setCurrentThreadTitle] = useState<string | null>(null);
   const [hasConversation, setHasConversation] = useState(false);
-  const [sessionHistoryItems, setSessionHistoryItems] = useState<
-    SidebarHistoryItem[]
-  >([]);
+  const [storedThreads, setStoredThreads] = useState<ThreadMeta[]>(() =>
+    listThreadMeta(dashboardPatient.id),
+  );
 
   const historyItems = useMemo(
-    () => [...sessionHistoryItems, ...buildInitialHistory(locale)],
-    [locale, sessionHistoryItems],
+    () =>
+      storedThreads.map((item) => ({
+        id: item.threadId,
+        title: item.title,
+        timestamp: formatShortClockTime(item.updatedAt, locale),
+        issue: item.lastIssue,
+      })),
+    [locale, storedThreads],
   );
 
   const activeIssue = useMemo(
@@ -58,42 +75,58 @@ export function DashboardExperience() {
   };
 
   const handleCreateNewChat = () => {
-    setChatSessionId((current) => current + 1);
+    setCurrentThreadId(createThreadId());
+    setCurrentThreadTitle(null);
     setActiveIssueId(null);
     setPatientPanelOpen(false);
     setHasConversation(false);
-    setSessionHistoryItems([]);
   };
 
-  const handleStartConversation = (prompt: string) => {
+  const handlePersistThread = (meta: { title: string; lastIssue: string }) => {
     setHasConversation(true);
-    setSessionHistoryItems((current) => [
-      {
-        id: `history-${Date.now()}`,
-        title: prompt.length > 34 ? `${prompt.slice(0, 34)}…` : prompt,
-        timestamp: formatShortClockTime(new Date(), locale),
-        issue: localizeText(deriveIssueLabel(prompt), locale),
-      },
-      ...current,
-    ]);
+    const nextMeta: ThreadMeta = {
+      threadId: currentThreadId,
+      patientId: dashboardPatient.id,
+      title: meta.title,
+      updatedAt: new Date().toISOString(),
+      lastIssue: meta.lastIssue,
+    };
+
+    setCurrentThreadTitle(meta.title);
+    upsertThreadMeta(nextMeta);
+    setStoredThreads(listThreadMeta(dashboardPatient.id));
+  };
+
+  const handleSelectThread = (threadId: string) => {
+    const selected = storedThreads.find((item) => item.threadId === threadId);
+    setCurrentThreadId(threadId);
+    setCurrentThreadTitle(selected?.title ?? null);
+    setHasConversation(true);
+    setActiveIssueId(null);
+    setPatientPanelOpen(false);
   };
 
   return (
     <DashboardShell
       activeNav="dashboard"
-      patientPanelOpen={patientPanelOpen}
+      activeThreadId={currentThreadId}
       historyItems={historyItems}
-      historyDisabled={!hasConversation}
+      historyDisabled={!hasConversation && storedThreads.length === 0}
       onCreateNewChat={handleCreateNewChat}
+      onSelectThread={handleSelectThread}
+      patientPanelOpen={patientPanelOpen}
       topBar={<DashboardTopBar />}
       leftPanel={
         <AIWorkspacePanel
-          key={`${locale}-${chatSessionId}`}
-          sessionId={chatSessionId}
+          key={`${locale}-${currentThreadId}`}
           activeIssueId={activeIssueId}
+          currentThreadId={currentThreadId}
+          patientId={MVP_BACKEND_PATIENT_ID}
+          resumeThreadTitle={currentThreadTitle}
+          userId={DEMO_USER_ID}
           onConversationStateChange={setHasConversation}
           onOpenIssue={handleOpenIssue}
-          onStartConversation={handleStartConversation}
+          onPersistThread={handlePersistThread}
           onToggleIssue={handleToggleIssue}
         />
       }
@@ -109,54 +142,7 @@ export function DashboardExperience() {
   );
 }
 
-function buildInitialHistory(locale: "vi" | "en"): SidebarHistoryItem[] {
-  return [
-    {
-      id: "history-1",
-      title: locale === "vi" ? "Tóm tắt ca đêm" : "Night shift summary",
-      timestamp: "08:20",
-      issue: locale === "vi" ? "SpO₂ thấp" : "Low SpO₂",
-    },
-    {
-      id: "history-2",
-      title:
-        locale === "vi" ? "Đánh giá tác động thuốc" : "Medication impact review",
-      timestamp: "07:10",
-      issue: locale === "vi" ? "Huyết áp" : "Blood pressure",
-    },
-    {
-      id: "history-3",
-      title:
-        locale === "vi"
-          ? "Rà soát nguy cơ diễn tiến xấu"
-          : "Review deterioration risk",
-      timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
-      issue: "HRV - RMSSD",
-    },
-  ];
-}
-
-function deriveIssueLabel(prompt: string) {
-  const lowerPrompt = prompt.toLowerCase();
-
-  if (lowerPrompt.includes("spo2") || lowerPrompt.includes("oxy")) {
-    return { vi: "SpO₂ thấp", en: "Low SpO₂" };
-  }
-
-  if (
-    lowerPrompt.includes("huyết áp") ||
-    lowerPrompt.includes("blood pressure")
-  ) {
-    return { vi: "Huyết áp", en: "Blood pressure" };
-  }
-
-  if (
-    lowerPrompt.includes("nhịp tim") ||
-    lowerPrompt.includes("heart rate") ||
-    lowerPrompt.includes("hrv")
-  ) {
-    return { vi: "Nhịp tim", en: "Heart rate" };
-  }
-
-  return { vi: "Theo dõi tổng quát", en: "General monitoring" };
+export function getIssueLabel(issueId: IssueId, locale: "vi" | "en") {
+  const issue = dashboardIssues.find((item) => item.id === issueId);
+  return localizeText(issue?.chipLabel ?? issue?.title, locale, issueId);
 }

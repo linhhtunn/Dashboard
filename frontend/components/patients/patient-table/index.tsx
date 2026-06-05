@@ -115,13 +115,13 @@ export function PatientTable({ items }: PatientTableProps) {
       : "No patients match the current filters";
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="sticky top-0 z-20 space-y-3 pb-3 backdrop-blur-sm">
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px]">
+    <div className="flex h-full min-h-0 flex-col gap-2.5">
+      <div className="sticky top-0 z-20 space-y-2.5 pb-2 backdrop-blur-sm">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_136px]">
           <PatientSearch value={query} onChange={setQuery} />
           <button
             type="button"
-            className="dashboard-input inline-flex h-12 items-center justify-center rounded-full bg-white/72 px-4 text-sm font-medium text-[color:var(--cs-heading)]"
+            className="dashboard-input inline-flex h-10 items-center justify-center rounded-full bg-white/72 px-4 text-[13px] font-medium text-[color:var(--cs-heading)]"
           >
             {locale === "vi" ? "Bộ lọc" : "Filters"}
           </button>
@@ -129,24 +129,24 @@ export function PatientTable({ items }: PatientTableProps) {
 
         <PatientStatusFilter value={status} onChange={setStatus} />
 
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-4">
           {summary.map((item) => (
             <article
               key={item.label}
-              className="dashboard-surface rounded-[1.15rem] px-3 py-3"
+              className="dashboard-surface rounded-[1rem] px-3 py-2.5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[0.82rem] text-[color:var(--cs-text-soft)]">
+                  <p className="text-[0.75rem] text-[color:var(--cs-text-soft)]">
                     {item.label}
                   </p>
-                  <p className="mt-1.5 text-[1.7rem] font-semibold text-[color:var(--cs-heading)]">
+                  <p className="mt-1 text-[1.45rem] font-semibold text-[color:var(--cs-heading)]">
                     {item.count}
                   </p>
                 </div>
                 <span
                   className={[
-                    "mt-1 h-2.5 w-2.5 rounded-full",
+                    "mt-1 h-2 w-2 rounded-full",
                     summaryAccentClasses[item.status ?? "total"],
                   ].join(" ")}
                   aria-hidden="true"
@@ -157,15 +157,15 @@ export function PatientTable({ items }: PatientTableProps) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {visibleItems.length > 0 ? (
           visibleItems.map((item) => <PatientCard key={item.patient.id} item={item} />)
         ) : (
-          <div className="dashboard-surface rounded-[1.15rem] px-4 py-8 text-center">
-            <p className="text-base font-semibold text-[color:var(--cs-heading)]">
+          <div className="dashboard-surface rounded-[1rem] px-4 py-6 text-center">
+            <p className="text-[15px] font-semibold text-[color:var(--cs-heading)]">
               {emptyMessage}
             </p>
-            <p className="mt-2 text-sm text-[color:var(--cs-text-soft)]">
+            <p className="mt-1.5 text-[13px] text-[color:var(--cs-text-soft)]">
               {locale === "vi"
                 ? "Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái."
                 : "Try adjusting the search keyword or the status filters."}

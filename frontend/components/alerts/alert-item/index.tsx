@@ -45,31 +45,31 @@ export function AlertItem({ alert }: AlertItemProps) {
   const severity = severityStyles[alert.severity];
 
   return (
-    <article className="dashboard-surface rounded-[1.35rem] px-4 py-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-2">
+    <article className="dashboard-surface rounded-[1.15rem] px-3.5 py-3.5">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={[
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
+                "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
                 severity.classes,
               ].join(" ")}
             >
               <span className={["h-2 w-2 rounded-full", severity.dot].join(" ")} />
               {getAlertSeverityLabel(alert.severity, locale)}
             </span>
-            <span className="text-xs text-[color:var(--cs-text-soft)]">
+            <span className="text-[11px] text-[color:var(--cs-text-soft)]">
               {formatAlertTimestamp(alert.timestamp, locale)}
             </span>
           </div>
 
-          <p className="text-base font-semibold text-[color:var(--cs-heading)]">
+          <p className="text-[15px] font-semibold text-[color:var(--cs-heading)]">
             {getAlertTypeLabel(alert.type, locale)}
           </p>
 
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {formatEvidence(alert, locale).map((evidence) => (
-              <p key={evidence} className="text-sm text-[color:var(--cs-text)]">
+              <p key={evidence} className="text-[13px] text-[color:var(--cs-text)]">
                 {evidence}
               </p>
             ))}
@@ -80,7 +80,7 @@ export function AlertItem({ alert }: AlertItemProps) {
           type="button"
           disabled={acknowledged}
           onClick={() => setAcknowledged(true)}
-          className="h-10 shrink-0 rounded-full border border-[color:rgba(13,71,161,0.14)] bg-white/72 px-4 text-sm font-semibold text-[color:var(--cs-primary)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-9 shrink-0 rounded-full border border-[color:rgba(13,71,161,0.14)] bg-white/72 px-3.5 text-[13px] font-semibold text-[color:var(--cs-primary)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {acknowledged
             ? locale === "vi"

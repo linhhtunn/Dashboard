@@ -1,5 +1,6 @@
 import type { MetricSummary, PatientStatus, VitalMetric, VitalSignalSample } from "@/types";
 import { mockVitals } from "@/lib/mock";
+import { normalizePatientId } from "@/lib/patient-id";
 
 function roundChange(current: number, previous: number) {
   if (previous === 0) return 0;
@@ -112,12 +113,18 @@ function deriveMetricSummaries(samples: VitalSignalSample[]): MetricSummary[] {
 
 export const vitalRepository = {
   listByPatient(patientId: string) {
-    return mockVitals.filter((vital) => vital.patientId === patientId);
+    const normalizedPatientId = normalizePatientId(patientId);
+    return mockVitals.filter(
+      (vital) => normalizePatientId(vital.patientId) === normalizedPatientId,
+    );
   },
 
   listMetricSummaries(patientId: string) {
+    const normalizedPatientId = normalizePatientId(patientId);
     return deriveMetricSummaries(
-      mockVitals.filter((vital) => vital.patientId === patientId),
+      mockVitals.filter(
+        (vital) => normalizePatientId(vital.patientId) === normalizedPatientId,
+      ),
     );
   },
 };

@@ -57,7 +57,7 @@ function buildPatient(input: {
 
 export const mockPatients: Patient[] = [
   buildPatient({
-    id: "p-001",
+    id: "P001",
     mrn: "MRN-2026-001",
     name: "Nguyễn Văn An",
     age: 68,
@@ -74,7 +74,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:12:00Z",
   }),
   buildPatient({
-    id: "p-002",
+    id: "P002",
     mrn: "MRN-2026-002",
     name: "Trần Thị Bình",
     age: 57,
@@ -90,7 +90,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:10:00Z",
   }),
   buildPatient({
-    id: "p-003",
+    id: "P003",
     mrn: "MRN-2026-003",
     name: "Lê Văn Cường",
     age: 74,
@@ -107,7 +107,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:09:00Z",
   }),
   buildPatient({
-    id: "p-004",
+    id: "P004",
     mrn: "12345678",
     name: "Minh Trần",
     age: 62,
@@ -123,7 +123,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:11:00Z",
   }),
   buildPatient({
-    id: "p-005",
+    id: "P005",
     mrn: "MRN-2026-005",
     name: "Phạm Ngọc Lan",
     age: 45,
@@ -139,7 +139,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:05:00Z",
   }),
   buildPatient({
-    id: "p-006",
+    id: "P006",
     mrn: "MRN-2026-006",
     name: "Đỗ Gia Hưng",
     age: 51,
@@ -155,7 +155,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:03:00Z",
   }),
   buildPatient({
-    id: "p-007",
+    id: "P007",
     mrn: "MRN-2026-007",
     name: "Bùi Thanh Mai",
     age: 63,
@@ -171,7 +171,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:02:00Z",
   }),
   buildPatient({
-    id: "p-008",
+    id: "P008",
     mrn: "MRN-2026-008",
     name: "Hoàng Đức Bảo",
     age: 59,
@@ -187,7 +187,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:01:00Z",
   }),
   buildPatient({
-    id: "p-009",
+    id: "P009",
     mrn: "MRN-2026-009",
     name: "Ngô Thị Hoa",
     age: 36,
@@ -203,7 +203,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T08:00:00Z",
   }),
   buildPatient({
-    id: "p-010",
+    id: "P010",
     mrn: "MRN-2026-010",
     name: "Lý Quốc Khang",
     age: 70,
@@ -219,7 +219,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T07:58:00Z",
   }),
   buildPatient({
-    id: "p-011",
+    id: "P011",
     mrn: "MRN-2026-011",
     name: "Võ Yến Nhi",
     age: 29,
@@ -235,7 +235,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T07:55:00Z",
   }),
   buildPatient({
-    id: "p-012",
+    id: "P012",
     mrn: "MRN-2026-012",
     name: "Dương Hữu Phúc",
     age: 66,
@@ -251,7 +251,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T07:53:00Z",
   }),
   buildPatient({
-    id: "p-013",
+    id: "P013",
     mrn: "MRN-2026-013",
     name: "Phan Tuấn Kiệt",
     age: 48,
@@ -267,7 +267,7 @@ export const mockPatients: Patient[] = [
     lastUpdated: "2026-06-02T07:50:00Z",
   }),
   buildPatient({
-    id: "p-014",
+    id: "P014",
     mrn: "MRN-2026-014",
     name: "Mai Thanh Tâm",
     age: 54,
