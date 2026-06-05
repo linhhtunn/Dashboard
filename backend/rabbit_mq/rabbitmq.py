@@ -9,8 +9,9 @@ from urllib.parse import urlparse
 from rabbit_mq.config import topology_config
 
 
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 RABBIT_MQ_DIR = Path(__file__).resolve().parent
-DEFAULT_ENV_PATH = RABBIT_MQ_DIR / ".env"
+DEFAULT_ENV_PATH = BACKEND_DIR / ".env" if (BACKEND_DIR / ".env").exists() else RABBIT_MQ_DIR / ".env"
 
 
 def load_env_file(path: Path = DEFAULT_ENV_PATH) -> None:
@@ -109,7 +110,35 @@ def connect(settings: RabbitMQSettings) -> pika.BlockingConnection:
         ) from exc
 
 
+def _ensure_queue(
+    channel: Any,
+    connection: Any,
+    *,
+    queue_name: str,
+    durable: bool,
+    arguments: dict[str, Any] | None,
+) -> tuple[Any, bool]:
+    """Declare a queue, reusing an existing one when broker args differ (e.g. no DLX)."""
+    import pika
+
+    try:
+        channel.queue_declare(queue=queue_name, passive=True)
+        return channel, True
+    except pika.exceptions.ChannelClosedByBroker as exc:
+        if exc.reply_code != 404:
+            raise RuntimeError(
+                f"Cannot declare queue {queue_name!r}: {exc}. "
+                "If queues were created with different settings, delete them in CloudAMQP "
+                "and rerun --declare-only, or publish with --no-declare."
+            ) from exc
+        channel = connection.channel()
+
+    channel.queue_declare(queue=queue_name, durable=durable, arguments=arguments)
+    return channel, False
+
+
 def declare_team1_topology(channel: Any, settings: RabbitMQSettings) -> None:
+    connection = channel.connection
     channel.exchange_declare(
         exchange=settings.events_exchange["name"],
         exchange_type=settings.events_exchange["type"],
@@ -125,17 +154,28 @@ def declare_team1_topology(channel: Any, settings: RabbitMQSettings) -> None:
         "x-dead-letter-exchange": settings.dlx_exchange["name"],
         "x-dead-letter-routing-key": settings.dead_letter_routing_key,
     }
+    reused_queues: list[str] = []
     for queue in settings.queues.values():
         arguments = queue_arguments if queue["dlx"] else None
-        channel.queue_declare(
-            queue=queue["name"],
+        channel, reused = _ensure_queue(
+            channel,
+            connection,
+            queue_name=queue["name"],
             durable=queue["durable"],
             arguments=arguments,
         )
+        if reused:
+            reused_queues.append(queue["name"])
         channel.queue_bind(
             exchange=queue["exchange"],
             queue=queue["name"],
             routing_key=queue["routing_key"],
+        )
+
+    if reused_queues:
+        print(
+            "Reused existing queues (skipped redeclare with DLX): "
+            + ", ".join(reused_queues)
         )
 
 

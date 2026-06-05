@@ -1,0 +1,28 @@
+{
+  "message_id": "msg_P001_000001",
+  "schema_version": "v1",
+  "patient_id": "P001",
+  "device_id": "SIM_WATCH_P001",
+  "timestamp": "2026-05-28T10:05:02Z",
+  "signals": {
+    "heart_rate": 72,
+    "rr_interval_ms": 833.33,
+    "hrv_rmssd": 68,
+    "systolic_bp": 118,
+    "diastolic_bp": 76,
+    "spo2": 98,
+    "acc_x": 0.1,
+    "acc_y": 0.05,
+    "acc_z": 0.98,
+    "acc_magnitude": 0.9905,
+    "gyro_x": 0.02,
+    "gyro_y": 0.01,
+    "gyro_z": 0.01,
+    "gyro_magnitude": 0.0245
+  },
+  "context": {
+    "activity_state": "sitting",
+    "scenario_id": "SCN_NORMAL_001",
+    "source": "simulator"
+  }
+}

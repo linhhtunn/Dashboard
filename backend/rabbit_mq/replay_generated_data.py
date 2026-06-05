@@ -281,7 +281,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="Print publish samples without RabbitMQ connection.")
     parser.add_argument("--declare-only", action="store_true", help="Declare RabbitMQ topology and exit without publishing.")
     parser.add_argument("--no-declare", action="store_true", help="Publish without declaring topology first.")
-    parser.add_argument("--env", type=Path, default=None, help="Optional .env path. Defaults to backend/rabbit_mq/.env.")
+    parser.add_argument("--env", type=Path, default=None, help="Optional .env path. Defaults to backend/.env.")
     return parser
 
 
@@ -313,17 +313,6 @@ def main() -> None:
         settings = RabbitMQSettings.from_topology_for_dry_run()
     else:
         settings = RabbitMQSettings.from_env(args.env) if args.env else RabbitMQSettings.from_env()
-        if args.declare_only:
-            connection = connect(settings)
-            channel = connection.channel()
-            declare_team1_topology(channel, settings)
-            connection.close()
-            print("Declared RabbitMQ topology")
-            print(f"Exchange: {settings.events_exchange['name']}")
-            print(f"DLX: {settings.dlx_exchange['name']}")
-            for queue in settings.queues.values():
-                print(f"Queue: {queue['name']} <- {queue['routing_key']}")
-            return
 
     items = load_publish_items(args)
     publisher = PublishSession(settings=settings, dry_run=args.dry_run, no_declare=args.no_declare)
