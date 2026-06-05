@@ -39,9 +39,15 @@ Moi cau tra loi phai tra ve mot JSON object co cau truc sau de Frontend Dashboar
     "has_comparison": false,
     "comparison_type": "vitals-vs-activity",
     "headers": ["Chi so", "Gia tri", "Trang thai", "Bang chung"],
-    "rows": []
+    "rows": [
+      ["Heart Rate", "85", "NORMAL", "Low movement"]
+    ]
   }
 }
+
+*LUU Y ve `comparisons`:
+- `comparison_type` BAT BUOC phai la mot trong cac gia tri sau: "vitals-vs-activity", "alert-evidence", "vitals-trend".
+- `rows` BAT BUOC phai la list of lists of strings (vi du: [["Value 1", "Value 2"]]), tuyet doi KHONG duoc chua dictionary.
 
 QUY TAC Y KHOA:
 1. Khong dua ra chan doan xac dinh hoac ke don thuoc.

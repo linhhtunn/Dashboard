@@ -15,6 +15,8 @@ def contract_instruction(response_type: str, patient_id: str, source_id: str) ->
         f"`patient_id` phai la `{patient_id}`, `source_id` phai la `{source_id}`. "
         "`generated_at` co the bo trong response vi backend se overwrite. "
         "Moi `visualizations.data_points` phai co `timestamp`, `metric`, `value`, `unit`, `status`. "
+        "Moi `comparisons.comparison_type` phai thuoc: 'vitals-vs-activity', 'alert-evidence', hoac 'vitals-trend'. "
+        "Moi dong trong `comparisons.rows` phai la mot list cac string dung thu tu voi `headers` (vi du: [[\"heart_rate\", \"78\", \"NORMAL\", \"Low movement\"]]), KHONG duoc la dictionary. "
         "Khong chan doan xac dinh, khong ke don thuoc, va neu thieu du lieu phai noi ro gioi han."
     )
 
@@ -63,14 +65,24 @@ def build_chat_prompt(
     message: str,
     conversation_id: str | None,
     memory_context: str = "",
+    long_term_watchlist: str = "",
+    doctor_preferences: str = "",
 ) -> str:
     patient_id = patient["patient_id"]
     source_id = conversation_id or patient_id
+
+    ltm_section = ""
+    if long_term_watchlist:
+        ltm_section += f"- Long-term Clinical Watchlist: {long_term_watchlist}\n"
+    if doctor_preferences:
+        ltm_section += f"- Doctor's Styling/Workflow Preferences: {doctor_preferences}\n"
+
     return (
         "Hay tra loi cau hoi cua bac si dua tren patient context duoc cung cap.\n"
         f"- Patient context: {_json_context(patient)}\n"
         f"- Conversation ID: {source_id}\n"
         f"- Server short-term memory: {memory_context or 'none yet.'}\n"
+        f"{ltm_section}"
         f"- User message: {message}\n\n"
         f"{contract_instruction('chat', patient_id, source_id)}"
     )

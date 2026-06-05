@@ -57,12 +57,18 @@ class ChatWorkflow:
 
         source_id = request.conversation_id or request.patient_id
 
-        async def generate_from_memory(memory_context: str) -> ChatGenerationResult:
+        async def generate_from_memory(
+            memory_context: str,
+            long_term_watchlist: str,
+            doctor_preferences: str,
+        ) -> ChatGenerationResult:
             prompt = self.clinical_agent.build_chat_prompt(
                 patient=patient,
                 message=request.message,
                 conversation_id=request.conversation_id,
                 memory_context=memory_context,
+                long_term_watchlist=long_term_watchlist,
+                doctor_preferences=doctor_preferences,
             )
             result = await self.generation_service.generate_with_contract(
                 user_prompt=prompt,
@@ -86,4 +92,5 @@ class ChatWorkflow:
             conversation_id=source_id,
             message=request.message,
             generate_response=generate_from_memory,
+            doctor_id=request.doctor_id,
         )

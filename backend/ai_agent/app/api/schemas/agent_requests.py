@@ -7,6 +7,7 @@ class ChatRequest(ContractModel):
     schema_version: str = "v1"
     patient_id: str = Field(min_length=1)
     conversation_id: str | None = Field(default=None, min_length=1)
+    doctor_id: str = Field(default="D1", min_length=1)
     message: str = Field(min_length=1)
 
     @field_validator("schema_version")

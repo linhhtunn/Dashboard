@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.container import build_agent_service, build_agent_service_async
 from app.contracts.agent_response import AgentResponse
 from app.memory.checkpointer import CheckpointerHandle
+from app.memory.store import StoreHandle
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.ports import AlertRepository, PatientRepository
 from app.services.generation import GenerationService
@@ -29,6 +30,7 @@ class AgentService:
     clinical_agent: ClinicalAgent = field(default_factory=ClinicalAgent)
     tool_registry: ToolRegistry = field(default_factory=ToolRegistry)
     checkpointer_handle: CheckpointerHandle | None = None
+    store_handle: StoreHandle | None = None
 
     async def summarize_patient(self, request: SummaryRequest) -> AgentResponse:
         return await SummaryWorkflow(

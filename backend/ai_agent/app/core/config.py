@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-5.4-mini", alias="OPENAI_MODEL")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     memory_checkpointer: str = Field(default="memory", alias="MEMORY_CHECKPOINTER")
+    memory_store: str = Field(default="memory", alias="MEMORY_STORE")
     memory_postgres_dsn: str | None = Field(default=None, alias="MEMORY_POSTGRES_DSN")
     supabase_db_url: str | None = Field(default=None, alias="SUPABASE_DB_URL")
     memory_compact_turn_threshold: int = Field(default=6, alias="MEMORY_COMPACT_TURN_THRESHOLD")

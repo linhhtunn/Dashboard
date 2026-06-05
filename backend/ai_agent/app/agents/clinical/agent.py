@@ -23,10 +23,14 @@ class ClinicalAgent:
         message: str,
         conversation_id: str | None,
         memory_context: str = "",
+        long_term_watchlist: str = "",
+        doctor_preferences: str = "",
     ) -> str:
         return build_chat_prompt(
             patient=patient,
             message=message,
             conversation_id=conversation_id,
             memory_context=memory_context,
+            long_term_watchlist=long_term_watchlist,
+            doctor_preferences=doctor_preferences,
         )
