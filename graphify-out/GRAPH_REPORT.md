@@ -1,16 +1,16 @@
-# Graph Report - software-engineering  (2026-06-04)
+# Graph Report - software-engineering  (2026-06-05)
 
 ## Corpus Check
-- 135 files · ~50,237 words
+- 144 files · ~56,332 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1030 nodes · 1672 edges · 106 communities (99 shown, 7 thin omitted)
-- Extraction: 67% EXTRACTED · 33% INFERRED · 0% AMBIGUOUS · INFERRED: 557 edges (avg confidence: 0.58)
+- 1062 nodes · 1696 edges · 113 communities (105 shown, 8 thin omitted)
+- Extraction: 67% EXTRACTED · 33% INFERRED · 0% AMBIGUOUS · INFERRED: 558 edges (avg confidence: 0.58)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2d16424a`
+- Built from commit: `6ab0747d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -77,6 +77,7 @@
 - [[_COMMUNITY_Community 60|Community 60]]
 - [[_COMMUNITY_Community 61|Community 61]]
 - [[_COMMUNITY_Community 62|Community 62]]
+- [[_COMMUNITY_Community 66|Community 66]]
 - [[_COMMUNITY_Community 104|Community 104]]
 - [[_COMMUNITY_Community 105|Community 105]]
 - [[_COMMUNITY_Community 106|Community 106]]
@@ -94,37 +95,37 @@
 10. `validate_agent_response()` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `ChatMessage` --uses--> `ChatMessage`  [INFERRED]
-  backend/ai_agent/app/agents/clinical/agent.py → backend/ai_agent/app/api/schemas/agent_requests.py
-- `ChatMessage` --uses--> `ChatMessage`  [INFERRED]
-  backend/ai_agent/app/agents/clinical/prompts/builders.py → backend/ai_agent/app/api/schemas/agent_requests.py
 - `AgentResponse` --uses--> `AgentResponse`  [INFERRED]
   backend/ai_agent/app/services/parsers/agent_response_parser.py → backend/ai_agent/app/contracts/agent_response.py
 - `AgentResponse` --uses--> `AgentResponse`  [INFERRED]
   backend/ai_agent/app/services/safety/safety_service.py → backend/ai_agent/app/contracts/agent_response.py
 - `str` --uses--> `AgentResponse`  [INFERRED]
   backend/ai_agent/app/services/safety/safety_service.py → backend/ai_agent/app/contracts/agent_response.py
+- `ChatMessage` --uses--> `ChatMessage`  [INFERRED]
+  backend/ai_agent/app/agents/clinical/agent.py → backend/ai_agent/app/api/schemas/agent_requests.py
+- `ChatMessage` --uses--> `ChatMessage`  [INFERRED]
+  backend/ai_agent/app/agents/clinical/prompts/builders.py → backend/ai_agent/app/api/schemas/agent_requests.py
 
 ## Import Cycles
 - 1-file cycle: `backend/ai_agent/app/contracts/agent_response.py -> backend/ai_agent/app/contracts/agent_response.py`
 
-## Communities (106 total, 7 thin omitted)
+## Communities (113 total, 8 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.08
-Nodes (58): AgentResponse, AgentService, ChatRequest, ExplainAlertRequest, SummaryRequest, AgentResponse, AgentService, ChatRequest (+50 more)
+Cohesion: 0.09
+Nodes (49): AgentResponse, AgentService, ChatRequest, ExplainAlertRequest, SummaryRequest, AgentResponse, AgentService, ChatRequest (+41 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.06
-Nodes (46): Any, bool, float, str, Any, str, Any, str (+38 more)
+Cohesion: 0.07
+Nodes (40): Any, bool, Any, str, Any, str, ToolResponse, str (+32 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.11
-Nodes (37): ChatMemoryState, MemoryTurn, str, ChatMemoryState, str, str, MemoryTurn, str (+29 more)
+Cohesion: 0.12
+Nodes (33): ChatMemoryState, MemoryTurn, str, ChatMemoryState, str, str, MemoryTurn, str (+25 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.10
-Nodes (30): AgentServiceT, AsyncOpenAI, str, Settings, float, LLMResponse, Settings, str (+22 more)
+Cohesion: 0.07
+Nodes (41): AgentServiceT, AsyncOpenAI, str, Settings, float, str, float, LLMResponse (+33 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.04
@@ -132,15 +133,15 @@ Nodes (45): 1. `patient_id` hoặc `alert_id` không tồn tại, 1. `patient_id
 
 ### Community 5 - "Community 5"
 Cohesion: 0.08
-Nodes (32): test_clinical_agent_builds_summary_prompt(), Any, str, Any, str, Any, str, PatientContextTool (+24 more)
+Nodes (33): test_clinical_agent_builds_summary_prompt(), Any, str, Any, str, Any, str, PatientContextTool (+25 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.22
 Nodes (12): AgentResponse, str, check_clinical_safety(), classify_prompt_injection(), ClinicalSafetyResult, PromptSafetyResult, test_advisory_clinical_support_response_is_safe(), test_definitive_diagnosis_response_is_unsafe() (+4 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.13
-Nodes (27): Any, ChatMessage, str, AgentService, ClinicalAgent, fake_service(), log_fallback(), test_generation_service_falls_back_after_repair_exhaustion() (+19 more)
+Cohesion: 0.09
+Nodes (38): health(), root(), AsyncClient, Any, ChatMessage, str, str, AgentService (+30 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.05
@@ -152,11 +153,11 @@ Nodes (36): 1. SƠ ĐỒ DÒNG CHẢY DỮ LIỆU TỔNG THỂ (DATA STATE FLOW)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.09
-Nodes (42): AsyncClient, Any, str, AgentResponse, str, Comparison, ComparisonType, Comparison (+34 more)
+Nodes (44): str, Any, str, AgentResponse, str, str, BaseModel, Comparison (+36 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.09
-Nodes (35): bool, Exception, AgentResponse, str, AgentResponse, Any, str, BaseException (+27 more)
+Nodes (33): bool, Exception, AgentResponse, str, AgentResponse, Any, str, BaseException (+25 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.08
@@ -291,8 +292,8 @@ Cohesion: 0.40
 Nodes (5): 8.1. Normal scenario, 8.2. Fall scenario, 8.3. Hypoglycemia scenario, 8.4. BP abnormal scenario, 8. TIÊU CHÍ KIỂM CHỨNG CHẤT LƯỢNG SIMULATOR
 
 ### Community 45 - "Community 45"
-Cohesion: 0.40
-Nodes (4): 10. Checklist cần chốt trong buổi họp Team 1–2–3, 11. Tóm tắt ngắn gọn, Data Contract giữa Team 1, Team 2, Team 3, Mục đích
+Cohesion: 0.22
+Nodes (8): 10. Checklist cần chốt trong buổi họp Team 1–2–3, 11. Tóm tắt ngắn gọn, 9. Phân vai theo data contract, Data Contract giữa Team 1, Team 2, Team 3, Mục đích, Team 1 — Data Simulator / Message Producer, Team 2 — Data Ingestion / Cleaning / Feature Pipeline, Team 3 — Anomaly Detection / Simulation Validation
 
 ### Community 46 - "Community 46"
 Cohesion: 0.40
@@ -323,12 +324,16 @@ Cohesion: 0.50
 Nodes (4): 1. Thống nhất use case và scenario, Ai dùng phần này?, Mỗi scenario cần thống nhất, Mục tiêu
 
 ### Community 53 - "Community 53"
-Cohesion: 0.50
-Nodes (4): 9. Phân vai theo data contract, Team 1 — Data Simulator / Message Producer, Team 2 — Data Ingestion / Cleaning / Feature Pipeline, Team 3 — Anomaly Detection / Simulation Validation
+Cohesion: 0.18
+Nodes (10): Check for context, Ending Discovery, Guardrails, Handling Different Entry Points, OpenSpec Awareness, The Stance, What You Don't Have To Do, What You Might Do (+2 more)
 
 ### Community 56 - "Community 56"
 Cohesion: 0.67
 Nodes (3): AI Health Monitoring MVP with Simulated Wearable Data, E2E SIMULATION FOR AI HEALTH, KẾ HOẠCH TRIỂN KHAI CHI TIẾT DỰ ÁN
+
+### Community 66 - "Community 66"
+Cohesion: 0.20
+Nodes (9): Check for context, Ending Discovery, Guardrails, OpenSpec Awareness, The Stance, What You Don't Have To Do, What You Might Do, When a change exists (+1 more)
 
 ### Community 104 - "Community 104"
 Cohesion: 0.29
@@ -338,24 +343,20 @@ Nodes (7): Deliverables Sprint 1, SPRINT 1 — Foundation, Dataset Reference, Me
 Cohesion: 0.29
 Nodes (7): Deliverables Sprint 3, SPRINT 3 — E2E Integration, Evaluation, Quality Report, Polish, Team 1, Team 2, Team 3, Team 4, Team 5
 
-### Community 106 - "Community 106"
-Cohesion: 0.40
-Nodes (3): health(), root(), str
-
 ## Knowledge Gaps
-- **414 isolated node(s):** `bool`, `Any`, `str`, `str`, `str` (+409 more)
+- **433 isolated node(s):** `bool`, `Any`, `str`, `str`, `str` (+428 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `AgentResponse` connect `Community 0` to `Community 11`, `Community 2`, `Community 10`, `Community 6`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
-- **Why does `ChatMemoryWorkflow` connect `Community 2` to `Community 0`, `Community 3`, `Community 7`?**
-  _High betweenness centrality (0.026) - this node is a cross-community bridge._
-- **Why does `LLMOutputParseError` connect `Community 11` to `Community 0`, `Community 1`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
+- **Why does `AgentResponse` connect `Community 0` to `Community 2`, `Community 6`, `Community 7`, `Community 10`, `Community 11`?**
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
+- **Why does `LLMOutputParseError` connect `Community 11` to `Community 0`, `Community 1`, `Community 7`?**
+  _High betweenness centrality (0.037) - this node is a cross-community bridge._
+- **Why does `FixturePatientRepository` connect `Community 5` to `Community 3`, `Community 7`?**
+  _High betweenness centrality (0.030) - this node is a cross-community bridge._
 - **Are the 54 inferred relationships involving `AgentResponse` (e.g. with `AgentResponse` and `AgentService`) actually correct?**
   _`AgentResponse` has 54 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 29 inferred relationships involving `AgentService` (e.g. with `AsyncClient` and `AgentResponse`) actually correct?**

@@ -61,7 +61,6 @@ class ChatWorkflow:
             prompt = self.clinical_agent.build_chat_prompt(
                 patient=patient,
                 message=request.message,
-                history=request.history,
                 conversation_id=request.conversation_id,
                 memory_context=memory_context,
             )
@@ -86,6 +85,5 @@ class ChatWorkflow:
             patient_id=request.patient_id,
             conversation_id=source_id,
             message=request.message,
-            history=request.history,
             generate_response=generate_from_memory,
         )

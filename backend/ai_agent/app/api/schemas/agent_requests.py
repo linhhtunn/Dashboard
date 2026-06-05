@@ -1,18 +1,6 @@
-from enum import StrEnum
-
 from pydantic import Field, field_validator
 
 from app.contracts.agent_response import ContractModel
-
-
-class ChatRole(StrEnum):
-    USER = "user"
-    ASSISTANT = "assistant"
-
-
-class ChatMessage(ContractModel):
-    role: ChatRole
-    content: str = Field(min_length=1)
 
 
 class ChatRequest(ContractModel):
@@ -20,7 +8,6 @@ class ChatRequest(ContractModel):
     patient_id: str = Field(min_length=1)
     conversation_id: str | None = Field(default=None, min_length=1)
     message: str = Field(min_length=1)
-    history: list[ChatMessage] = Field(default_factory=list)
 
     @field_validator("schema_version")
     @classmethod

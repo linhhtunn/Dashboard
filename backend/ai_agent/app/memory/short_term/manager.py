@@ -27,7 +27,7 @@ class ShortTermMemoryManager:
         patient_id: str,
         conversation_id: str,
         message: str,
-        history_turns: list[MemoryTurn],
+        history_turns: list[MemoryTurn] | None = None,
     ) -> ChatMemoryState:
         state = self.store.get(conversation_id)
         if state is None:
@@ -36,8 +36,9 @@ class ShortTermMemoryManager:
                 conversation_id=conversation_id,
                 current_message=message,
             )
-            state["raw_turns"] = list(history_turns)
-            state["turn_count"] = len(history_turns)
+            turns = history_turns or []
+            state["raw_turns"] = list(turns)
+            state["turn_count"] = len(turns)
             return state
 
         next_state = self.normalize_state(state)

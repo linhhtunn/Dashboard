@@ -27,23 +27,21 @@ def test_explain_alert_prompt_includes_alert_fixture_and_contract_targets() -> N
     assert "`source_id` phai la `ALT_FALL_0092`" in prompt
 
 
-def test_chat_prompt_includes_optional_history_and_contract_targets() -> None:
+def test_chat_prompt_includes_message_and_contract_targets() -> None:
     request = ChatRequest.model_validate(
         {
             "patient_id": "P001",
             "conversation_id": "CONV_P001_001",
             "message": "Nhip tim gan day ra sao?",
-            "history": [{"role": "user", "content": "Xin chao"}],
         }
     )
 
     prompt = build_chat_prompt(
         patient=get_patient_fixture("P001"),
         message=request.message,
-        history=request.history,
         conversation_id=request.conversation_id,
     )
 
     assert "CONV_P001_001" in prompt
-    assert "Xin chao" in prompt
+    assert "Nhip tim gan day ra sao?" in prompt
     assert "`response_type` phai la `chat`" in prompt

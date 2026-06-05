@@ -91,9 +91,7 @@ async def test_agent_endpoints_return_validation_errors(client: httpx.AsyncClien
     chat = await client.post(
         "/api/agent/chat",
         json={
-            "patient_id": "P001",
             "message": "Hello",
-            "history": [{"role": "doctor", "content": "bad role"}],
         },
     )
 

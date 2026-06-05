@@ -8,7 +8,6 @@ from typing import Any
 from app.memory.short_term.manager import ShortTermMemoryManager
 from app.memory.short_term.policy import SlidingWindowPolicy
 from app.memory.short_term.state import ChatMemoryState, MemoryTurn, make_turn
-from app.api.schemas.agent_requests import ChatMessage
 from app.contracts.agent_response import AgentResponse
 
 logger = logging.getLogger(__name__)
@@ -87,7 +86,6 @@ class ChatMemoryWorkflow:
         patient_id: str,
         conversation_id: str,
         message: str,
-        history: list[ChatMessage],
         generate_response: GenerateChatResponse,
     ) -> AgentResponse:
         if self._graph is not None:
@@ -97,7 +95,6 @@ class ChatMemoryWorkflow:
                     patient_id=patient_id,
                     conversation_id=conversation_id,
                     message=message,
-                    history=history,
                     generate_response=generate_response,
                 )
             except Exception as exc:
@@ -114,7 +111,6 @@ class ChatMemoryWorkflow:
                     patient_id=patient_id,
                     conversation_id=conversation_id,
                     message=message,
-                    history=history,
                     generate_response=generate_response,
                 )
         logger.info("chat_memory_run backend=manual_in_process conversation_id=%s", conversation_id)
@@ -122,7 +118,6 @@ class ChatMemoryWorkflow:
             patient_id=patient_id,
             conversation_id=conversation_id,
             message=message,
-            history=history,
             generate_response=generate_response,
         )
 
@@ -132,7 +127,6 @@ class ChatMemoryWorkflow:
         patient_id: str,
         conversation_id: str,
         message: str,
-        history: list[ChatMessage],
         generate_response: GenerateChatResponse,
     ) -> AgentResponse:
         self._active_generate_response = generate_response
@@ -142,9 +136,6 @@ class ChatMemoryWorkflow:
                 "conversation_id": conversation_id,
                 "current_message": message,
             }
-            if history:
-                input_state["raw_turns"] = _history_to_turns(history)
-                input_state["turn_count"] = len(input_state["raw_turns"])
             result = await self._graph.ainvoke(
                 input_state,
                 config={"configurable": {"thread_id": conversation_id}},
@@ -163,14 +154,12 @@ class ChatMemoryWorkflow:
         patient_id: str,
         conversation_id: str,
         message: str,
-        history: list[ChatMessage],
         generate_response: GenerateChatResponse,
     ) -> AgentResponse:
         state = self._short_term_memory.load_or_seed(
             patient_id=patient_id,
             conversation_id=conversation_id,
             message=message,
-            history_turns=_history_to_turns(history),
         )
         memory_context = self._short_term_memory.build_context(state)
         result = await generate_response(memory_context)
@@ -187,13 +176,6 @@ class ChatMemoryWorkflow:
                 state["turn_count"],
             )
         return result.response
-
-
-def _history_to_turns(history: list[ChatMessage]) -> list[MemoryTurn]:
-    return [
-        make_turn(role=item.role.value, content=item.content)
-        for item in history
-    ]
 
 
 def _is_memory_backend_error(exc: Exception) -> bool:

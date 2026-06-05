@@ -9,27 +9,14 @@ def test_summary_request_requires_patient_id() -> None:
         SummaryRequest.model_validate({})
 
 
-def test_chat_request_accepts_valid_history_roles() -> None:
+def test_chat_request_valid() -> None:
     request = ChatRequest.model_validate(
         {
             "patient_id": "P001",
             "message": "Summarize recent vitals.",
-            "history": [
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "How can I help?"},
-            ],
         }
     )
+    assert request.patient_id == "P001"
+    assert request.message == "Summarize recent vitals."
+    assert request.conversation_id is None
 
-    assert len(request.history) == 2
-
-
-def test_chat_request_rejects_invalid_history_role() -> None:
-    with pytest.raises(ValidationError):
-        ChatRequest.model_validate(
-            {
-                "patient_id": "P001",
-                "message": "Summarize recent vitals.",
-                "history": [{"role": "doctor", "content": "Hello"}],
-            }
-        )

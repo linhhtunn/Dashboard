@@ -2,7 +2,6 @@ import json
 from typing import Any
 
 from app.agents.clinical.prompts import templates
-from app.api.schemas.agent_requests import ChatMessage
 
 
 def _json_context(value: Any) -> str:
@@ -62,22 +61,16 @@ def build_chat_prompt(
     *,
     patient: dict[str, Any],
     message: str,
-    history: list[ChatMessage],
     conversation_id: str | None,
     memory_context: str = "",
 ) -> str:
     patient_id = patient["patient_id"]
     source_id = conversation_id or patient_id
-    history_context = [
-        {"role": item.role.value, "content": item.content}
-        for item in history
-    ]
     return (
         "Hay tra loi cau hoi cua bac si dua tren patient context duoc cung cap.\n"
         f"- Patient context: {_json_context(patient)}\n"
         f"- Conversation ID: {source_id}\n"
         f"- Server short-term memory: {memory_context or 'none yet.'}\n"
-        f"- History optional: {_json_context(history_context)}\n"
         f"- User message: {message}\n\n"
         f"{contract_instruction('chat', patient_id, source_id)}"
     )
