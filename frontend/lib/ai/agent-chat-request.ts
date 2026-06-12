@@ -1,0 +1,69 @@
+import { normalizePatientId } from "@/lib/patient-id";
+import type { Locale } from "@/types";
+
+export type AgentChatBackendRequest = {
+  schema_version: "v1";
+  patient_id: string;
+  conversation_id?: string;
+  doctor_id?: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+  history?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
+};
+
+export function resolveAgentPatientId(patientId: string) {
+  const trimmed = patientId.trim();
+  if (!trimmed) return trimmed;
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  return normalizePatientId(trimmed);
+}
+
+export function resolveDoctorId(userId?: string) {
+  if (!userId || userId === "clinician-local") return "D1";
+  return userId;
+}
+
+export function buildAgentChatBackendBody(input: {
+  patientId: string;
+  message: string;
+  conversationId?: string;
+  doctorId?: string;
+  metadata?: Record<string, unknown>;
+  history?: AgentChatBackendRequest["history"];
+}): AgentChatBackendRequest {
+  const body: AgentChatBackendRequest = {
+    schema_version: "v1",
+    patient_id: resolveAgentPatientId(input.patientId),
+    message: input.message.trim(),
+    doctor_id: resolveDoctorId(input.doctorId),
+  };
+
+  if (input.conversationId) {
+    body.conversation_id = input.conversationId;
+  }
+
+  if (input.metadata && Object.keys(input.metadata).length > 0) {
+    body.metadata = input.metadata;
+  }
+
+  if (input.history && input.history.length > 0) {
+    body.history = input.history;
+  }
+
+  return body;
+}
+
+export function buildSummaryPrompt(locale: Locale) {
+  return locale === "vi"
+    ? "Tóm tắt bệnh án của bệnh nhân này."
+    : "Summarize this patient's clinical record.";
+}
+
+export function buildExplainAlertPrompt(locale: Locale) {
+  return locale === "vi"
+    ? "Giải thích cảnh báo lâm sàng này và các bằng chứng liên quan."
+    : "Explain this clinical alert and the related evidence.";
+}

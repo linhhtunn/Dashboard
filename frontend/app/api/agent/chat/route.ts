@@ -1,59 +1,21 @@
 import { NextRequest } from "next/server";
 
 import { adaptBackendResponse, buildThreadTitle } from "@/lib/ai/agent-adapter";
-import {
-  buildMockChatPayload,
-  shouldUseMockChatResponse,
-} from "@/lib/ai/mock-chat";
-import {
-  BackendAgentError,
-  agentDefaultPaths,
-  callAgentEndpoint,
-  getAgentBaseUrl,
-  getAgentPath,
-} from "@/lib/ai/agent-backend";
+import { buildMockChatPayload } from "@/lib/ai/mock-chat";
+import { BackendAgentError, invokeAgentChat } from "@/lib/ai/invoke-agent-chat";
+import { isAgentBackendConfigured } from "@/lib/ai/agent-backend";
 import type {
   AgentChatProxyPayload,
   AgentChatProxyRequest,
   AgentChatStreamEvent,
 } from "@/lib/ai/types";
-import { fetchBackendJson, getDataPath } from "@/lib/backend-data";
-import { normalizePatientId } from "@/lib/patient-id";
-import type { AlertSeverity, Gender } from "@/types";
+import { resolveAgentPatientId } from "@/lib/ai/agent-chat-request";
 
 export const runtime = "nodejs";
 
-type PatientDto = {
-  id: string;
-  name: string;
-  age: number;
-  gender: Gender;
-  ward_label?: { vi: string; en: string };
-  bed?: string | null;
-};
-
-type VitalDto = {
-  heart_rate: number;
-  respiratory_rate: number;
-  systolic_bp: number;
-  diastolic_bp: number;
-  spo2: number;
-};
-
-type PatientVitalsDto = {
-  samples: VitalDto[];
-};
-
-type AlertDto = {
-  type: string;
-  severity: AlertSeverity;
-};
-
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as AgentChatProxyRequest;
-  const baseUrl = getAgentBaseUrl();
-  const configuredPath = getAgentPath("chat");
-  const normalizedPatientId = normalizePatientId(body.patientId ?? "");
+  const normalizedPatientId = resolveAgentPatientId(body.patientId ?? "");
 
   if (!body.message?.trim() || !body.threadId || !normalizedPatientId) {
     return new Response("Thiếu dữ liệu bắt buộc cho request chatbot.", {
@@ -62,14 +24,13 @@ export async function POST(request: NextRequest) {
   }
 
   const title = buildThreadTitle(body.message, body.locale);
-  const patientContext = await loadPatientContext(baseUrl, normalizedPatientId);
 
-  if (shouldUseMockChatResponse(body.message, baseUrl)) {
+  if (!isAgentBackendConfigured()) {
     const payload = buildMockChatPayload({
       locale: body.locale,
       message: body.message,
       patientId: normalizedPatientId,
-      patientContext,
+      patientContext: null,
       threadId: body.threadId,
       title,
     });
@@ -77,18 +38,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const raw = await callAgentEndpoint({
-      baseUrl: baseUrl!,
-      configuredPath,
-      defaultPath: agentDefaultPaths.chat,
-      body: JSON.stringify({
-        schema_version: "v1",
-        patient_id: normalizedPatientId,
-        conversation_id: body.threadId,
-        doctor_id: body.userId,
-        message: body.message,
-        history: body.history ?? [],
-      }),
+    const raw = await invokeAgentChat({
+      patientId: normalizedPatientId,
+      conversationId: body.threadId,
+      doctorId: body.userId,
+      message: body.message,
+      metadata: body.metadata,
+      history: body.history,
     });
 
     const payload = {
@@ -108,15 +64,11 @@ export async function POST(request: NextRequest) {
       return new Response(error.message, { status: error.status });
     }
 
-    const fallbackPayload = buildMockChatPayload({
-      locale: body.locale,
-      message: body.message,
-      patientId: normalizedPatientId,
-      patientContext,
-      threadId: body.threadId,
-      title,
-    });
-    return createStreamResponse(fallbackPayload, { typingDelayMs: 90 });
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Không thể kết nối backend AI.";
+    return new Response(message, { status: 502 });
   }
 }
 
@@ -161,50 +113,6 @@ function createStreamResponse(
       "Cache-Control": "no-cache, no-transform",
     },
   });
-}
-
-async function loadPatientContext(baseUrl: string | undefined, patientId: string) {
-  if (!baseUrl) return null;
-
-  try {
-    const [patient, vitals, alerts] = await Promise.all([
-      fetchBackendJson<PatientDto>({
-        baseUrl,
-        path: `${getDataPath("patients")}/${patientId}`,
-      }),
-      fetchBackendJson<PatientVitalsDto>({
-        baseUrl,
-        path: `${getDataPath("patients")}/${patientId}/vitals`,
-      }).catch(() => null),
-      fetchBackendJson<AlertDto[]>({
-        baseUrl,
-        path: `${getDataPath("patients")}/${patientId}/alerts`,
-      }).catch(() => []),
-    ]);
-
-    const latestVitals = vitals?.samples?.[0];
-
-    return {
-      id: patient.id,
-      name: patient.name,
-      age: patient.age,
-      gender: patient.gender,
-      wardLabel: patient.ward_label?.vi ?? patient.ward_label?.en,
-      bed: patient.bed ?? undefined,
-      latestVitals: latestVitals
-        ? {
-            heartRate: latestVitals.heart_rate,
-            respiratoryRate: latestVitals.respiratory_rate,
-            systolicBp: latestVitals.systolic_bp,
-            diastolicBp: latestVitals.diastolic_bp,
-            spo2: latestVitals.spo2,
-          }
-        : undefined,
-      alerts: alerts.slice(0, 3),
-    };
-  } catch {
-    return null;
-  }
 }
 
 function chunkText(text: string) {

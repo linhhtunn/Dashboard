@@ -1,21 +1,16 @@
 const DEFAULT_CHAT_PATH = "/api/agent/chat";
-const DEFAULT_SUMMARY_PATH = "/api/agent/summary";
-const DEFAULT_EXPLAIN_ALERT_PATH = "/api/agent/explain-alert";
 
 export function getAgentBaseUrl() {
   return process.env.AI_AGENT_BASE_URL;
 }
 
-export function getAgentPath(kind: "chat" | "summary" | "explain-alert") {
-  switch (kind) {
-    case "summary":
-      return process.env.AI_AGENT_SUMMARY_PATH ?? DEFAULT_SUMMARY_PATH;
-    case "explain-alert":
-      return process.env.AI_AGENT_EXPLAIN_ALERT_PATH ?? DEFAULT_EXPLAIN_ALERT_PATH;
-    case "chat":
-    default:
-      return process.env.AI_AGENT_CHAT_PATH ?? DEFAULT_CHAT_PATH;
-  }
+export function isAgentBackendConfigured() {
+  return Boolean(getAgentBaseUrl()?.trim());
+}
+
+/** Unified agent router — summary and explain-alert are chat intents. */
+export function getAgentPath(_kind: "chat" = "chat") {
+  return process.env.AI_AGENT_CHAT_PATH ?? DEFAULT_CHAT_PATH;
 }
 
 export async function callAgentEndpoint({
@@ -99,6 +94,4 @@ async function parseBackendResponse(response: Response) {
 
 export const agentDefaultPaths = {
   chat: DEFAULT_CHAT_PATH,
-  summary: DEFAULT_SUMMARY_PATH,
-  explainAlert: DEFAULT_EXPLAIN_ALERT_PATH,
 } as const;

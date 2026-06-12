@@ -49,6 +49,10 @@ export type AgentChatProxyRequest = AskAIRequest & {
   threadId: string;
   userId: string;
   message: string;
+  metadata?: {
+    alert_id?: string;
+    [key: string]: unknown;
+  };
   history?: Array<{
     role: "user" | "assistant";
     content: string;

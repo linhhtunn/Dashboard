@@ -54,17 +54,25 @@ Mở `http://localhost:3000`.
 
 ## AI Agent Backend
 
-Frontend gọi backend AI qua route proxy nội bộ:
+Backend AI dùng **một router thống nhất** `POST /api/agent/chat` (Contract v1).  
+Các intent như tóm tắt bệnh án và giải thích cảnh báo đều đi qua endpoint này — xem `docs/HANDOVER_FRONTEND.md`.
 
-- FE gọi: `/api/agent/chat`
-- Proxy server-side forward sang `AI_AGENT_BASE_URL + AI_AGENT_CHAT_PATH`
+Luồng FE:
+
+- Component gọi proxy Next.js: `/api/agent/chat`, `/api/agent/summary`, `/api/agent/explain-alert`
+- Proxy server-side forward sang `AI_AGENT_BASE_URL + AI_AGENT_CHAT_PATH` (mặc định `/api/agent/chat`)
+- Summary / explain-alert proxy tự dựng `message` + `metadata.alert_id` rồi gọi cùng router
 
 ### Environment variables
 
 Tạo `.env.local`:
 
 ```bash
-AI_AGENT_BASE_URL=http://localhost:8005
+# Production HF
+# AI_AGENT_BASE_URL=https://cuongnd03-health-app.hf.space
+
+# Local
+AI_AGENT_BASE_URL=http://127.0.0.1:8005
 AI_AGENT_CHAT_PATH=/api/agent/chat
 ```
 
@@ -85,26 +93,23 @@ Sau khi container lên:
 - docs: `http://localhost:8005/docs`
 - health: `http://localhost:8005/health`
 
-### Contract backend hiện tại
+### Contract backend (v1)
 
-OpenAPI hiện trả:
+Request (`ChatRequest`):
 
-- endpoint chat thật: `POST /api/agent/chat`
-- request:
-  - `patient_id`
-  - `conversation_id`
-  - `message`
-  - `history[]`
-- response:
-  - `narrative_summary`
-  - `visualizations`
-  - `comparisons`
+- `schema_version`: `"v1"`
+- `patient_id`, `message` (bắt buộc)
+- `conversation_id`, `doctor_id` (tùy chọn, mặc định doctor `D1`)
+- `metadata` — ví dụ `{ "alert_id": "ALT-001" }` khi giải thích cảnh báo
 
-Frontend đang map contract này sang types nội bộ ở `lib/ai/agent-adapter.ts`.
+Response (`AgentResponse`): `narrative_summary`, `visualizations`, `comparisons`  
+→ map tại `lib/ai/agent-adapter.ts`
+
+Bệnh nhân thử nghiệm trên Supabase (MIMIC):  
+`10014354`, `10003400`, `10040025`, … — xem `docs/HANDOVER_FRONTEND.md`.
 
 ### Lưu ý
 
 - Không gọi trực tiếp backend từ client component.
 - Không commit `OPENAI_API_KEY`.
-- Nếu backend đổi contract response, cập nhật mapping ở `lib/ai/agent-adapter.ts` thay vì đổi domain types FE.
-- Nếu `.env.local` vẫn để `AI_AGENT_CHAT_PATH=/chat`, proxy hiện có fallback sang `/api/agent/chat`, nhưng nên sửa env cho đúng để tránh nhiễu log 404.
+- Khi **không** có `AI_AGENT_BASE_URL`, proxy trả mock local; khi có URL thì luôn gọi backend thật.

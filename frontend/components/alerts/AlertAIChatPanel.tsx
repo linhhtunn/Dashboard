@@ -135,6 +135,7 @@ export function AlertAIChatPanel({
           question,
           message: question,
           userId: "clinician-local",
+          metadata: { alert_id: alert.id },
           history,
         },
         {

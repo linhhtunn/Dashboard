@@ -50,18 +50,6 @@ type MockScenario = {
   confidence: "low" | "medium" | "high";
 };
 
-const demoPromptMatchers = [
-  /t[oó]m t[aắ]t|summary|current status/i,
-  /1 gi[oờ]|last hour|changed|thay đ[oổ]i/i,
-  /r[ủu]i ro|deterioration|risk/i,
-  /ưu tiên|priority|prioritized|theo dõi/i,
-];
-
-export function shouldUseMockChatResponse(message: string, baseUrl?: string | null) {
-  if (!baseUrl) return true;
-  return demoPromptMatchers.some((matcher) => matcher.test(message));
-}
-
 type BuildMockExplainAlertPayloadArgs = {
   locale: Locale;
   alertId: string;
