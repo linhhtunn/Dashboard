@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { AlertAIChatPanel } from "@/components/alerts/AlertAIChatPanel";
 import { AlertZonePanel } from "@/components/alerts/AlertZonePanel";
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
-import { PageState } from "@/components/clinical/PageState";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   defaultAlertZoneFilters,
@@ -82,13 +81,13 @@ export default function AlertsPage() {
       }
     >
       {loading ? (
-        <PageState
-          fill
-          variant="loading"
-          message={locale === "vi" ? "Đang tải cảnh báo..." : "Loading alerts..."}
-        />
+        <div className="dashboard-surface flex flex-1 items-center justify-center rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-text-soft)]">
+          {locale === "vi" ? "Đang tải cảnh báo..." : "Loading alerts..."}
+        </div>
       ) : error ? (
-        <PageState fill variant="error" message={error} />
+        <div className="dashboard-surface flex flex-1 items-center justify-center rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-danger)]">
+          {error}
+        </div>
       ) : (
         <div
           className={[

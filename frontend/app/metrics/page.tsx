@@ -12,12 +12,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import {
-  pageAsideColumn,
-  pageEyebrow,
-  pageSectionTitle,
-  pageSurface,
-} from "@/lib/page-layout";
 import { VitalChart } from "@/components/vitals";
 import type { VitalMetric, VitalSignalSample } from "@/types";
 
@@ -95,9 +89,9 @@ export default function MetricsPage() {
           : "Create a mock profile, run a scenario, and verify the 5-second data flow."
       }
     >
-      <div className={`grid gap-3 ${pageAsideColumn}`}>
-        <aside className={`${pageSurface} h-fit p-4`}>
-          <h2 className={pageEyebrow}>
+      <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="dashboard-surface h-fit rounded-[1.15rem] p-4">
+          <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[color:var(--cs-teal)]">
             {locale === "vi" ? "Cấu hình bệnh nhân" : "Patient config"}
           </h2>
 
@@ -159,13 +153,13 @@ export default function MetricsPage() {
         </aside>
 
         <div className="min-w-0 space-y-3">
-          <section className={`${pageSurface} p-4`}>
+          <section className="dashboard-surface rounded-[1.15rem] p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className={pageEyebrow}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--cs-teal)]">
                   {locale === "vi" ? "Trực quan hóa dữ liệu" : "Data visualization"}
                 </p>
-                <h2 className={`mt-0.5 ${pageSectionTitle}`}>
+                <h2 className="mt-0.5 text-[1rem] font-semibold text-[color:var(--cs-heading)]">
                   {name} · {patientId}
                 </h2>
               </div>
@@ -203,11 +197,11 @@ export default function MetricsPage() {
             </div>
           </section>
 
-          <section className={`${pageSurface} p-4`}>
+          <section className="dashboard-surface rounded-[1.15rem] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-[color:var(--cs-primary)]" />
-                <h2 className={pageSectionTitle}>
+                <h2 className="text-[14px] font-semibold text-[color:var(--cs-heading)]">
                   {locale === "vi" ? "Luồng dữ liệu thô" : "Raw data feed"}
                 </h2>
               </div>
