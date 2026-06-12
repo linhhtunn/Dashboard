@@ -48,7 +48,7 @@ export function AgentInsightCard({
           <Loader2 className="h-4 w-4 animate-spin text-[color:var(--cs-primary)]" />
           <span>
             {locale === "vi"
-              ? "Đang lấy nội dung phân tích từ backend AI..."
+              ? "Đang lấy nội dung phân tích từ hệ thống AI..."
               : "Fetching analysis from the AI backend..."}
           </span>
         </div>
@@ -181,7 +181,10 @@ function normalizeMetric(metric: string): VitalMetric {
     case "hrv":
     case "rmssd":
     case "hrv_rmssd":
-      return "hrv_rmssd";
+    case "respiratory_rate":
+    case "respiratoryrate":
+    case "rr":
+      return "respiratory_rate";
     case "spo2":
     case "spo₂":
       return "spo2";

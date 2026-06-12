@@ -45,12 +45,12 @@ export type ActivityState =
 
 export type VitalMetric =
   | "heart_rate"
-  | "hrv_rmssd"
+  | "respiratory_rate"
   | "spo2"
   | "systolic_bp"
   | "diastolic_bp";
 
-export type SignalUnit = "bpm" | "ms" | "%" | "mmHg";
+export type SignalUnit = "bpm" | "rpm" | "%" | "mmHg";
 
 export type Trend = "up" | "down" | "stable";
 
@@ -135,7 +135,7 @@ export interface Patient {
 
 export interface VitalSignalSet {
   heartRate?: number;
-  hrvRmssd?: number;
+  respiratoryRate?: number;
   spo2?: number;
   systolicBp?: number;
   diastolicBp?: number;

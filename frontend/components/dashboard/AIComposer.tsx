@@ -55,7 +55,7 @@ export function AIComposer({
         onSubmit();
       }}
       className={[
-        "dashboard-glass relative rounded-[1.2rem] border border-[color:rgba(217,226,236,0.72)] bg-white/80 px-4 py-2.5 backdrop-blur-[22px]",
+        "dashboard-glass relative rounded-[1.2rem] border border-white/55 bg-white/42 px-4 py-2.5 shadow-[0_20px_48px_rgba(15,23,42,0.08)]",
         className ?? "",
       ]
         .join(" ")
@@ -80,7 +80,7 @@ export function AIComposer({
       {hasValue ? (
         <button
           type="submit"
-          className="absolute bottom-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_12px_24px_rgba(13,71,161,0.2)] transition hover:scale-[1.02]"
+          className="absolute bottom-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-teal)_0%,var(--cs-primary)_100%)] text-white shadow-[0_14px_28px_rgba(13,71,161,0.22)] transition hover:scale-[1.02] hover:shadow-[0_18px_34px_rgba(13,71,161,0.28)]"
           aria-label={submitLabel}
         >
           <SendHorizontal className="h-4 w-4" />

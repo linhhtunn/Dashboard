@@ -1,2 +1,0 @@
-"""Synthetic biosignal simulator package."""
-

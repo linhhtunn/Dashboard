@@ -4,6 +4,16 @@ const DATA_DEFAULT_PATHS = {
   threads: "/api/threads",
 } as const;
 
+export class BackendRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "BackendRequestError";
+  }
+}
+
 export function getBackendBaseUrl() {
   return process.env.AI_AGENT_BASE_URL;
 }
@@ -31,7 +41,10 @@ export async function fetchBackendJson<T>({
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || `Backend data request failed with ${response.status}.`);
+    throw new BackendRequestError(
+      detail || `Backend data request failed with ${response.status}.`,
+      response.status,
+    );
   }
 
   return response.json() as Promise<T>;

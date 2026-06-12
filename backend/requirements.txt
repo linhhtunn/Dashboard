@@ -1,5 +1,0 @@
-pydantic
-psycopg2-binary
-pika
-python-dotenv
-pytest

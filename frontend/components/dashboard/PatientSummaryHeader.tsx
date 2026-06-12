@@ -36,7 +36,7 @@ export function PatientSummaryHeader({ patient }: PatientSummaryHeaderProps) {
             </h3>
 
             <p className="mt-1.5 text-[13px] text-[color:var(--cs-text-soft)]">
-              MRN {patient.mrn} <span className="mx-1.5">•</span>
+              {locale === "vi" ? "Mã hồ sơ" : "MRN"} {patient.mrn} <span className="mx-1.5">•</span>
               {patient.age} {locale === "vi" ? "tuổi" : "years old"}{" "}
               <span className="mx-1.5">•</span>
               {getGenderLabel(patient.gender, locale)}

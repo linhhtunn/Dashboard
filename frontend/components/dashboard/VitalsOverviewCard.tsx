@@ -8,7 +8,7 @@ type VitalsOverviewCardProps = {
 };
 
 type VitalsDisplayMetric = {
-  key: "heart_rate" | "hrv_rmssd" | "blood_pressure";
+  key: "heart_rate" | "respiratory_rate" | "blood_pressure";
   title: string;
   icon: typeof HeartPulse;
   iconColor: string;
@@ -21,7 +21,9 @@ type VitalsDisplayMetric = {
 
 function buildVitalsDisplay(metrics: MetricSummary[]): VitalsDisplayMetric[] {
   const heartRate = metrics.find((item) => item.metric === "heart_rate");
-  const hrvRmssd = metrics.find((item) => item.metric === "hrv_rmssd");
+  const respiratoryRate = metrics.find(
+    (item) => item.metric === "respiratory_rate",
+  );
   const systolic = metrics.find((item) => item.metric === "systolic_bp");
   const diastolic = metrics.find((item) => item.metric === "diastolic_bp");
 
@@ -38,13 +40,13 @@ function buildVitalsDisplay(metrics: MetricSummary[]): VitalsDisplayMetric[] {
       sparkStroke: "#0D47A1",
     },
     {
-      key: "hrv_rmssd",
-      title: "HRV - RMSSD",
+      key: "respiratory_rate",
+      title: "Nhịp thở",
       icon: Activity,
       iconColor: "text-[color:#2563EB]",
-      value: `${hrvRmssd?.currentValue ?? "--"}`,
-      unit: hrvRmssd?.unit ?? "ms",
-      changeLabel: `${Math.abs(hrvRmssd?.changePct ?? 0)}% so với 15 phút trước`,
+      value: `${respiratoryRate?.currentValue ?? "--"}`,
+      unit: respiratoryRate?.unit ?? "rpm",
+      changeLabel: `${Math.abs(respiratoryRate?.changePct ?? 0)}% so với 15 phút trước`,
       trendColor: "text-[color:var(--cs-teal)]",
       sparkStroke: "#009688",
     },

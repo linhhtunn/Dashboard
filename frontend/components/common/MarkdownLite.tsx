@@ -63,7 +63,7 @@ export function MarkdownLite({ content, className }: MarkdownLiteProps) {
 }
 
 function parseMarkdown(content: string): Block[] {
-  const normalized = content.replace(/\r\n/g, "\n").trim();
+  const normalized = normalizeAgentMarkdown(content);
   if (!normalized) return [];
 
   const chunks = normalized.split(/\n{2,}/);
@@ -95,10 +95,17 @@ function parseMarkdown(content: string): Block[] {
 
       const remaining = lines.slice(1);
       if (remaining.length > 0) {
-        blocks.push({
-          type: "paragraph",
-          text: remaining.join("\n"),
-        });
+        if (remaining.every((line) => /^[-*]\s+/.test(line))) {
+          blocks.push({
+            type: "list",
+            items: remaining.map((line) => line.replace(/^[-*]\s+/, "")),
+          });
+        } else {
+          blocks.push({
+            type: "paragraph",
+            text: remaining.join("\n"),
+          });
+        }
       }
       continue;
     }
@@ -112,6 +119,17 @@ function parseMarkdown(content: string): Block[] {
   return blocks;
 }
 
+function normalizeAgentMarkdown(content: string) {
+  return content
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+(#{1,3}\s+)/g, "\n\n$1")
+    .replace(/([.!?])\s+(#{1,3}\s+)/g, "$1\n\n$2")
+    .replace(/\s+(-\s+\*\*)/g, "\n$1")
+    .replace(/\s+(-\s+)/g, "\n$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function renderInline(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\n)/g).filter(Boolean);
 
@@ -122,7 +140,10 @@ function renderInline(text: string): ReactNode[] {
 
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={`strong-${index}`} className="font-semibold text-[color:var(--cs-heading)]">
+        <strong
+          key={`strong-${index}`}
+          className="font-semibold text-[color:var(--cs-heading)]"
+        >
           {part.slice(2, -2)}
         </strong>
       );

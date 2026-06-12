@@ -9,6 +9,8 @@ type MetricCardProps = {
   summary: MetricSummary;
   vitals?: VitalSignalSample[];
   className?: string;
+  chartHeight?: number;
+  compact?: boolean;
 };
 
 type IconProps = {
@@ -18,7 +20,7 @@ type IconProps = {
 
 const metricColors: Record<VitalMetric, string> = {
   heart_rate: "#0D47A1",
-  hrv_rmssd: "#009688",
+  respiratory_rate: "#009688",
   spo2: "#009688",
   systolic_bp: "#F5B300",
   diastolic_bp: "#FB923C",
@@ -80,7 +82,7 @@ function ShieldIcon({ className = "", style }: IconProps) {
 
 const metricIcons: Record<VitalMetric, (props: IconProps) => React.ReactNode> = {
   heart_rate: HeartIcon,
-  hrv_rmssd: PulseIcon,
+  respiratory_rate: PulseIcon,
   spo2: ShieldIcon,
   systolic_bp: PulseIcon,
   diastolic_bp: PulseIcon,
@@ -103,6 +105,8 @@ export function MetricCard({
   summary,
   vitals = [],
   className = "",
+  chartHeight = 300,
+  compact = false,
 }: MetricCardProps) {
   const { locale } = useLocale();
   const Icon = metricIcons[summary.metric];
@@ -111,32 +115,43 @@ export function MetricCard({
   return (
     <article
       className={[
-        "dashboard-surface rounded-[1.15rem] px-3.5 py-3.5",
+        "dashboard-surface flex h-full min-h-0 flex-col rounded-[1.15rem]",
+        compact ? "px-2 py-1.5" : "px-3.5 py-3.5",
         className,
       ].join(" ")}
     >
-      <div className="mb-3 flex min-w-0 items-center gap-2.5">
-        <Icon className="h-4.5 w-4.5 shrink-0" style={{ color: metricColor }} />
+      <div className={`${compact ? "mb-1" : "mb-3"} flex min-w-0 shrink-0 items-center gap-2`}>
+        <Icon
+          className={compact ? "h-3.5 w-3.5 shrink-0" : "h-4.5 w-4.5 shrink-0"}
+          style={{ color: metricColor }}
+        />
         <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-[color:var(--cs-heading)]">
+          <h3 className={`${compact ? "text-[9px]" : "text-[15px]"} font-semibold text-[color:var(--cs-heading)]`}>
             {getMetricLabel(summary.metric, locale)}
           </h3>
-          <p className="text-[12px] text-[color:var(--cs-text-soft)]">
+          <p className={`${compact ? "text-[7px]" : "text-[12px]"} text-[color:var(--cs-text-soft)]`}>
             {formatTrend(summary, locale)}
           </p>
         </div>
       </div>
 
-      <div className="mb-3 flex items-end gap-1.5">
-        <p className="text-[1.7rem] font-semibold leading-none text-[color:var(--cs-heading)]">
+      <div className={`${compact ? "mb-1" : "mb-3"} flex shrink-0 items-end gap-1`}>
+        <p className={`${compact ? "text-[0.95rem]" : "text-[1.7rem]"} font-semibold leading-none text-[color:var(--cs-heading)]`}>
           {summary.displayValue ?? summary.currentValue}
         </p>
-        <span className="pb-0.5 text-[12px] text-[color:var(--cs-text-soft)]">
+        <span className={`${compact ? "pb-0 text-[8px]" : "pb-0.5 text-[12px]"} text-[color:var(--cs-text-soft)]`}>
           {summary.unit}
         </span>
       </div>
 
-      <VitalChart data={vitals} metric={summary.metric} height={210} />
+      <div className="min-h-0 shrink-0">
+        <VitalChart
+          data={vitals}
+          metric={summary.metric}
+          height={chartHeight}
+          baseline={summary.average15Min}
+        />
+      </div>
     </article>
   );
 }

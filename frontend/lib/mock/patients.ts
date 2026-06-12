@@ -92,7 +92,7 @@ export const mockPatients: Patient[] = [
   buildPatient({
     id: "P003",
     mrn: "MRN-2026-003",
-    name: "Lê Văn Cường",
+    name: "Lê Văn Công",
     age: 74,
     gender: "male",
     status: "critical",

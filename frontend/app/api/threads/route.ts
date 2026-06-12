@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { fetchBackendJson, getBackendBaseUrl, getDataPath } from "@/lib/backend-data";
+import {
+  BackendRequestError,
+  fetchBackendJson,
+  getBackendBaseUrl,
+  getDataPath,
+} from "@/lib/backend-data";
 
 export const runtime = "nodejs";
 
@@ -20,7 +25,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Không thể tải lịch sử chat." },
-      { status: 502 },
+      { status: error instanceof BackendRequestError ? error.status : 502 },
     );
   }
 }

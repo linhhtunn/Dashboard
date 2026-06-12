@@ -48,7 +48,7 @@ export function DashboardTopBar() {
           profile: "Hồ sơ bác sĩ",
           profileMenu: ["Hồ sơ cá nhân", "Tùy chọn hiển thị"],
           notificationItems: [
-            "SpO₂ của Bệnh nhân A thấp hơn baseline.",
+            "Oxy máu của bệnh nhân A thấp hơn mức cơ sở.",
             "Đến giờ dùng Aspirin 81 mg.",
             "Nhịp tim tăng nhẹ trong 15 phút gần nhất.",
           ],
@@ -63,21 +63,21 @@ export function DashboardTopBar() {
           profile: "Doctor profile",
           profileMenu: ["Personal profile", "Display preferences"],
           notificationItems: [
-            "Patient A's SpO₂ is below baseline.",
+            "Patient A's SpO2 is below baseline.",
             "It is time to administer Aspirin 81 mg.",
             "Heart rate has increased slightly in the last 15 minutes.",
           ],
         };
 
   return (
-    <header className="dashboard-glass relative z-30 rounded-[1rem] border border-white/40 bg-white/50 px-2.5 py-1.5 backdrop-blur-[22px]">
+    <header className="dashboard-glass relative z-30 rounded-[1rem] border border-white/45 bg-white/38 px-2.5 py-1.5 shadow-[0_20px_44px_rgba(15,23,42,0.08)]">
       <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-end">
         <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
           <div ref={hospitalRef} className="relative">
             <button
               type="button"
               onClick={() => setHospitalOpen((current) => !current)}
-              className="dashboard-input flex items-center justify-between gap-2.5 rounded-xl bg-white/80 px-3 py-1.5 text-[13px] text-[color:var(--cs-text)] transition hover:border-[color:var(--cs-border-strong)]"
+              className="dashboard-input flex items-center justify-between gap-2.5 rounded-xl px-3 py-1.5 text-[13px] text-[color:var(--cs-text)] transition hover:border-white/80 hover:bg-white/70"
             >
               <span className="flex items-center gap-2">
                 <Hospital className="h-4 w-4 text-[color:var(--cs-primary)]" />
@@ -93,10 +93,10 @@ export function DashboardTopBar() {
                     key={hospital}
                     type="button"
                     className={[
-                      "flex w-full rounded-lg px-3 py-2 text-left text-[13px] hover:bg-white/70",
+                      "flex w-full rounded-lg px-3 py-2 text-left text-[13px] transition",
                       index === 0
-                        ? "text-[color:var(--cs-heading)]"
-                        : "text-[color:var(--cs-text-soft)]",
+                        ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] text-[color:var(--cs-heading)]"
+                        : "text-[color:var(--cs-text-soft)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.08),rgba(0,150,136,0.05))] hover:text-[color:var(--cs-heading)]",
                     ].join(" ")}
                   >
                     {hospital}
@@ -110,7 +110,7 @@ export function DashboardTopBar() {
             <button
               type="button"
               onClick={() => setLocaleOpen((current) => !current)}
-              className="dashboard-input flex items-center gap-2 rounded-xl bg-white/80 px-3 py-1.5 text-[13px] text-[color:var(--cs-text)] transition hover:border-[color:var(--cs-border-strong)]"
+              className="dashboard-input flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] text-[color:var(--cs-text)] transition hover:border-white/80 hover:bg-white/70"
             >
               <Globe className="h-4 w-4 text-[color:var(--cs-teal)]" />
               <span>{locale.toUpperCase()}</span>
@@ -130,8 +130,8 @@ export function DashboardTopBar() {
                     className={[
                       "flex w-full rounded-lg px-3 py-2 text-left text-[13px] uppercase transition",
                       locale === item
-                        ? "bg-[color:rgba(13,71,161,0.08)] text-[color:var(--cs-primary)]"
-                        : "text-[color:var(--cs-heading)] hover:bg-white/70",
+                        ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] text-[color:var(--cs-primary)]"
+                        : "text-[color:var(--cs-heading)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.08),rgba(0,150,136,0.05))]",
                     ].join(" ")}
                   >
                     {item}
@@ -144,7 +144,7 @@ export function DashboardTopBar() {
           <div className="group relative flex items-center justify-center">
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[color:rgba(0,150,136,0.16)] bg-white/82"
+              className="dashboard-input flex h-9 w-9 items-center justify-center rounded-full border border-[color:rgba(0,150,136,0.18)] bg-white/62"
               aria-label={copy.onDuty}
               title={copy.onDuty}
             >
@@ -163,7 +163,7 @@ export function DashboardTopBar() {
             <button
               type="button"
               onClick={() => setNotificationsOpen((current) => !current)}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--cs-border)] bg-white text-[color:var(--cs-text)] transition hover:border-[color:var(--cs-border-strong)]"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/94 text-[color:var(--cs-text)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:border-[color:var(--cs-border-strong)]"
               aria-label={copy.notifications}
             >
               <Bell className="h-4 w-4" />
@@ -177,7 +177,7 @@ export function DashboardTopBar() {
                 {copy.notificationItems.map((item) => (
                   <div
                     key={item}
-                    className="rounded-lg px-3 py-2 text-[13px] text-[color:var(--cs-heading)]"
+                    className="rounded-lg px-3 py-2 text-[13px] text-[color:var(--cs-heading)] transition hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.08),rgba(0,150,136,0.05))]"
                   >
                     {item}
                   </div>
@@ -190,7 +190,7 @@ export function DashboardTopBar() {
             <button
               type="button"
               onClick={() => setProfileOpen((current) => !current)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--cs-primary-soft)] text-[13px] font-semibold text-[color:var(--cs-primary)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.14))] text-[13px] font-semibold text-[color:var(--cs-primary)] ring-1 ring-white/50"
               aria-label={copy.profile}
             >
               DR
@@ -202,7 +202,7 @@ export function DashboardTopBar() {
                   <button
                     key={item}
                     type="button"
-                    className="flex w-full rounded-lg px-3 py-2 text-left text-[13px] text-[color:var(--cs-heading)] hover:bg-white/70"
+                    className="flex w-full rounded-lg px-3 py-2 text-left text-[13px] text-[color:var(--cs-heading)] transition hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.08),rgba(0,150,136,0.05))]"
                   >
                     {item}
                   </button>

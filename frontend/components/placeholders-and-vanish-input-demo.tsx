@@ -9,7 +9,7 @@ export default function PlaceholdersAndVanishInputDemo() {
 
   const placeholders = [
     "Tóm tắt nhanh tình trạng của bệnh nhân A",
-    "SpO₂ có đang thấp hơn baseline không?",
+    "Oxy máu có đang thấp hơn mức cơ sở không?",
     "Có thay đổi gì trong 1 giờ qua?",
     "Chỉ số nào cần ưu tiên theo dõi ngay lúc này?",
   ];

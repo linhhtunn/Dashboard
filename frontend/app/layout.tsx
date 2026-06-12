@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Manrope } from "next/font/google";
 
+import { GlobalAlertModal } from "@/components/clinical/GlobalAlertModal";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 
 import "./globals.css";
@@ -32,7 +33,12 @@ export default function RootLayout({
       className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full overflow-hidden">
-        <LocaleProvider>{children}</LocaleProvider>
+        <LocaleProvider>
+          <div className="dashboard-canvas relative h-dvh overflow-hidden">
+            {children}
+            <GlobalAlertModal />
+          </div>
+        </LocaleProvider>
       </body>
     </html>
   );

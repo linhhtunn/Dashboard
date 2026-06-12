@@ -1,15 +1,10 @@
 "use client";
 
+import { ArrowDown, ArrowRight, ArrowUp, BellRing } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
-import {
-  formatRelativeUpdate,
-  getGenderLabel,
-  getPatientStatusLabel,
-  getSymptomLabel,
-  getWardLabel,
-} from "@/lib/i18n";
+import { getWardLabel } from "@/lib/i18n";
 import type { Patient, PatientStatus, VitalSignalSample } from "@/types";
 
 export type PatientListItem = {
@@ -22,119 +17,176 @@ type PatientCardProps = {
   item: PatientListItem;
 };
 
-const statusClasses: Record<PatientStatus, string> = {
-  healthy:
-    "border-[color:rgba(0,150,136,0.18)] bg-[color:rgba(0,150,136,0.1)] text-[color:var(--cs-teal)]",
-  at_risk:
-    "border-[color:rgba(245,179,0,0.22)] bg-[color:rgba(245,179,0,0.14)] text-[color:#9a6700]",
-  critical:
-    "border-[color:rgba(229,72,77,0.22)] bg-[color:rgba(229,72,77,0.12)] text-[color:var(--cs-danger)]",
-  recent_symptom:
-    "border-[color:rgba(13,71,161,0.18)] bg-[color:rgba(13,71,161,0.1)] text-[color:var(--cs-primary)]",
+const presentation: Record<
+  PatientStatus,
+  { label: { vi: string; en: string }; dot: string; badge: string }
+> = {
+  critical: {
+    label: { vi: "Nguy kịch", en: "Critical" },
+    dot: "bg-[color:var(--cs-danger)]",
+    badge:
+      "border-[color:rgba(229,72,77,0.2)] bg-[linear-gradient(135deg,rgba(229,72,77,0.14),rgba(229,72,77,0.07))] text-[color:var(--cs-danger)]",
+  },
+  at_risk: {
+    label: { vi: "Cần chú ý", en: "Warning" },
+    dot: "bg-[color:var(--cs-gold)]",
+    badge:
+      "border-[color:rgba(245,179,0,0.22)] bg-[linear-gradient(135deg,rgba(245,179,0,0.14),rgba(245,179,0,0.06))] text-[color:#8a6100]",
+  },
+  recent_symptom: {
+    label: { vi: "Cần chú ý", en: "Warning" },
+    dot: "bg-[color:var(--cs-gold)]",
+    badge:
+      "border-[color:rgba(245,179,0,0.22)] bg-[linear-gradient(135deg,rgba(245,179,0,0.14),rgba(245,179,0,0.06))] text-[color:#8a6100]",
+  },
+  healthy: {
+    label: { vi: "Bình thường", en: "Normal" },
+    dot: "bg-[color:var(--cs-teal)]",
+    badge:
+      "border-[color:rgba(0,150,136,0.18)] bg-[linear-gradient(135deg,rgba(0,150,136,0.12),rgba(0,150,136,0.05))] text-[color:var(--cs-teal)]",
+  },
 };
-
-function formatBloodPressure(vital: VitalSignalSample | null) {
-  if (!vital?.vitals.systolicBp || !vital.vitals.diastolicBp) return "--/--";
-  return `${vital.vitals.systolicBp}/${vital.vitals.diastolicBp}`;
-}
 
 export function PatientCard({ item }: PatientCardProps) {
   const { locale } = useLocale();
   const { patient, latestVital, openAlertCount } = item;
-  const firstSymptom =
-    patient.recentSymptomCodes[0] &&
-    getSymptomLabel(patient.recentSymptomCodes[0], locale);
+  const state = presentation[patient.status];
+  const initials = patient.name
+    .split(" ")
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
   return (
-    <article className="dashboard-surface rounded-[1.2rem] p-3.5">
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(240px,0.9fr)_auto] xl:items-center">
+    <Link
+      href={`/patients/${patient.id}`}
+      className="dashboard-surface group block rounded-[1.05rem] p-3 transition hover:-translate-y-0.5 hover:border-white/70 hover:shadow-[0_20px_44px_rgba(13,71,161,0.12)] sm:p-3.5"
+    >
+      <div className="grid gap-3 xl:grid-cols-[minmax(230px,1.05fr)_minmax(420px,1.8fr)_minmax(210px,0.9fr)_24px] xl:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/65 bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(142,211,230,0.34))] text-[12px] font-bold text-[color:var(--cs-primary)] shadow-[0_10px_22px_rgba(13,71,161,0.08)]">
+            {initials}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-[14px] font-semibold text-[color:var(--cs-heading)]">
+                {patient.name}
+              </h3>
+              <span className={["h-2 w-2 rounded-full", state.dot].join(" ")} />
+            </div>
+            <p className="mt-0.5 truncate text-[11px] text-[color:var(--cs-text-soft)]">
+              {patient.age} {locale === "vi" ? "tuổi" : "years"} · {getWardLabel(patient, locale)}
+              {patient.bed ? ` · ${locale === "vi" ? "Phòng" : "Bed"} ${patient.bed}` : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          <Vital
+            label={locale === "vi" ? "Nhịp tim" : "HR"}
+            value={latestVital?.vitals.heartRate}
+            unit={locale === "vi" ? "nhịp/phút" : "bpm"}
+            status={patient.status}
+          />
+          <Vital
+            label={locale === "vi" ? "Oxy máu" : "SpO2"}
+            value={latestVital?.vitals.spo2}
+            unit="%"
+            status={patient.status}
+            inverse
+          />
+          <Vital
+            label={locale === "vi" ? "Nhịp thở" : "RR"}
+            value={latestVital?.vitals.respiratoryRate ?? undefined}
+            unit={locale === "vi" ? "lần/phút" : "rpm"}
+            status="healthy"
+          />
+          <Vital
+            label={locale === "vi" ? "Huyết áp" : "BP"}
+            value={
+              latestVital?.vitals.systolicBp && latestVital.vitals.diastolicBp
+                ? `${latestVital.vitals.systolicBp}/${latestVital.vitals.diastolicBp}`
+                : undefined
+            }
+            unit="mmHg"
+            status={patient.status}
+          />
+        </div>
+
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-[1rem] font-semibold text-[color:var(--cs-heading)]">
-              {patient.name}
-            </h3>
+          <div className="flex flex-wrap items-center gap-1.5">
             <span
               className={[
-                "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                statusClasses[patient.status],
+                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                state.badge,
               ].join(" ")}
             >
-              {getPatientStatusLabel(patient.status, locale)}
+              {state.label[locale]}
             </span>
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-[color:var(--cs-text-soft)]">
-            <span>MRN {patient.mrn}</span>
-            <span>•</span>
-            <span>
-              {patient.age} {locale === "vi" ? "tuổi" : "years old"} •{" "}
-              {getGenderLabel(patient.gender, locale)}
-            </span>
-            <span>•</span>
-            <span>{getWardLabel(patient, locale)}</span>
-            {patient.bed ? (
-              <>
-                <span>•</span>
-                <span>
-                  {locale === "vi" ? "Giường" : "Bed"} {patient.bed}
-                </span>
-              </>
+            {openAlertCount > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[color:rgba(229,72,77,0.08)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--cs-danger)]">
+                <BellRing className="h-3 w-3" />
+                {openAlertCount}
+              </span>
             ) : null}
           </div>
-
-          <div className="mt-2.5 flex flex-wrap gap-1.5 text-[13px] text-[color:var(--cs-text)]">
-            <span className="rounded-full bg-white/72 px-2.5 py-1">
-              {locale === "vi" ? "Nhịp tim" : "Heart rate"}:{" "}
-              <strong className="text-[color:var(--cs-heading)]">
-                {latestVital?.vitals.heartRate ?? "--"} bpm
-              </strong>
-            </span>
-            <span className="rounded-full bg-white/72 px-2.5 py-1">
-              SpO₂:{" "}
-              <strong className="text-[color:var(--cs-heading)]">
-                {latestVital?.vitals.spo2 ?? "--"}%
-              </strong>
-            </span>
-            <span className="rounded-full bg-white/72 px-2.5 py-1">
-              {locale === "vi" ? "Huyết áp" : "Blood pressure"}:{" "}
-              <strong className="text-[color:var(--cs-heading)]">
-                {formatBloodPressure(latestVital)} mmHg
-              </strong>
-            </span>
-          </div>
-        </div>
-
-        <div className="grid gap-1.5 rounded-[1rem] border border-white/50 bg-white/50 px-3.5 py-2.5 text-[13px] text-[color:var(--cs-text)]">
-          <p className="font-medium text-[color:var(--cs-heading)]">
-            {openAlertCount > 0
-              ? locale === "vi"
-                ? `${openAlertCount} cảnh báo đang mở`
-                : `${openAlertCount} open alert${openAlertCount === 1 ? "" : "s"}`
-              : locale === "vi"
-                ? "Không có cảnh báo đang mở"
-                : "No open alerts"}
+          <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-[color:var(--cs-text)]">
+            {annotationFor(item, locale)}
           </p>
-          <p>
-            {firstSymptom
-              ? locale === "vi"
-                ? `Triệu chứng gần nhất: ${firstSymptom}`
-                : `Latest symptom: ${firstSymptom}`
-              : locale === "vi"
-                ? "Chưa ghi nhận triệu chứng mới"
-                : "No newly recorded symptoms"}
-          </p>
-          <p>{formatRelativeUpdate(patient.lastUpdated, locale)}</p>
         </div>
 
-        <div className="flex items-center justify-end">
-          <Link
-            href={`/patients/${patient.id}`}
-            className="inline-flex h-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.78))] px-3.5 text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(13,71,161,0.18)] transition hover:brightness-105"
-          >
-            {locale === "vi" ? "Xem hồ sơ" : "View record"}
-          </Link>
-        </div>
+        <ArrowRight className="hidden h-4 w-4 text-[color:var(--cs-primary)] transition group-hover:translate-x-0.5 xl:block" />
       </div>
-    </article>
+    </Link>
   );
+}
+
+function Vital({
+  label,
+  value,
+  unit,
+  status,
+  inverse = false,
+}: {
+  label: string;
+  value: number | string | undefined;
+  unit: string;
+  status: PatientStatus;
+  inverse?: boolean;
+}) {
+  const abnormal = status === "critical" || status === "at_risk";
+  const TrendIcon = inverse ? ArrowDown : ArrowUp;
+  return (
+    <div className="rounded-[0.7rem] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.64),rgba(255,255,255,0.36))] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-[14px]">
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-[color:var(--cs-text-soft)]">
+        {label}
+      </p>
+      <p className="mt-0.5 flex items-center gap-1 text-[12px] font-semibold text-[color:var(--cs-heading)]">
+        {value ?? "--"}
+        <span className="text-[9px] font-normal text-[color:var(--cs-text-soft)]">
+          {unit}
+        </span>
+        {abnormal ? <TrendIcon className="h-3 w-3 text-[color:var(--cs-danger)]" /> : null}
+      </p>
+    </div>
+  );
+}
+
+function annotationFor(item: PatientListItem, locale: "vi" | "en") {
+  const spo2 = item.latestVital?.vitals.spo2;
+  const hr = item.latestVital?.vitals.heartRate;
+  if (spo2 !== undefined && spo2 <= 94) {
+    return locale === "vi"
+      ? `Oxy máu giảm còn ${spo2}%, cần đối chiếu mức cơ sở và hoạt động gần nhất.`
+      : `SpO2 decreased to ${spo2}%; compare against baseline and recent activity.`;
+  }
+  if (hr !== undefined && hr >= 100) {
+    return locale === "vi"
+      ? `Nhịp tim ${hr} nhịp/phút, cao hơn mức theo dõi gần đây.`
+      : `Heart rate is ${hr} bpm, above the recent monitored range.`;
+  }
+  return locale === "vi"
+    ? "Ổn định - không ghi nhận bất thường mới trong lần đồng bộ gần nhất."
+    : "Stable - no new abnormality in the latest sync.";
 }

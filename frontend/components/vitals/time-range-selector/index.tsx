@@ -2,19 +2,28 @@
 
 import { useLocale } from "@/components/providers/LocaleProvider";
 
-export function TimeRangeSelector() {
+type TimeRangeSelectorProps = {
+  value?: string;
+  onChange?: (value: string) => void;
+};
+
+export function TimeRangeSelector({
+  value = "24h",
+  onChange = () => undefined,
+}: TimeRangeSelectorProps) {
   const { locale } = useLocale();
-  const ranges = locale === "vi"
-    ? [
-        { label: "15 phút", active: true },
-        { label: "1 giờ", active: false },
-        { label: "6 giờ", active: false },
-      ]
-    : [
-        { label: "15 min", active: true },
-        { label: "1 hour", active: false },
-        { label: "6 hours", active: false },
-      ];
+  const ranges =
+    locale === "vi"
+      ? [
+          { value: "6h", label: "6 giờ" },
+          { value: "24h", label: "24 giờ" },
+          { value: "7d", label: "7 ngày" },
+        ]
+      : [
+          { value: "6h", label: "6 hours" },
+          { value: "24h", label: "24 hours" },
+          { value: "7d", label: "7 days" },
+        ];
 
   return (
     <div
@@ -23,15 +32,15 @@ export function TimeRangeSelector() {
     >
       {ranges.map((range) => (
         <button
-          key={range.label}
+          key={range.value}
           type="button"
-          disabled={!range.active}
-          aria-pressed={range.active}
+          onClick={() => onChange(range.value)}
+          aria-pressed={value === range.value}
           className={[
             "rounded-full px-2.5 py-1 text-[12px] font-medium transition",
-            range.active
+            value === range.value
               ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.76))] text-white"
-              : "cursor-not-allowed text-[color:var(--cs-text-soft)] opacity-45",
+              : "text-[color:var(--cs-text-soft)] hover:bg-white",
           ].join(" ")}
         >
           {range.label}

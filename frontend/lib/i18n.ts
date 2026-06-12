@@ -32,8 +32,8 @@ const genderLabels: Record<Gender, LocalizedString> = {
 
 const metricLabels: Record<VitalMetric, LocalizedString> = {
   heart_rate: { vi: "Nhịp tim", en: "Heart rate" },
-  hrv_rmssd: { vi: "HRV - RMSSD", en: "HRV - RMSSD" },
-  spo2: { vi: "SpO₂", en: "SpO₂" },
+  respiratory_rate: { vi: "Nhịp thở", en: "Respiratory rate" },
+  spo2: { vi: "Oxy máu", en: "SpO₂" },
   systolic_bp: { vi: "Huyết áp tâm thu", en: "Systolic blood pressure" },
   diastolic_bp: {
     vi: "Huyết áp tâm trương",
@@ -56,7 +56,7 @@ const alertTypeLabels: Record<AlertType, LocalizedString> = {
     vi: "Nhịp tim thấp hơn ngưỡng theo dõi",
     en: "Heart rate below monitoring threshold",
   },
-  low_oxygen: { vi: "SpO₂ thấp hơn baseline", en: "SpO₂ below baseline" },
+  low_oxygen: { vi: "Oxy máu thấp hơn mức cơ sở", en: "SpO₂ below baseline" },
   high_blood_pressure: {
     vi: "Huyết áp cao hơn ngưỡng nghỉ",
     en: "Blood pressure above resting threshold",
@@ -77,7 +77,7 @@ const alertTypeLabels: Record<AlertType, LocalizedString> = {
 
 const conditionLabels: Record<string, LocalizedString> = {
   hypertension: { vi: "Tăng huyết áp", en: "Hypertension" },
-  type_2_diabetes: { vi: "Đái tháo đường type 2", en: "Type 2 diabetes" },
+  type_2_diabetes: { vi: "Đái tháo đường typ 2", en: "Type 2 diabetes" },
   asthma: { vi: "Hen phế quản", en: "Asthma" },
   coronary_artery_disease: {
     vi: "Bệnh mạch vành",
@@ -91,7 +91,7 @@ const conditionLabels: Record<string, LocalizedString> = {
     vi: "Bệnh tim thiếu máu cục bộ",
     en: "Ischemic heart disease",
   },
-  copd: { vi: "COPD", en: "COPD" },
+  copd: { vi: "Bệnh phổi tắc nghẽn mạn tính", en: "COPD" },
   chronic_kidney_disease: {
     vi: "Bệnh thận mạn",
     en: "Chronic kidney disease",

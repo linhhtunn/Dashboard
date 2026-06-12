@@ -104,7 +104,7 @@ export default function VitalsPreviewPage() {
 
                 <article className="dashboard-surface rounded-[1.5rem] px-4 py-4">
                   <h2 className="text-[1.2rem] font-semibold text-[color:var(--cs-heading)]">
-                    Biểu đồ SpO₂ độc lập
+                    Biểu đồ SpO2 độc lập
                   </h2>
                   <div className="mt-4">
                     <VitalChart data={previewVitals} metric="spo2" height={180} />

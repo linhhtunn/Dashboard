@@ -1,4 +1,6 @@
-import type { Alert, Evidence } from "@/types";
+import type { Alert, AlertSeverity, Evidence } from "@/types";
+import { getApiErrorMessage } from "@/lib/api-response";
+import { normalizePatientId } from "@/lib/patient-id";
 
 type AlertDto = {
   id: string;
@@ -35,7 +37,7 @@ function mapAlert(dto: AlertDto): Alert {
     id: dto.id,
     patientId: dto.patient_id,
     type: dto.type,
-    severity: dto.severity,
+    severity: normalizeAlertSeverity(dto.severity),
     score: dto.score ?? undefined,
     evidence: dto.evidence.map(mapEvidence),
     timestamp: dto.timestamp,
@@ -43,10 +45,27 @@ function mapAlert(dto: AlertDto): Alert {
   };
 }
 
+function normalizeAlertSeverity(severity: string): AlertSeverity {
+  switch (severity.toLowerCase()) {
+    case "critical":
+    case "high":
+      return "critical";
+    case "warning":
+    case "medium":
+      return "warning";
+    case "info":
+    case "low":
+    default:
+      return "info";
+  }
+}
+
 export const alertRepository = {
   async list(): Promise<Alert[]> {
     const response = await fetch("/api/alerts", { cache: "no-store" });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      throw new Error(await getApiErrorMessage(response, "Unable to load alerts"));
+    }
     const payload = (await response.json()) as AlertDto[];
     return payload.map(mapAlert);
   },
@@ -57,8 +76,11 @@ export const alertRepository = {
   },
 
   async listByPatient(patientId: string): Promise<Alert[]> {
-    const response = await fetch(`/api/patients/${patientId}/alerts`, { cache: "no-store" });
-    if (!response.ok) throw new Error(await response.text());
+    const normalizedPatientId = normalizePatientId(patientId);
+    const response = await fetch(`/api/patients/${normalizedPatientId}/alerts`, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(await getApiErrorMessage(response, "Unable to load patient alerts"));
+    }
     const payload = (await response.json()) as AlertDto[];
     return payload.map(mapAlert);
   },

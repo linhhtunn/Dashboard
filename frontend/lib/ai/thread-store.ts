@@ -1,4 +1,5 @@
 import type { ThreadDetail, ThreadMessage, ThreadMeta } from "@/lib/ai/types";
+import { normalizePatientId } from "@/lib/patient-id";
 
 type ThreadMetaDto = {
   conversation_id: string;
@@ -29,7 +30,7 @@ export function createThreadId() {
 function mapThreadMeta(dto: ThreadMetaDto): ThreadMeta {
   return {
     threadId: dto.conversation_id,
-    patientId: dto.patient_id ?? "GENERAL",
+    patientId: dto.patient_id ? normalizePatientId(dto.patient_id) : "GENERAL",
     title: dto.title,
     updatedAt: dto.last_message_at,
     lastIssue: dto.last_issue ?? dto.last_intent ?? "General",
@@ -57,7 +58,7 @@ export async function listThreadMeta(
 ): Promise<ThreadMeta[]> {
   const search = new URLSearchParams();
   search.set("doctor_id", doctorId);
-  if (patientId) search.set("patient_id", patientId);
+  if (patientId) search.set("patient_id", normalizePatientId(patientId));
 
   const response = await fetch(`/api/threads?${search.toString()}`, {
     cache: "no-store",

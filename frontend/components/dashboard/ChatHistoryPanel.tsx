@@ -47,8 +47,8 @@ function HistoryGroup({
                 disabled
                   ? "cursor-default opacity-45"
                   : active
-                    ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] text-[color:var(--cs-primary)]"
-                    : "text-[color:var(--cs-text)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.08),rgba(0,150,136,0.05))]",
+                    ? "border border-white/55 bg-[linear-gradient(135deg,rgba(255,255,255,0.56),rgba(255,255,255,0.32))] text-[color:var(--cs-primary)] shadow-[0_12px_28px_rgba(13,71,161,0.08)]"
+                    : "text-[color:var(--cs-text)] hover:bg-[linear-gradient(135deg,rgba(255,255,255,0.48),rgba(255,255,255,0.24))] hover:shadow-[0_10px_24px_rgba(15,23,42,0.05)]",
               ].join(" ")}
             >
               <div className="min-w-0">
@@ -100,7 +100,7 @@ export function ChatHistoryPanel({
           "flex w-full items-center justify-center rounded-xl px-2 py-2 text-[color:var(--cs-text-soft)] transition",
           disabled
             ? "cursor-default opacity-45"
-            : "hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.08))] hover:text-[color:var(--cs-primary)]",
+            : "hover:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),rgba(255,255,255,0.26))] hover:text-[color:var(--cs-primary)]",
         ].join(" ")}
         aria-label={recentLabel}
         title={recentLabel}

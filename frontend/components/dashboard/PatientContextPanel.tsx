@@ -11,10 +11,13 @@ import {
 } from "@/components/dashboard/dashboard-demo-data";
 import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
 import { getMetricLabel, localizeText } from "@/lib/i18n";
+import type { MetricSummary, Patient } from "@/types";
 
 type PatientContextPanelProps = {
   activeIssue: DashboardIssue;
   onClose: () => void;
+  patient?: Patient;
+  metrics?: MetricSummary[];
 };
 
 type IssueDisplayMetric = {
@@ -36,7 +39,7 @@ function getMetricMeta(metricKey: (typeof dashboardMetrics)[number]["metric"]) {
         iconColor: "text-[color:#EF4444]",
         stroke: "#0D47A1",
       };
-    case "hrv_rmssd":
+    case "respiratory_rate":
       return {
         icon: Activity,
         iconColor: "text-[color:#2563EB]",
@@ -100,9 +103,11 @@ function MiniSparkline({ stroke }: { stroke: string }) {
 export function PatientContextPanel({
   activeIssue,
   onClose,
+  patient = dashboardPatient,
+  metrics = dashboardMetrics,
 }: PatientContextPanelProps) {
   const { locale } = useLocale();
-  const issueMetrics = dashboardMetrics
+  const issueMetrics = metrics
     .filter((metric) => activeIssue.metricKeys.includes(metric.metric))
     .map((metric) => {
       const meta = getMetricMeta(metric.metric);
@@ -123,13 +128,13 @@ export function PatientContextPanel({
     });
 
   return (
-    <div className="dashboard-glass dashboard-fade-up h-full min-h-0 rounded-[1.25rem] p-2.5 shadow-[0_26px_60px_rgba(13,71,161,0.14)]">
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.05rem] bg-white/36">
+    <div className="dashboard-glass dashboard-fade-up h-full min-h-0 rounded-[1.25rem] p-2.5 shadow-[0_28px_72px_rgba(13,71,161,0.16)]">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.05rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.34),rgba(255,255,255,0.16))]">
         <div className="flex justify-end px-1 pb-2 pt-1">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/72 text-[color:var(--cs-primary)] transition hover:bg-white"
+            className="dashboard-input flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--cs-primary)] transition hover:border-white/80 hover:bg-white/76"
             aria-label={
               locale === "vi" ? "Đóng phần xem phác đồ" : "Close protocol view"
             }
@@ -140,7 +145,7 @@ export function PatientContextPanel({
 
         <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto px-1 pb-1">
           <div className="flex min-h-full flex-col gap-2.5">
-            <PatientSummaryHeader patient={dashboardPatient} />
+            <PatientSummaryHeader patient={patient} />
 
             <PanelCard className="px-3.5 py-3.5">
               <div className="flex items-center justify-between gap-3">

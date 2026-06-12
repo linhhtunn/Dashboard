@@ -1,9 +1,13 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import type { DotItemDotProps } from "recharts";
 import {
   Line,
   LineChart,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -18,11 +22,12 @@ type VitalChartProps = {
   metric: VitalMetric;
   height?: number;
   className?: string;
+  baseline?: number;
 };
 
 const metricColors: Record<VitalMetric, string> = {
   heart_rate: "#0D47A1",
-  hrv_rmssd: "#009688",
+  respiratory_rate: "#009688",
   spo2: "#009688",
   systolic_bp: "#F5B300",
   diastolic_bp: "#FB923C",
@@ -30,7 +35,7 @@ const metricColors: Record<VitalMetric, string> = {
 
 const metricFloor: Record<VitalMetric, number> = {
   heart_rate: 40,
-  hrv_rmssd: 0,
+  respiratory_rate: 6,
   spo2: 75,
   systolic_bp: 60,
   diastolic_bp: 40,
@@ -38,6 +43,7 @@ const metricFloor: Record<VitalMetric, number> = {
 
 const metricAlertThreshold: Partial<Record<VitalMetric, number>> = {
   heart_rate: 100,
+  respiratory_rate: 20,
   spo2: 94,
   systolic_bp: 140,
 };
@@ -48,8 +54,8 @@ function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
   switch (metric) {
     case "heart_rate":
       return vital.vitals.heartRate ?? 0;
-    case "hrv_rmssd":
-      return vital.vitals.hrvRmssd ?? 0;
+    case "respiratory_rate":
+      return vital.vitals.respiratoryRate ?? 0;
     case "spo2":
       return vital.vitals.spo2 ?? 0;
     case "systolic_bp":
@@ -57,6 +63,42 @@ function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
     case "diastolic_bp":
       return vital.vitals.diastolicBp ?? 0;
   }
+}
+
+function isAbnormal(metric: VitalMetric, value: number) {
+  switch (metric) {
+    case "heart_rate":
+      return value > 100 || value < 60;
+    case "respiratory_rate":
+      return value > 20 || value < 10;
+    case "spo2":
+      return value < 95;
+    case "systolic_bp":
+      return value > 140 || value < 90;
+    case "diastolic_bp":
+      return value > 90 || value < 60;
+  }
+}
+
+function AbnormalDot({ cx, cy, payload }: DotItemDotProps) {
+  if (
+    typeof cx !== "number" ||
+    typeof cy !== "number" ||
+    !(payload as { abnormal?: boolean }).abnormal
+  ) {
+    return null;
+  }
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={3.5}
+      fill="var(--cs-danger)"
+      stroke="white"
+      strokeWidth={1.5}
+    />
+  );
 }
 
 function formatTimestamp(iso: string) {
@@ -69,9 +111,11 @@ function formatTimestamp(iso: string) {
 export function VitalChart({
   data,
   metric,
-  height = 160,
+  height = 300,
   className = "",
+  baseline,
 }: VitalChartProps) {
+  const { locale } = useLocale();
   const isMounted = useSyncExternalStore(
     subscribeToMount,
     () => true,
@@ -84,6 +128,7 @@ export function VitalChart({
   const chartData = data.map((sample) => ({
     time: formatTimestamp(sample.timestamp),
     value: getMetricValue(sample, metric),
+    abnormal: isAbnormal(metric, getMetricValue(sample, metric)),
   }));
 
   const values = chartData.map((item) => item.value);
@@ -143,6 +188,29 @@ export function VitalChart({
               formatter={(value) => [value ?? "-", metric.replace(/_/g, " ")]}
             />
             {threshold !== undefined ? (
+              <ReferenceArea
+                y1={metric === "spo2" ? yMin : threshold}
+                y2={metric === "spo2" ? threshold : yMax}
+                fill="var(--cs-danger)"
+                fillOpacity={0.05}
+                strokeOpacity={0}
+              />
+            ) : null}
+            {baseline !== undefined ? (
+              <ReferenceLine
+                y={baseline}
+                stroke="var(--cs-border-strong)"
+                strokeDasharray="6 4"
+                strokeWidth={1.2}
+                label={{
+                  value: locale === "vi" ? "mức cơ sở" : "baseline",
+                  fill: "#64748b",
+                  fontSize: 9,
+                  position: "insideTopRight",
+                }}
+              />
+            ) : null}
+            {threshold !== undefined ? (
               <ReferenceLine
                 y={threshold}
                 stroke={color}
@@ -156,7 +224,7 @@ export function VitalChart({
               dataKey="value"
               stroke={color}
               strokeWidth={2}
-              dot={false}
+              dot={AbnormalDot}
               activeDot={{ r: 4, fill: color, stroke: "white", strokeWidth: 2 }}
             />
           </LineChart>

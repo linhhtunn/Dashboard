@@ -1,306 +1,162 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { AgentInsightCard } from "@/components/agent/AgentInsightCard";
-import { PanelCard } from "@/components/common/PanelCard";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
-import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
-import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
+import { AlertAIChatPanel } from "@/components/alerts/AlertAIChatPanel";
+import { AlertZonePanel } from "@/components/alerts/AlertZonePanel";
+import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { fetchAgentAlertExplanation } from "@/lib/ai/chat-client";
-import type { AgentInsightPayload } from "@/lib/ai/types";
 import {
-  formatAlertTimestamp,
-  getAlertSeverityLabel,
-  getAlertTypeLabel,
-} from "@/lib/i18n";
+  defaultAlertZoneFilters,
+  type AlertZoneFilters,
+} from "@/lib/alerts-filters";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import type { Alert, Patient } from "@/types";
 
-type AlertInsightState = {
-  requestKey: string | null;
-  payload: AgentInsightPayload | null;
-  error: string | null;
-};
-
 export default function AlertsPage() {
   const { locale } = useLocale();
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [patientsById, setPatientsById] = useState<Record<string, Patient>>({});
-  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
-  const [alertsLoading, setAlertsLoading] = useState(true);
-  const [alertsError, setAlertsError] = useState<string | null>(null);
-  const [insightState, setInsightState] = useState<AlertInsightState>({
-    requestKey: null,
-    payload: null,
-    error: null,
-  });
-
-  const selectedAlert = useMemo(
-    () => alerts.find((alert) => alert.id === selectedAlertId) ?? null,
-    [alerts, selectedAlertId],
-  );
-  const selectedPatient = selectedAlert ? patientsById[selectedAlert.patientId] ?? null : null;
-  const requestKey = selectedAlert ? `${selectedAlert.id}:${locale}` : null;
+  const [patients, setPatients] = useState<Record<string, Patient>>({});
+  const [resolvedIds, setResolvedIds] = useState<string[]>([]);
+  const [criticalFilters, setCriticalFilters] =
+    useState<AlertZoneFilters>(defaultAlertZoneFilters);
+  const [warningFilters, setWarningFilters] =
+    useState<AlertZoneFilters>(defaultAlertZoneFilters);
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setAlertsLoading(true);
-
     void alertRepository
-      .listOpen()
+      .list()
       .then(async (nextAlerts) => {
         if (cancelled) return;
         setAlerts(nextAlerts);
-        setSelectedAlertId((current) => current ?? nextAlerts[0]?.id ?? null);
-        const linkedPatients = await Promise.all(
-          Array.from(new Set(nextAlerts.map((item) => item.patientId))).map(async (patientId) => [
-            patientId,
-            await patientRepository.findById(patientId),
-          ] as const),
-        );
-        if (cancelled) return;
-        setPatientsById(
-          Object.fromEntries(
-            linkedPatients.filter((pair): pair is readonly [string, Patient] => Boolean(pair[1])),
+        const entries = await Promise.all(
+          Array.from(new Set(nextAlerts.map((alert) => alert.patientId))).map(
+            async (id) => [id, await patientRepository.findById(id)] as const,
           ),
         );
-        setAlertsError(null);
-      })
-      .catch((error: unknown) => {
         if (cancelled) return;
-        setAlertsError(
-          error instanceof Error
-            ? error.message
-            : locale === "vi"
-              ? "Không thể tải danh sách cảnh báo."
-              : "Unable to load alerts.",
+        setPatients(
+          Object.fromEntries(
+            entries.filter(
+              (entry): entry is readonly [string, Patient] => Boolean(entry[1]),
+            ),
+          ),
         );
       })
+      .catch((nextError: unknown) => {
+        if (!cancelled) {
+          setError(
+            nextError instanceof Error
+              ? nextError.message
+              : locale === "vi"
+                ? "Không thể tải lịch sử cảnh báo."
+                : "Unable to load alert history.",
+          );
+        }
+      })
       .finally(() => {
-        if (!cancelled) setAlertsLoading(false);
+        if (!cancelled) setLoading(false);
       });
-
     return () => {
       cancelled = true;
     };
   }, [locale]);
 
-  useEffect(() => {
-    if (!selectedAlert || !requestKey) return;
-
-    let cancelled = false;
-
-    void fetchAgentAlertExplanation({
-      alertId: selectedAlert.id,
-      patientId: selectedAlert.patientId,
-      locale,
-    })
-      .then((nextPayload) => {
-        if (cancelled) return;
-        setInsightState({ requestKey, payload: nextPayload, error: null });
-      })
-      .catch((nextError: unknown) => {
-        if (cancelled) return;
-        setInsightState({
-          requestKey,
-          payload: null,
-          error:
-            nextError instanceof Error
-              ? nextError.message
-              : locale === "vi"
-                ? "Không thể giải thích cảnh báo từ backend AI."
-                : "Unable to explain the alert with the AI backend.",
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [locale, requestKey, selectedAlert]);
-
-  const loading = Boolean(requestKey) && insightState.requestKey !== requestKey;
-  const payload = insightState.requestKey === requestKey ? insightState.payload : null;
-  const error = insightState.requestKey === requestKey ? insightState.error : null;
-
-  const historyItems: SidebarHistoryItem[] = useMemo(
-    () => [
-      {
-        id: "alerts-history-1",
-        title: locale === "vi" ? "Giải thích cảnh báo oxy thấp" : "Explain low oxygen alert",
-        timestamp: "09:25",
-        issue: "SpO₂",
-      },
-      {
-        id: "alerts-history-2",
-        title:
-          locale === "vi"
-            ? "Rà soát cảnh báo huyết áp cao"
-            : "Review high blood pressure alert",
-        timestamp: "08:40",
-        issue: locale === "vi" ? "Huyết áp" : "Blood pressure",
-      },
-      {
-        id: "alerts-history-3",
-        title: locale === "vi" ? "Tổng hợp cảnh báo đang mở" : "Summarize open alerts",
-        timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
-        issue: locale === "vi" ? "Danh sách" : "List",
-      },
-    ],
-    [locale],
-  );
+  const aiPanelOpen = selectedAlert !== null;
 
   return (
-    <DashboardShell
-      activeNav="alerts"
-      historyItems={historyItems}
-      onCreateNewChat={() => undefined}
-      topBar={<DashboardTopBar />}
-      patientPanelOpen={Boolean(selectedAlert)}
-      leftPanel={
-        <section className="dashboard-scroll-area h-full overflow-y-auto px-3 py-3">
-          <div className="mx-auto max-w-[1320px] space-y-4">
-            <div className="px-1">
-              <h1 className="text-[1.8rem] font-semibold text-[color:var(--cs-heading)]">
-                {locale === "vi" ? "Cảnh báo lâm sàng" : "Clinical alerts"}
-              </h1>
-              <p className="mt-1 text-sm text-[color:var(--cs-text-soft)]">
-                {locale === "vi"
-                  ? "Chọn một cảnh báo để xem phần giải thích từ AI agent."
-                  : "Select an alert to inspect the AI explanation."}
-              </p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <AlertStatCard
-                label={locale === "vi" ? "Tổng cảnh báo mở" : "Open alerts"}
-                value={alerts.length}
-              />
-              <AlertStatCard
-                label={locale === "vi" ? "Mức warning" : "Warning"}
-                value={alerts.filter((alert) => alert.severity === "warning").length}
-              />
-              <AlertStatCard
-                label={locale === "vi" ? "Mức critical" : "Critical"}
-                value={alerts.filter((alert) => alert.severity === "critical").length}
-              />
-            </div>
-
-            <div className="space-y-3">
-              {alertsLoading ? (
-                <PanelCard className="px-4 py-4 text-[14px] text-[color:var(--cs-text-soft)]">
-                  {locale === "vi" ? "Đang tải cảnh báo..." : "Loading alerts..."}
-                </PanelCard>
-              ) : alertsError ? (
-                <PanelCard className="px-4 py-4 text-[14px] text-[color:var(--cs-danger)]">
-                  {alertsError}
-                </PanelCard>
-              ) : (
-                alerts.map((alert) => {
-                  const patient = patientsById[alert.patientId];
-                  const selected = alert.id === selectedAlertId;
-
-                  return (
-                    <button
-                      key={alert.id}
-                      type="button"
-                      onClick={() => setSelectedAlertId(alert.id)}
-                      className={[
-                        "dashboard-surface flex w-full items-start justify-between rounded-[1.35rem] px-4 py-4 text-left transition",
-                        selected
-                          ? "border-[color:rgba(13,71,161,0.28)] shadow-[0_18px_34px_rgba(13,71,161,0.08)]"
-                          : "hover:border-[color:rgba(13,71,161,0.18)]",
-                      ].join(" ")}
-                    >
-                      <div className="min-w-0 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-[color:rgba(13,71,161,0.08)] px-3 py-1 text-xs font-semibold text-[color:var(--cs-primary)]">
-                            {getAlertSeverityLabel(alert.severity, locale)}
-                          </span>
-                          <span className="text-xs text-[color:var(--cs-text-soft)]">
-                            {formatAlertTimestamp(alert.timestamp, locale)}
-                          </span>
-                        </div>
-
-                        <p className="text-base font-semibold text-[color:var(--cs-heading)]">
-                          {getAlertTypeLabel(alert.type, locale)}
-                        </p>
-
-                        <p className="text-sm text-[color:var(--cs-text)]">
-                          {patient?.name ?? alert.patientId}
-                        </p>
-
-                        <p className="text-sm text-[color:var(--cs-text-soft)]">
-                          {patient
-                            ? `MRN ${patient.mrn} · ${patient.age} ${locale === "vi" ? "tuổi" : "years"}`
-                            : alert.patientId}
-                        </p>
-                      </div>
-
-                      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[color:var(--cs-text-soft)]" />
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </section>
+    <ClinicalShell
+      viewportLocked
+      eyebrow={locale === "vi" ? "Rà soát không thời gian thực" : "Non-realtime review"}
+      title={locale === "vi" ? "Lịch sử cảnh báo" : "Alert history"}
+      description={
+        locale === "vi"
+          ? "Hai zone theo mức độ nghiêm trọng, mỗi zone có bộ lọc riêng."
+          : "Two severity zones, each with its own filters."
       }
-      rightPanel={
-        <section className="dashboard-scroll-area h-full overflow-y-auto px-2 py-3">
-          <div className="space-y-4">
-            {selectedPatient ? <PatientSummaryHeader patient={selectedPatient} /> : null}
+    >
+      {loading ? (
+        <div className="dashboard-surface flex flex-1 items-center justify-center rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-text-soft)]">
+          {locale === "vi" ? "Đang tải cảnh báo..." : "Loading alerts..."}
+        </div>
+      ) : error ? (
+        <div className="dashboard-surface flex flex-1 items-center justify-center rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-danger)]">
+          {error}
+        </div>
+      ) : (
+        <div
+          className={[
+            "grid min-h-0 flex-1 gap-3 overflow-hidden transition-all duration-300",
+            aiPanelOpen
+              ? "lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px]"
+              : "grid-cols-1",
+          ].join(" ")}
+        >
+          <div
+            className={[
+              "grid min-h-0 gap-3 overflow-hidden",
+              aiPanelOpen
+                ? "max-lg:grid-rows-2 lg:grid-cols-2"
+                : "max-lg:grid-rows-2 lg:grid-cols-2",
+            ].join(" ")}
+          >
+            <AlertZonePanel
+              title={
+                locale === "vi" ? "Cảnh báo nghiêm trọng" : "Critical alerts"
+              }
+              bucket="critical"
+              alerts={alerts}
+              patients={patients}
+              resolvedIds={resolvedIds}
+              filters={criticalFilters}
+              onFiltersChange={setCriticalFilters}
+              onResolve={(alertId) =>
+                setResolvedIds((current) =>
+                  current.includes(alertId) ? current : [...current, alertId],
+                )
+              }
+              onAskAI={setSelectedAlert}
+            />
+            <AlertZonePanel
+              title={locale === "vi" ? "Cảnh báo" : "Warnings"}
+              bucket="warning"
+              alerts={alerts}
+              patients={patients}
+              resolvedIds={resolvedIds}
+              filters={warningFilters}
+              onFiltersChange={setWarningFilters}
+              onResolve={(alertId) =>
+                setResolvedIds((current) =>
+                  current.includes(alertId) ? current : [...current, alertId],
+                )
+              }
+              onAskAI={setSelectedAlert}
+            />
+          </div>
 
+          <aside
+            className={[
+              "min-h-0 min-w-0 overflow-hidden transition-all duration-300",
+              aiPanelOpen
+                ? "translate-x-0 opacity-100 max-lg:fixed max-lg:inset-x-3 max-lg:bottom-3 max-lg:top-[7.5rem] max-lg:z-40"
+                : "pointer-events-none w-0 translate-x-8 opacity-0",
+            ].join(" ")}
+          >
             {selectedAlert ? (
-              <AgentInsightCard
-                title={locale === "vi" ? "Giải thích cảnh báo" : "Alert explanation"}
-                payload={payload}
-                loading={loading}
-                error={error}
-                emptyCopy={{
-                  vi: "Chọn một cảnh báo để xem phần giải thích từ backend AI.",
-                  en: "Select an alert to inspect the AI explanation.",
-                }}
+              <AlertAIChatPanel
+                alert={selectedAlert}
+                patient={patients[selectedAlert.patientId]}
+                onClose={() => setSelectedAlert(null)}
               />
             ) : null}
-
-            {selectedPatient ? (
-              <PanelCard className="px-4 py-4">
-                <p className="text-sm font-medium text-[color:var(--cs-teal)]">
-                  {locale === "vi" ? "Đi tới hồ sơ bệnh nhân" : "Open patient record"}
-                </p>
-                <p className="mt-2 text-sm text-[color:var(--cs-text-soft)]">
-                  {locale === "vi"
-                    ? "Mở hồ sơ để xem đầy đủ chỉ số, bối cảnh lâm sàng và lịch sử theo dõi."
-                    : "Open the patient record to inspect full metrics and clinical context."}
-                </p>
-                <Link
-                  href={`/patients/${selectedPatient.id}`}
-                  className="mt-4 inline-flex h-10 items-center rounded-full bg-[color:var(--cs-primary)] px-4 text-sm font-semibold text-white"
-                >
-                  {locale === "vi" ? "Xem hồ sơ bệnh nhân" : "View patient record"}
-                </Link>
-              </PanelCard>
-            ) : null}
-          </div>
-        </section>
-      }
-    />
-  );
-}
-
-function AlertStatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <PanelCard className="px-4 py-4">
-      <p className="text-sm text-[color:var(--cs-text-soft)]">{label}</p>
-      <p className="mt-2 text-[1.55rem] font-semibold text-[color:var(--cs-heading)]">
-        {value}
-      </p>
-    </PanelCard>
+          </aside>
+        </div>
+      )}
+    </ClinicalShell>
   );
 }

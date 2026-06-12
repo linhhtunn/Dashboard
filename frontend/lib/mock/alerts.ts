@@ -124,10 +124,10 @@ export const mockAlerts: Alert[] = [
     evidence: [
       {
         kind: "trend_change",
-        metric: "hrv_rmssd",
+        metric: "respiratory_rate",
         value: 23,
-        unit: "ms",
-        comparisonValue: 26,
+        unit: "rpm",
+        comparisonValue: 18,
         comparisonWindow: "15m",
         timestamp: "2026-06-02T08:12:00Z",
       },

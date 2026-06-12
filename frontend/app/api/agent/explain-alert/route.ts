@@ -8,27 +8,45 @@ import {
   getAgentBaseUrl,
   getAgentPath,
 } from "@/lib/ai/agent-backend";
+import { buildMockExplainAlertPayload } from "@/lib/ai/mock-chat";
 import type { AgentExplainAlertProxyRequest } from "@/lib/ai/types";
+import { mockAlerts } from "@/lib/mock/alerts";
+import { getMetricLabel } from "@/lib/i18n";
 
 export const runtime = "nodejs";
+
+function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
+  const alert = mockAlerts.find((item) => item.id === body.alertId);
+  const evidence = alert?.evidence.find((item) => item.value !== undefined);
+
+  return buildMockExplainAlertPayload({
+    locale: body.locale,
+    alertId: body.alertId,
+    patientId: body.patientId,
+    alertType: alert?.type,
+    severity: alert?.severity,
+    metricLabel: evidence?.metric
+      ? getMetricLabel(evidence.metric, body.locale)
+      : undefined,
+    metricValue: evidence?.value,
+    metricUnit: evidence?.unit,
+  });
+}
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as AgentExplainAlertProxyRequest;
   const baseUrl = getAgentBaseUrl();
   const configuredPath = getAgentPath("explain-alert");
 
-  if (!baseUrl) {
-    return Response.json(
-      { error: "AI_AGENT_BASE_URL chưa được cấu hình." },
-      { status: 500 },
-    );
-  }
-
   if (!body.alertId?.trim() || !body.patientId?.trim()) {
     return Response.json(
       { error: "Thiếu alertId hoặc patientId để giải thích cảnh báo." },
       { status: 400 },
     );
+  }
+
+  if (!baseUrl) {
+    return Response.json(buildMockFromAlert(body));
   }
 
   try {
@@ -56,15 +74,9 @@ export async function POST(request: NextRequest) {
     return Response.json(payload);
   } catch (error) {
     if (error instanceof BackendAgentError) {
-      return Response.json({ error: error.message }, { status: error.status });
+      return Response.json(buildMockFromAlert(body));
     }
 
-    return Response.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Không thể kết nối backend AI.",
-      },
-      { status: 502 },
-    );
+    return Response.json(buildMockFromAlert(body));
   }
 }

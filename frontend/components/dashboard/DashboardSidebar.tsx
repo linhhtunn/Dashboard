@@ -49,7 +49,7 @@ function BrandLockup({
         collapsed ? "justify-center" : "gap-3 px-2",
       ].join(" ")}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] bg-white shadow-[0_10px_24px_rgba(13,71,161,0.12)] ring-1 ring-[color:rgba(13,71,161,0.08)]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border border-white/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(255,255,255,0.56))] shadow-[0_16px_32px_rgba(13,71,161,0.14)] ring-1 ring-[color:rgba(13,71,161,0.08)] backdrop-blur-[20px]">
         <ShieldPlus className="h-4.5 w-4.5 text-[color:var(--cs-primary)]" />
       </div>
 
@@ -92,8 +92,8 @@ function SidebarNav({
                 ? "justify-center px-0 py-1"
                 : "items-center justify-between px-2.5 py-2",
               active
-                ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.96),rgba(0,150,136,0.72))] text-white shadow-[0_14px_32px_rgba(13,71,161,0.22)]"
-                : "text-[color:var(--cs-heading)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary)]",
+                ? "bg-[linear-gradient(135deg,rgba(13,71,161,0.98),rgba(0,150,136,0.74))] text-white shadow-[0_18px_36px_rgba(13,71,161,0.24)]"
+                : "text-[color:var(--cs-heading)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.16),rgba(0,150,136,0.12))] hover:text-[color:var(--cs-primary)]",
             ].join(" ")}
           >
             <span
@@ -104,10 +104,10 @@ function SidebarNav({
             >
               <span
                 className={[
-                  "relative flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
+                  "relative flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-200",
                   active
-                    ? "bg-white/12 text-white"
-                    : "bg-white/78 text-[color:var(--cs-primary)] group-hover:bg-white/90 group-hover:text-[color:var(--cs-primary-strong)]",
+                    ? "border-white/12 bg-white/12 text-white"
+                    : "border-white/70 bg-white/66 text-[color:var(--cs-primary)] group-hover:border-white/80 group-hover:bg-white/82 group-hover:text-[color:var(--cs-primary-strong)]",
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4" />
@@ -228,7 +228,7 @@ export function DashboardSidebar({
   return (
     <aside
       className={[
-        "hidden h-full min-h-0 flex-col overflow-hidden border-r border-[color:rgba(217,226,236,0.64)] bg-white/22 lg:flex",
+        "dashboard-glass hidden h-full min-h-0 flex-col overflow-hidden border-r border-white/35 lg:flex",
         collapsed ? "px-2 py-2.5" : "px-2.5 py-3",
       ].join(" ")}
     >
@@ -243,30 +243,32 @@ export function DashboardSidebar({
         <button
           type="button"
           onClick={onToggle}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.1),rgba(0,150,136,0.08))]"
+          className="dashboard-input flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[color:var(--cs-primary)] transition hover:border-white/80 hover:bg-white/76"
           aria-label={collapsed ? copy.expand : copy.collapse}
           title={collapsed ? copy.expand : copy.collapse}
         >
           <ToggleIcon className="h-4 w-4" />
         </button>
       </div>
+
       {activeItem === "dashboard" ? (
         <button
           type="button"
           onClick={onCreateNewChat}
           className={[
-          "mt-3 flex rounded-xl border border-[color:rgba(13,71,161,0.12)] bg-white/76 text-[color:var(--cs-primary)] transition-all duration-200 hover:border-[color:rgba(13,71,161,0.2)] hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary-strong)]",
-          collapsed
+            "dashboard-input mt-3 flex rounded-xl text-[color:var(--cs-primary)] transition-all duration-200 hover:border-white/80 hover:bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.1))] hover:text-[color:var(--cs-primary-strong)]",
+            collapsed
               ? "items-center justify-center px-0 py-2"
               : "items-center gap-2 px-3 py-2",
-        ].join(" ")}
-      >
-        <Plus className="h-4 w-4" />
-        {!collapsed ? (
+          ].join(" ")}
+        >
+          <Plus className="h-4 w-4" />
+          {!collapsed ? (
             <span className="text-[13px] font-medium">{copy.newChat}</span>
           ) : null}
-      </button>
+        </button>
       ) : null}
+
       <SidebarNav
         activeItem={activeItem}
         collapsed={collapsed}

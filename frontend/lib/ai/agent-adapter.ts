@@ -91,7 +91,7 @@ function extractAnswer(raw: unknown, locale: Locale) {
   }
 
   return locale === "vi"
-    ? "Backend AI chưa trả về phần tóm tắt có thể đọc được."
+    ? "Hệ thống AI chưa trả về phần tóm tắt có thể đọc được."
     : "The AI backend did not return a readable summary.";
 }
 
@@ -364,9 +364,11 @@ function inferIssueIds(
   if (
     text.includes("heart rate") ||
     text.includes("nhip tim") ||
+    text.includes("respiratory rate") ||
+    text.includes("nhip tho") ||
     text.includes("hrv") ||
     metrics.has("heart_rate") ||
-    metrics.has("hrv_rmssd")
+    metrics.has("respiratory_rate")
   ) {
     issues.push("heart_rate");
   }
@@ -447,8 +449,8 @@ function buildEvidenceFinding(evidence: Evidence, locale: Locale) {
 function getMetricDisplayLabel(metric: VitalMetric, locale: Locale) {
   const map: Record<VitalMetric, { vi: string; en: string }> = {
     heart_rate: { vi: "Nhịp tim", en: "Heart rate" },
-    hrv_rmssd: { vi: "HRV - RMSSD", en: "HRV - RMSSD" },
-    spo2: { vi: "SpO₂", en: "SpO₂" },
+    respiratory_rate: { vi: "Nhịp thở", en: "Respiratory rate" },
+    spo2: { vi: "Oxy máu", en: "SpO₂" },
     systolic_bp: { vi: "Huyết áp tâm thu", en: "Systolic blood pressure" },
     diastolic_bp: { vi: "Huyết áp tâm trương", en: "Diastolic blood pressure" },
   };
@@ -484,7 +486,7 @@ function mapMetricToIssue(metric: string | undefined): DashboardIssueId | null {
   if (normalized === "systolic_bp" || normalized === "diastolic_bp") {
     return "blood_pressure";
   }
-  if (normalized === "heart_rate" || normalized === "hrv_rmssd") {
+  if (normalized === "heart_rate" || normalized === "respiratory_rate") {
     return "heart_rate";
   }
   return null;
@@ -500,7 +502,10 @@ function normalizeMetric(value: unknown): VitalMetric | undefined {
     case "hrv_rmssd":
     case "rmssd":
     case "hrv":
-      return "hrv_rmssd";
+    case "respiratory_rate":
+    case "respiratoryrate":
+    case "rr":
+      return "respiratory_rate";
     case "spo2":
     case "oxygen_saturation":
       return "spo2";
@@ -517,7 +522,7 @@ function normalizeMetric(value: unknown): VitalMetric | undefined {
 
 function normalizeUnit(value: unknown): Evidence["unit"] {
   const unit = asString(value);
-  if (unit === "bpm" || unit === "ms" || unit === "%" || unit === "mmHg") {
+  if (unit === "bpm" || unit === "rpm" || unit === "%" || unit === "mmHg") {
     return unit;
   }
 

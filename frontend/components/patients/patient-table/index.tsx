@@ -3,173 +3,109 @@
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { getPatientStatusLabel } from "@/lib/i18n";
 import type { PatientStatus } from "@/types";
 import { PatientCard, type PatientListItem } from "../patient-card";
 import { PatientSearch } from "../patient-search";
-import {
-  PatientStatusFilter,
-  type PatientStatusFilterValue,
-} from "../patient-status-filter";
 
 type PatientTableProps = {
   items: PatientListItem[];
+  fillHeight?: boolean;
 };
+
+type FilterValue = "all" | "critical" | "warning" | "normal";
 
 const statusPriority: Record<PatientStatus, number> = {
   critical: 0,
   at_risk: 1,
-  recent_symptom: 2,
-  healthy: 3,
+  recent_symptom: 1,
+  healthy: 2,
 };
 
-const summaryAccentClasses: Record<"total" | PatientStatus, string> = {
-  total: "bg-[color:var(--cs-primary)]",
-  healthy: "bg-[color:var(--cs-teal)]",
-  at_risk: "bg-[color:var(--cs-gold)]",
-  critical: "bg-[color:var(--cs-danger)]",
-  recent_symptom: "bg-[color:var(--cs-aqua)]",
-};
-
-function sortByPriority(items: PatientListItem[]) {
-  return [...items].sort((a, b) => {
-    const priorityDiff =
-      statusPriority[a.patient.status] - statusPriority[b.patient.status];
-
-    if (priorityDiff !== 0) {
-      return priorityDiff;
-    }
-
-    return (
-      new Date(b.patient.lastUpdated).getTime() -
-      new Date(a.patient.lastUpdated).getTime()
-    );
-  });
-}
-
-function matchesSearch(item: PatientListItem, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  return [item.patient.name, item.patient.mrn, item.patient.id].some((value) =>
-    value.toLowerCase().includes(normalizedQuery),
-  );
-}
-
-export function PatientTable({ items }: PatientTableProps) {
+export function PatientTable({ items, fillHeight = false }: PatientTableProps) {
   const { locale } = useLocale();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<PatientStatusFilterValue>("all");
-  const deferredQuery = useDeferredValue(query);
-  const trimmedQuery = deferredQuery.trim();
+  const [filter, setFilter] = useState<FilterValue>("all");
+  const deferredQuery = useDeferredValue(query).trim().toLowerCase();
 
-  const sortedItems = useMemo(() => sortByPriority(items), [items]);
   const visibleItems = useMemo(
     () =>
-      sortedItems.filter((item) => {
-        const statusMatches =
-          status === "all" || item.patient.status === status;
-
-        return statusMatches && matchesSearch(item, deferredQuery);
-      }),
-    [deferredQuery, sortedItems, status],
+      [...items]
+        .sort((a, b) => {
+          const statusDiff =
+            statusPriority[a.patient.status] - statusPriority[b.patient.status];
+          if (statusDiff !== 0) return statusDiff;
+          return b.openAlertCount - a.openAlertCount;
+        })
+        .filter((item) => {
+          const matchesQuery =
+            !deferredQuery ||
+            [item.patient.name, item.patient.mrn, item.patient.id].some((value) =>
+              value.toLowerCase().includes(deferredQuery),
+            );
+          const matchesFilter =
+            filter === "all" ||
+            (filter === "critical" && item.patient.status === "critical") ||
+            (filter === "warning" &&
+              ["at_risk", "recent_symptom"].includes(item.patient.status)) ||
+            (filter === "normal" && item.patient.status === "healthy");
+          return matchesQuery && matchesFilter;
+        }),
+    [deferredQuery, filter, items],
   );
 
-  const summaryStatuses: Array<{
-    label: string;
-    status?: PatientStatus;
-  }> = useMemo(
-    () => [
-      { label: locale === "vi" ? "Tổng bệnh nhân" : "Total patients" },
-      { label: getPatientStatusLabel("healthy", locale), status: "healthy" },
-      { label: getPatientStatusLabel("at_risk", locale), status: "at_risk" },
-      { label: getPatientStatusLabel("critical", locale), status: "critical" },
-    ],
-    [locale],
-  );
-
-  const summary = useMemo<
-    Array<{ label: string; count: number; status?: PatientStatus }>
-  >(
-    () =>
-      summaryStatuses.map((summaryStatus) => ({
-        label: summaryStatus.label,
-        count: summaryStatus.status
-          ? items.filter((item) => item.patient.status === summaryStatus.status)
-              .length
-          : items.length,
-        status: summaryStatus.status,
-      })),
-    [items, summaryStatuses],
-  );
-
-  const emptyMessage = trimmedQuery
-    ? locale === "vi"
-      ? "Không tìm thấy bệnh nhân phù hợp"
-      : "No matching patients found"
-    : locale === "vi"
-      ? "Không có bệnh nhân khớp bộ lọc hiện tại"
-      : "No patients match the current filters";
+  const filters: Array<{ value: FilterValue; label: string }> = [
+    { value: "all", label: locale === "vi" ? "Tất cả" : "All" },
+    { value: "critical", label: locale === "vi" ? "Nguy kịch" : "Critical" },
+    { value: "warning", label: locale === "vi" ? "Cần chú ý" : "Warning" },
+    { value: "normal", label: locale === "vi" ? "Bình thường" : "Normal" },
+  ];
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5">
-      <div className="sticky top-0 z-20 space-y-2.5 pb-2 backdrop-blur-sm">
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_136px]">
+    <div
+      className={fillHeight ? "flex min-h-0 flex-1 flex-col gap-2.5" : "space-y-2.5"}
+    >
+      <div
+        className={[
+          "dashboard-surface rounded-[1.15rem] p-3",
+          fillHeight ? "shrink-0" : "sticky top-0 z-20",
+        ].join(" ")}
+      >
+        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
           <PatientSearch value={query} onChange={setQuery} />
-          <button
-            type="button"
-            className="dashboard-input inline-flex h-10 items-center justify-center rounded-full bg-white/72 px-4 text-[13px] font-medium text-[color:var(--cs-heading)]"
-          >
-            {locale === "vi" ? "Bộ lọc" : "Filters"}
-          </button>
-        </div>
-
-        <PatientStatusFilter value={status} onChange={setStatus} />
-
-        <div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-4">
-          {summary.map((item) => (
-            <article
-              key={item.label}
-              className="dashboard-surface rounded-[1rem] px-3 py-2.5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[0.75rem] text-[color:var(--cs-text-soft)]">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 text-[1.45rem] font-semibold text-[color:var(--cs-heading)]">
-                    {item.count}
-                  </p>
-                </div>
-                <span
-                  className={[
-                    "mt-1 h-2 w-2 rounded-full",
-                    summaryAccentClasses[item.status ?? "total"],
-                  ].join(" ")}
-                  aria-hidden="true"
-                />
-              </div>
-            </article>
-          ))}
+          <div className="flex flex-wrap gap-1.5">
+            {filters.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setFilter(item.value)}
+                className={[
+                  "h-9 rounded-[0.7rem] border px-3 text-[12px] font-semibold transition",
+                  filter === item.value
+                    ? "border-transparent bg-[linear-gradient(135deg,var(--cs-primary),var(--cs-teal))] text-white shadow-[0_12px_28px_rgba(13,71,161,0.18)]"
+                    : "dashboard-input text-[color:var(--cs-text)] hover:border-white/80 hover:bg-white/74",
+                ].join(" ")}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-        {visibleItems.length > 0 ? (
+      <div
+        className={
+          fillHeight
+            ? "dashboard-scroll-area min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"
+            : "space-y-2"
+        }
+      >
+        {visibleItems.length ? (
           visibleItems.map((item) => <PatientCard key={item.patient.id} item={item} />)
         ) : (
-          <div className="dashboard-surface rounded-[1rem] px-4 py-6 text-center">
-            <p className="text-[15px] font-semibold text-[color:var(--cs-heading)]">
-              {emptyMessage}
-            </p>
-            <p className="mt-1.5 text-[13px] text-[color:var(--cs-text-soft)]">
-              {locale === "vi"
-                ? "Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái."
-                : "Try adjusting the search keyword or the status filters."}
-            </p>
+          <div className="dashboard-surface rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-text-soft)]">
+            {locale === "vi"
+              ? "Không có bệnh nhân phù hợp với bộ lọc."
+              : "No patients match the current filters."}
           </div>
         )}
       </div>

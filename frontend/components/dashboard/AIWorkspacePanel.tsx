@@ -41,23 +41,16 @@ export function AIWorkspacePanel({
 }: AIWorkspacePanelProps) {
   const { locale } = useLocale();
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    initialMessages.map((message, index) => ({
+      id: `${currentThreadId}-${message.role}-${index}`,
+      role: message.role,
+      content: message.content,
+    })),
+  );
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [summaryIssueIds, setSummaryIssueIds] = useState<DashboardIssueId[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-
-  useEffect(() => {
-    setMessages(
-      initialMessages.map((message, index) => ({
-        id: `${currentThreadId}-${message.role}-${index}`,
-        role: message.role,
-        content: message.content,
-      })),
-    );
-    setSummary(null);
-    setSummaryIssueIds([]);
-    setDraft("");
-  }, [currentThreadId, initialMessages]);
 
   useEffect(() => {
     onConversationStateChange(
@@ -106,6 +99,7 @@ export function AIWorkspacePanel({
     setSummaryIssueIds([]);
 
     try {
+      let hasStartedStreaming = false;
       const payload = await streamAgentChat(
         {
           threadId: currentThreadId,
@@ -118,6 +112,10 @@ export function AIWorkspacePanel({
         },
         {
           onDelta: (event) => {
+            if (!hasStartedStreaming) {
+              hasStartedStreaming = true;
+              setIsThinking(false);
+            }
             setMessages((current) =>
               current.map((message) =>
                 message.id === assistantMessageId
@@ -147,7 +145,7 @@ export function AIWorkspacePanel({
         error instanceof Error
           ? error.message
           : locale === "vi"
-            ? "Không thể lấy phản hồi từ backend AI."
+            ? "Không thể lấy phản hồi từ hệ thống AI."
             : "Unable to reach the AI backend.";
 
       setMessages((current) =>
@@ -259,7 +257,7 @@ function getEmptyStatePlaceholders(locale: "vi" | "en") {
   return locale === "vi"
     ? [
         "Tóm tắt nhanh tình trạng hiện tại của bệnh nhân",
-        "SpO₂ có đang thấp hơn baseline không?",
+        "Oxy máu có đang thấp hơn mức cơ sở không?",
         "Có thay đổi gì trong 1 giờ qua?",
         "Nhịp tim và huyết áp đang lệch theo hướng nào?",
       ]
@@ -290,7 +288,7 @@ function getIssueDisplayLabel(
   }
 
   if (issueId === "spo2") {
-    return locale === "vi" ? "SpO₂ thấp" : "Low SpO₂";
+    return locale === "vi" ? "Oxy máu thấp" : "Low SpO₂";
   }
 
   if (issueId === "blood_pressure") {

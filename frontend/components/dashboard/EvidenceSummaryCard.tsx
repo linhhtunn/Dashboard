@@ -11,10 +11,10 @@ function getEvidenceTitle(item: Evidence) {
   switch (item.metric) {
     case "heart_rate":
       return "Nhịp tim";
-    case "hrv_rmssd":
-      return "HRV - RMSSD";
+    case "respiratory_rate":
+      return "Nhịp thở";
     case "spo2":
-      return "SpO₂";
+      return "Oxy máu";
     case "systolic_bp":
       return "Huyết áp tâm thu";
     case "diastolic_bp":

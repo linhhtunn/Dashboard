@@ -70,13 +70,13 @@ export function getDashboardSummary(locale: Locale): AISummary {
         : "Is Patient A currently stable?",
     answer:
       locale === "vi"
-        ? "Bệnh nhân A chưa có dấu hiệu cần can thiệp khẩn, nhưng vẫn nên tiếp tục theo dõi vì SpO₂ thấp hơn baseline nhẹ và huyết áp tâm thu đang ở vùng đầu trên của ngưỡng nghỉ."
+        ? "Bệnh nhân A chưa có dấu hiệu cần can thiệp khẩn, nhưng vẫn nên tiếp tục theo dõi vì oxy máu thấp hơn mức cơ sở nhẹ và huyết áp tâm thu đang ở vùng đầu trên của ngưỡng nghỉ."
         : "Patient A does not currently show signs requiring urgent intervention, but continued monitoring is recommended because SpO₂ is slightly below baseline and systolic blood pressure is near the upper resting threshold.",
     keyFindings:
       locale === "vi"
         ? [
-            "Không có cảnh báo critical mới trong 15 phút gần đây.",
-            "SpO₂ thấp hơn baseline gần đây nhưng chưa xuống dưới ngưỡng cần can thiệp.",
+            "Không có cảnh báo nguy kịch mới trong 15 phút gần đây.",
+            "Oxy máu thấp hơn mức cơ sở gần đây nhưng chưa xuống dưới ngưỡng cần can thiệp.",
             "Huyết áp tâm thu tăng nhẹ so với cửa sổ 15 phút gần nhất.",
           ]
         : [
@@ -130,10 +130,10 @@ export const dashboardMetrics: MetricSummary[] = [
     status: "healthy",
   },
   {
-    metric: "hrv_rmssd",
-    currentValue: 42,
-    unit: "ms",
-    average15Min: 39,
+    metric: "respiratory_rate",
+    currentValue: 18,
+    unit: "rpm",
+    average15Min: 16,
     trend: "up",
     changePct: 6,
     status: "healthy",
@@ -171,20 +171,20 @@ export const dashboardIssues: DashboardIssue[] = [
   {
     id: "spo2",
     title: {
-      vi: "SpO₂ thấp hơn baseline",
+      vi: "Oxy máu thấp hơn mức cơ sở",
       en: "SpO₂ below baseline",
     },
-    chipLabel: { vi: "SpO₂", en: "SpO₂" },
+    chipLabel: { vi: "Oxy máu", en: "SpO₂" },
     actionLabel: {
-      vi: "Xem phác đồ SpO₂",
+      vi: "Xem phác đồ oxy máu",
       en: "Open SpO₂ protocol",
     },
     protocolTitle: {
-      vi: "Phác đồ theo dõi SpO₂",
+      vi: "Phác đồ theo dõi oxy máu",
       en: "SpO₂ monitoring protocol",
     },
     protocolSummary: {
-      vi: "Ưu tiên xác nhận cảm biến, đối chiếu triệu chứng hô hấp và theo dõi xu hướng SpO₂ trong 15 phút tới.",
+      vi: "Ưu tiên xác nhận cảm biến, đối chiếu triệu chứng hô hấp và theo dõi xu hướng oxy máu trong 15 phút tới.",
       en: "Prioritize sensor validation, compare respiratory symptoms, and monitor the SpO₂ trend over the next 15 minutes.",
     },
     protocolSteps: [
@@ -197,7 +197,7 @@ export const dashboardIssues: DashboardIssue[] = [
         en: "Cross-check shortness of breath, respiratory rate, and skin or mucosal color.",
       },
       {
-        vi: "Theo dõi xu hướng SpO₂ trong 15 phút tiếp theo trước khi escalate.",
+        vi: "Theo dõi xu hướng oxy máu trong 15 phút tiếp theo trước khi nâng mức xử lý.",
         en: "Observe the SpO₂ trend for the next 15 minutes before escalating.",
       },
     ],
@@ -256,16 +256,16 @@ export const dashboardIssues: DashboardIssue[] = [
       en: "Heart rate monitoring protocol",
     },
     protocolSummary: {
-      vi: "Giữ nhịp tim trong bối cảnh SpO₂ và trạng thái nghỉ ngơi, tránh đánh giá đơn lẻ chỉ dựa trên một điểm đo.",
+      vi: "Giữ nhịp tim trong bối cảnh oxy máu và trạng thái nghỉ ngơi, tránh đánh giá đơn lẻ chỉ dựa trên một điểm đo.",
       en: "Interpret heart rate alongside SpO₂ and resting state instead of relying on a single isolated reading.",
     },
     protocolSteps: [
       {
-        vi: "So sánh nhịp tim hiện tại với baseline trong 15 phút gần đây.",
+        vi: "So sánh nhịp tim hiện tại với mức cơ sở trong 15 phút gần đây.",
         en: "Compare the current heart rate with the recent 15-minute baseline.",
       },
       {
-        vi: "Đối chiếu nhịp tim với SpO₂ và triệu chứng gần đây.",
+        vi: "Đối chiếu nhịp tim với oxy máu và triệu chứng gần đây.",
         en: "Cross-check heart rate with SpO₂ and recent symptoms.",
       },
       {
@@ -273,7 +273,7 @@ export const dashboardIssues: DashboardIssue[] = [
         en: "Continue monitoring if no accompanying warning signs are present.",
       },
     ],
-    metricKeys: ["heart_rate", "hrv_rmssd"],
+    metricKeys: ["heart_rate", "respiratory_rate"],
     evidenceIndices: [2],
   },
 ];

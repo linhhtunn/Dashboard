@@ -1,323 +1,316 @@
 "use client";
 
+import { ArrowLeft, BellRing, MapPin, UserRound } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AlertItem } from "@/components/alerts";
-import { AgentInsightCard } from "@/components/agent/AgentInsightCard";
-import { PanelCard } from "@/components/common/PanelCard";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import type { SidebarHistoryItem } from "@/components/dashboard/DashboardExperience";
-import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
-import { PatientSummaryHeader } from "@/components/dashboard/PatientSummaryHeader";
+import { ClinicalShell } from "@/components/clinical/ClinicalShell";
+import { PatientAIChatPanel } from "@/components/clinical/PatientAIChatPanel";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { MetricCard, TimeRangeSelector } from "@/components/vitals";
-import { fetchAgentSummary } from "@/lib/ai/chat-client";
-import type { AgentInsightPayload } from "@/lib/ai/types";
-import { getConditionLabel, getSymptomLabel, localizeText } from "@/lib/i18n";
+import {
+  BloodPressureCard,
+  MetricCard,
+  TimeRangeSelector,
+} from "@/components/vitals";
+import { getGenderLabel, getPatientStatusLabel, getWardLabel } from "@/lib/i18n";
+import { normalizePatientId } from "@/lib/patient-id";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
 import type { Alert, MetricSummary, Patient, VitalSignalSample } from "@/types";
 
-type SummaryState = {
-  requestKey: string | null;
-  payload: AgentInsightPayload | null;
-  error: string | null;
-};
+const PATIENT_RECORD_REFRESH_MS = 15000;
+const PATIENT_CHART_HEIGHT = 210;
 
 export default function PatientDetailPage() {
   const { locale } = useLocale();
   const params = useParams<{ patientId: string }>();
-  const patientId = params.patientId;
+  const patientId = normalizePatientId(params.patientId);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [vitals, setVitals] = useState<VitalSignalSample[]>([]);
   const [summaries, setSummaries] = useState<MetricSummary[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loadingRecord, setLoadingRecord] = useState(true);
-  const [recordError, setRecordError] = useState<string | null>(null);
-  const [summaryState, setSummaryState] = useState<SummaryState>({
-    requestKey: null,
-    payload: null,
-    error: null,
-  });
-
-  const requestKey = patient ? `${patient.id}:${locale}` : null;
+  const [range, setRange] = useState("24h");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoadingRecord(true);
+    let intervalId: number | null = null;
 
-    void Promise.all([
-      patientRepository.findById(patientId),
-      vitalRepository.listByPatient(patientId),
-      vitalRepository.listMetricSummaries(patientId),
-      alertRepository.listByPatient(patientId),
-    ])
-      .then(([nextPatient, nextVitals, nextSummaries, nextAlerts]) => {
+    const load = async () => {
+      try {
+        const nextPatient = await patientRepository.findById(patientId);
         if (cancelled) return;
+
         setPatient(nextPatient);
-        setVitals(nextVitals);
-        setSummaries(nextSummaries);
-        setAlerts(nextAlerts);
-        setRecordError(null);
-      })
-      .catch((error: unknown) => {
+        if (!nextPatient) {
+          setError(
+            locale === "vi"
+              ? "Không tìm thấy bệnh nhân với mã hồ sơ này."
+              : "No patient matches this record ID.",
+          );
+          return;
+        }
+
+        const [snapshotResult, alertsResult] = await Promise.allSettled([
+          vitalRepository.getSnapshot(patientId, range),
+          alertRepository.listByPatient(patientId),
+        ]);
         if (cancelled) return;
-        setRecordError(
-          error instanceof Error
-            ? error.message
+
+        const loadErrors: string[] = [];
+        if (snapshotResult.status === "fulfilled") {
+          setVitals(snapshotResult.value.samples);
+          setSummaries(snapshotResult.value.metricSummaries);
+        } else {
+          loadErrors.push(
+            locale === "vi"
+              ? "Không thể tải dữ liệu sinh tồn."
+              : "Unable to load vital signs.",
+          );
+        }
+
+        if (alertsResult.status === "fulfilled") {
+          setAlerts(alertsResult.value);
+        } else {
+          loadErrors.push(
+            locale === "vi"
+              ? "Không thể tải lịch sử cảnh báo."
+              : "Unable to load alert history.",
+          );
+        }
+
+        setError(loadErrors.length ? loadErrors.join(" ") : null);
+      } catch (nextError: unknown) {
+        if (cancelled) return;
+        setError(
+          nextError instanceof Error
+            ? nextError.message
             : locale === "vi"
               ? "Không thể tải hồ sơ bệnh nhân."
-              : "Unable to load patient record.",
+              : "Unable to load the patient record.",
         );
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingRecord(false);
-      });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
 
+    void load();
+    intervalId = window.setInterval(() => void load(), PATIENT_RECORD_REFRESH_MS);
     return () => {
       cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
     };
-  }, [locale, patientId]);
+  }, [locale, patientId, range]);
 
-  useEffect(() => {
-    if (!patient || !requestKey) return;
-
-    let cancelled = false;
-
-    void fetchAgentSummary({ patientId: patient.id, locale })
-      .then((payload) => {
-        if (cancelled) return;
-        setSummaryState({ requestKey, payload, error: null });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setSummaryState({
-          requestKey,
-          payload: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : locale === "vi"
-                ? "Không thể tải tóm tắt từ backend AI."
-                : "Unable to load the AI summary.",
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [locale, patient, requestKey]);
-
-  const summaryLoading = Boolean(requestKey) && summaryState.requestKey !== requestKey;
-  const agentSummary =
-    summaryState.requestKey === requestKey ? summaryState.payload : null;
-  const summaryError =
-    summaryState.requestKey === requestKey ? summaryState.error : null;
-
-  const historyItems: SidebarHistoryItem[] = useMemo(
-    () => [
-      {
-        id: "patient-history-1",
-        title: locale === "vi" ? "Xem lại diễn tiến SpO₂" : "Review SpO₂ trend",
-        timestamp: "09:10",
-        issue: locale === "vi" ? "SpO₂ thấp" : "Low SpO₂",
-      },
-      {
-        id: "patient-history-2",
-        title:
-          locale === "vi"
-            ? "Đánh giá chỉ số 15 phút gần nhất"
-            : "Assess the latest 15-minute metrics",
-        timestamp: "08:35",
-        issue: locale === "vi" ? "Nhịp tim" : "Heart rate",
-      },
-      {
-        id: "patient-history-3",
-        title: locale === "vi" ? "Rà soát cảnh báo đang mở" : "Review open alerts",
-        timestamp: locale === "vi" ? "Hôm qua" : "Yesterday",
-        issue: locale === "vi" ? "Cảnh báo" : "Alerts",
-      },
-    ],
-    [locale],
-  );
-
-  if (!patient) {
+  if (loading && !patient) {
     return (
-      <DashboardShell
-        activeNav="patients"
-        historyItems={historyItems}
-        onCreateNewChat={() => undefined}
-        topBar={<DashboardTopBar />}
-        leftPanel={
-          <section className="flex h-full items-center justify-center px-4 py-4">
-            <div className="dashboard-surface rounded-[1.25rem] px-5 py-6 text-center">
-              <h1 className="text-[1.55rem] font-semibold text-[color:var(--cs-heading)]">
-                {locale === "vi" ? "Không tìm thấy hồ sơ bệnh nhân" : "Patient record not found"}
-              </h1>
-              <p className="mt-2 text-[13px] text-[color:var(--cs-text-soft)]">
-                {loadingRecord
-                  ? locale === "vi"
-                    ? "Đang tải hồ sơ bệnh nhân..."
-                    : "Loading patient record..."
-                  : recordError
-                    ? recordError
-                    : locale === "vi"
-                      ? `Mã hồ sơ ${patientId} hiện chưa có trong backend.`
-                      : `Record ID ${patientId} is not available in the backend.`}
-              </p>
-            </div>
-          </section>
-        }
-        rightPanel={null}
-      />
+      <ClinicalShell>
+        <div className="flex min-h-[70dvh] items-center justify-center text-[13px] text-[color:var(--cs-text-soft)]">
+          {locale === "vi" ? "Đang tải hồ sơ bệnh nhân..." : "Loading patient record..."}
+        </div>
+      </ClinicalShell>
     );
   }
 
+  if (!patient) {
+    return (
+      <ClinicalShell>
+        <div className="dashboard-surface mx-auto mt-12 max-w-xl rounded-[1.2rem] p-6 text-center">
+          <h1 className="text-[1.2rem] font-semibold text-[color:var(--cs-heading)]">
+            {locale === "vi" ? "Không tìm thấy hồ sơ bệnh nhân" : "Patient record not found"}
+          </h1>
+          <p className="mt-2 text-[13px] text-[color:var(--cs-text-soft)]">{error}</p>
+          <Link href="/patients" className="mt-4 inline-flex h-10 items-center rounded-[0.7rem] bg-[color:var(--cs-primary)] px-4 text-[12px] font-semibold text-white">
+            {locale === "vi" ? "Quay lại danh sách" : "Back to patient list"}
+          </Link>
+        </div>
+      </ClinicalShell>
+    );
+  }
+
+  const openAlerts = alerts.filter((alert) => !alert.acknowledged);
+  const systolicSummary = summaries.find(
+    (summary) => summary.metric === "systolic_bp",
+  );
+  const diastolicSummary = summaries.find(
+    (summary) => summary.metric === "diastolic_bp",
+  );
+  const heartRateSummary = summaries.find(
+    (summary) => summary.metric === "heart_rate",
+  );
+  const respiratoryRateSummary = summaries.find(
+    (summary) => summary.metric === "respiratory_rate",
+  );
+  const spo2Summary = summaries.find(
+    (summary) => summary.metric === "spo2",
+  );
+
   return (
-    <DashboardShell
-      activeNav="patients"
-      historyItems={historyItems}
-      onCreateNewChat={() => undefined}
-      topBar={<DashboardTopBar />}
-      leftPanel={
-        <section className="dashboard-scroll-area h-full overflow-y-auto px-2.5 py-2.5">
-          <div className="mx-auto max-w-[1800px] space-y-4">
-            <PatientSummaryHeader patient={patient} />
+    <ClinicalShell
+      viewportLocked
+      actions={
+        <Link
+          href="/patients"
+          className="inline-flex h-9 items-center gap-2 rounded-[0.7rem] border border-[color:var(--cs-border)] bg-white/78 px-3 text-[12px] font-semibold text-[color:var(--cs-primary)]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {locale === "vi" ? "Danh sách bệnh nhân" : "Patient list"}
+        </Link>
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col lg:h-full">
+        <PatientHeader patient={patient} alertCount={openAlerts.length} />
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(300px,0.88fr)]">
-              <PanelCard className="px-4 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-[color:var(--cs-teal)]">
-                      {locale === "vi" ? "Chỉ số sinh tồn" : "Vital signs"}
-                    </p>
-                    <h2 className="mt-1.5 text-[1.25rem] font-semibold text-[color:var(--cs-heading)]">
-                      {locale === "vi"
-                        ? "Theo dõi 15 phút gần nhất"
-                        : "Latest 15-minute monitoring"}
-                    </h2>
-                  </div>
-                  <TimeRangeSelector />
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {summaries.map((summary) => (
-                    <MetricCard key={summary.metric} summary={summary} vitals={vitals} />
-                  ))}
-                </div>
-              </PanelCard>
-
-              <div className="space-y-4">
-                <AgentInsightCard
-                  title={locale === "vi" ? "Tóm tắt từ AI" : "AI summary"}
-                  payload={agentSummary}
-                  loading={summaryLoading}
-                  error={summaryError}
-                  emptyCopy={{
-                    vi: "Chưa có tóm tắt từ backend AI cho bệnh nhân này.",
-                    en: "No AI summary is available for this patient yet.",
-                  }}
-                />
-
-                <PanelCard className="px-4 py-4">
-                  <p className="text-sm font-medium text-[color:var(--cs-teal)]">
-                    {locale === "vi" ? "Bối cảnh bệnh nhân" : "Patient context"}
+        <div className="mt-2 grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(330px,1fr)]">
+          <div className="grid min-h-0 min-w-0 gap-2 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] xl:min-h-0">
+            <section className="dashboard-surface flex min-h-0 flex-col rounded-[1.15rem] p-2">
+              <div className="flex shrink-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[7px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
+                    {locale === "vi" ? "Biểu đồ sinh tồn" : "Vital charts"}
                   </p>
-
-                  <div className="mt-3 space-y-3 text-[13px] text-[color:var(--cs-text)]">
-                    <div>
-                      <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi" ? "Bệnh nền" : "Underlying conditions"}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {patient.underlyingConditionCodes.map((code) => (
-                          <span key={code} className="rounded-full bg-white/72 px-2.5 py-1">
-                            {getConditionLabel(code, locale)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi" ? "Triệu chứng gần đây" : "Recent symptoms"}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {patient.recentSymptomCodes.length > 0 ? (
-                          patient.recentSymptomCodes.map((code) => (
-                            <span key={code} className="rounded-full bg-white/72 px-2.5 py-1">
-                              {getSymptomLabel(code, locale)}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="rounded-full bg-white/72 px-2.5 py-1">
-                            {locale === "vi"
-                              ? "Chưa ghi nhận triệu chứng mới"
-                              : "No newly recorded symptoms"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-[color:var(--cs-heading)]">
-                        {locale === "vi" ? "Liều thuốc tiếp theo" : "Next medication dose"}
-                      </p>
-                      <div className="mt-1.5 space-y-1.5">
-                        {patient.medicationCycle.length > 0 ? (
-                          patient.medicationCycle.map((medication) => (
-                            <div
-                              key={`${localizeText(medication.medication, locale)}-${medication.nextDoseAt ?? "none"}`}
-                              className="rounded-[0.9rem] bg-white/72 px-3.5 py-2.5"
-                            >
-                              <p className="font-medium text-[color:var(--cs-heading)]">
-                                {localizeText(medication.medication, locale)} · {medication.dosage}
-                              </p>
-                              <p className="mt-0.5 text-[12px] text-[color:var(--cs-text-soft)]">
-                                {localizeText(medication.schedule, locale)}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="rounded-[0.9rem] bg-white/72 px-3.5 py-2.5 text-[12px] text-[color:var(--cs-text-soft)]">
-                            {locale === "vi"
-                              ? "Chưa có lịch dùng thuốc tiếp theo."
-                              : "No upcoming medication schedule."}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </PanelCard>
-
-                <PanelCard className="px-4 py-4">
-                  <p className="text-sm font-medium text-[color:var(--cs-teal)]">
-                    {locale === "vi" ? "Cảnh báo theo dõi" : "Monitoring alerts"}
-                  </p>
-                  <h2 className="mt-1.5 text-[1.25rem] font-semibold text-[color:var(--cs-heading)]">
-                    {locale === "vi" ? "Danh sách cảnh báo đang hoạt động" : "Active alert list"}
+                  <h2 className="text-[10px] font-semibold text-[color:var(--cs-heading)]">
+                    {locale === "vi" ? "Diễn biến chỉ số sinh tồn" : "Vital-sign trends"}
                   </h2>
-
-                  <div className="mt-4 space-y-2.5">
-                    {alerts.length > 0 ? (
-                      alerts.map((alert) => <AlertItem key={alert.id} alert={alert} />)
-                    ) : (
-                      <div className="rounded-[1rem] bg-white/72 px-4 py-4 text-[13px] text-[color:var(--cs-text-soft)]">
-                        {locale === "vi"
-                          ? "Chưa có cảnh báo nào đang mở cho bệnh nhân này."
-                          : "There are no open alerts for this patient."}
-                      </div>
-                    )}
-                  </div>
-                </PanelCard>
+                </div>
+                <TimeRangeSelector value={range} onChange={setRange} />
               </div>
+
+              {error ? (
+                <p className="mt-2 shrink-0 rounded-[0.8rem] bg-[color:rgba(229,72,77,0.08)] px-2 py-1.5 text-[8px] text-[color:var(--cs-danger)]">
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="mt-1.5 grid min-h-0 flex-1 gap-1.5 md:grid-cols-2 md:grid-rows-2">
+                {heartRateSummary ? (
+                  <MetricCard
+                    compact
+                    summary={heartRateSummary}
+                    vitals={vitals}
+                    chartHeight={PATIENT_CHART_HEIGHT}
+                  />
+                ) : null}
+                {systolicSummary && diastolicSummary ? (
+                  <BloodPressureCard
+                    compact
+                    systolicSummary={systolicSummary}
+                    diastolicSummary={diastolicSummary}
+                    vitals={vitals}
+                    chartHeight={PATIENT_CHART_HEIGHT}
+                  />
+                ) : null}
+                {spo2Summary ? (
+                  <MetricCard
+                    compact
+                    summary={spo2Summary}
+                    vitals={vitals}
+                    chartHeight={PATIENT_CHART_HEIGHT}
+                  />
+                ) : null}
+                {respiratoryRateSummary ? (
+                  <MetricCard
+                    compact
+                    summary={respiratoryRateSummary}
+                    vitals={vitals}
+                    chartHeight={PATIENT_CHART_HEIGHT}
+                  />
+                ) : null}
+              </div>
+            </section>
+
+            <section className="dashboard-surface flex min-h-0 flex-col rounded-[1.15rem] p-2">
+              <div className="flex shrink-0 items-center justify-between gap-2">
+                <div>
+                  <p className="text-[7px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
+                    {locale === "vi" ? "Lịch sử cảnh báo" : "Alert history"}
+                  </p>
+                  <h2 className="text-[9px] font-semibold text-[color:var(--cs-heading)]">
+                    {locale === "vi" ? "Cảnh báo gần đây" : "Recent alerts"}
+                  </h2>
+                </div>
+                <span className="rounded-full bg-[color:rgba(229,72,77,0.08)] px-2 py-0.5 text-[8px] font-semibold text-[color:var(--cs-danger)]">
+                  {openAlerts.length} {locale === "vi" ? "chưa xử lý" : "unresolved"}
+                </span>
+              </div>
+              <div className="dashboard-scroll-area mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                {alerts.length ? (
+                  alerts.map((alert) => (
+                    <AlertItem key={alert.id} alert={alert} compact />
+                  ))
+                ) : (
+                  <p className="rounded-[0.8rem] bg-white/64 px-2 py-3 text-[9px] text-[color:var(--cs-text-soft)]">
+                    {locale === "vi" ? "Chưa có cảnh báo cho bệnh nhân này." : "No alerts for this patient."}
+                  </p>
+                )}
+              </div>
+            </section>
+          </div>
+
+          <PatientAIChatPanel patient={patient} compact />
+        </div>
+      </div>
+    </ClinicalShell>
+  );
+}
+
+function PatientHeader({ patient, alertCount }: { patient: Patient; alertCount: number }) {
+  const { locale } = useLocale();
+  const status =
+    patient.status === "critical"
+      ? {
+          label: getPatientStatusLabel(patient.status, locale),
+          classes:
+            "border-[color:rgba(229,72,77,0.22)] bg-[color:rgba(229,72,77,0.1)] text-[color:var(--cs-danger)]",
+        }
+      : patient.status === "healthy"
+        ? {
+            label: getPatientStatusLabel(patient.status, locale),
+            classes:
+              "border-[color:rgba(0,150,136,0.22)] bg-[color:rgba(0,150,136,0.1)] text-[color:var(--cs-teal)]",
+          }
+        : {
+            label: getPatientStatusLabel(patient.status, locale),
+            classes:
+              "border-[color:rgba(245,179,0,0.28)] bg-[color:rgba(245,179,0,0.12)] text-[color:#8a6100]",
+          };
+
+  return (
+    <section className="dashboard-surface shrink-0 rounded-[1.15rem] px-3 py-2.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.1),rgba(142,211,230,0.34))] text-[color:var(--cs-primary)]">
+            <UserRound className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-[1.05rem] font-semibold text-[color:var(--cs-heading)]">{patient.name}</h1>
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[color:var(--cs-text-soft)]">
+              <span>{locale === "vi" ? "Mã hồ sơ" : "MRN"} {patient.mrn}</span>
+              <span>{patient.age} {locale === "vi" ? "tuổi" : "years"}</span>
+              <span>{getGenderLabel(patient.gender, locale)}</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {getWardLabel(patient, locale)} {patient.bed ? `· ${patient.bed}` : ""}
+              </span>
             </div>
           </div>
-        </section>
-      }
-      rightPanel={null}
-    />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={["rounded-full border px-3 py-1 text-[11px] font-semibold", status.classes].join(" ")}>
+            {status.label}
+          </span>
+          {alertCount ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:rgba(229,72,77,0.08)] px-3 py-1 text-[11px] font-semibold text-[color:var(--cs-danger)]">
+              <BellRing className="h-3.5 w-3.5" />
+              {alertCount} {locale === "vi" ? "cảnh báo chưa xử lý" : "unresolved alerts"}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }

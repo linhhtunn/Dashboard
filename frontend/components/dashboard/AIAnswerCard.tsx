@@ -118,7 +118,7 @@ export function AIAnswerCard({
                 </span>
                 {active ? (
                   <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-[color:var(--cs-primary)]">
-                    {locale === "vi" ? "Đang mở" : "Open"}
+                    {locale === "vi" ? "Mở phác đồ" : "Open"}
                   </span>
                 ) : null}
               </button>
