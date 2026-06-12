@@ -174,6 +174,42 @@ export interface Evidence {
   noteKey?: string;
 }
 
+export type AlertWorkflowStatus =
+  | "open"
+  | "nurse_treated"
+  | "needs_follow_up"
+  | "noise"
+  | "doctor_confirmed";
+
+export type OperatorRole = "coordinator" | "floor_nurse" | "doctor";
+
+export interface AlertTreatmentRecord {
+  symptomsBefore: string;
+  actionTaken: string;
+  symptomsAfter: string;
+  outcome: "completed" | "needs_follow_up";
+  floorNurseId: string;
+  floorNurseName: string;
+  zoneCode: string;
+  followUpNote?: string;
+  recordedById: string;
+  recordedByName: string;
+  recordedAt: ISODateString;
+  doctorConclusion?: string;
+  doctorConfirmedAt?: ISODateString;
+}
+
+export interface AlertActionLogEntry {
+  id: string;
+  alertId: string;
+  action: "nurse_treat" | "mark_noise" | "needs_follow_up" | "doctor_confirm";
+  actorId: string;
+  actorName: string;
+  actorRole: OperatorRole;
+  payload: Record<string, unknown>;
+  createdAt: ISODateString;
+}
+
 export interface Alert {
   id: string;
   patientId: string;
@@ -183,6 +219,42 @@ export interface Alert {
   evidence: Evidence[];
   timestamp: ISODateString;
   acknowledged: boolean;
+  workflowStatus: AlertWorkflowStatus;
+  assignedFloorNurseId?: string;
+  assignedZoneCode?: string;
+  noiseNote?: string;
+  treatment?: AlertTreatmentRecord;
+}
+
+export type ShiftStaffRole = "coordinator" | "floor_nurse" | "doctor";
+
+export type ShiftStaffStatus = "active" | "break" | "off";
+
+export interface ShiftStaffMember {
+  id: string;
+  name: string;
+  role: ShiftStaffRole;
+  zoneCode: string;
+  status: ShiftStaffStatus;
+}
+
+export type ShiftBand = "morning" | "afternoon" | "night";
+
+export interface ShiftScheduleSlot {
+  id: string;
+  staffId: string;
+  date: string;
+  band: ShiftBand;
+  zoneCode: string;
+}
+
+export interface Shift {
+  id: string;
+  wardCode: string;
+  wardLabel: LocalizedString;
+  startedAt: ISODateString;
+  coordinatorId: string;
+  staff: ShiftStaffMember[];
 }
 
 export interface AISummary {

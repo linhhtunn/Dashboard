@@ -1,4 +1,9 @@
-import { mockAlerts, mockPatients, mockVitals } from "@/lib/mock";
+import { enrichAlertDto } from "@/lib/mock/alert-workflow-store";
+import {
+  getAlerts,
+  getPatients,
+  getVitals,
+} from "@/lib/server/clinical-store";
 import { normalizePatientId } from "@/lib/patient-id";
 import type { Alert, Evidence, MetricSummary, Patient, VitalSignalSample } from "@/types";
 
@@ -113,7 +118,7 @@ function mapVitalDto(vital: VitalSignalSample): MockVitalDto {
 }
 
 function getLatestVital(patientId: string): MockVitalDto | null {
-  const latest = mockVitals
+  const latest = getVitals()
     .filter((item) => normalizePatientId(item.patientId) === patientId)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
 
@@ -121,7 +126,7 @@ function getLatestVital(patientId: string): MockVitalDto | null {
 }
 
 function getPatientVitals(patientId: string): VitalSignalSample[] {
-  return mockVitals
+  return getVitals()
     .filter((item) => normalizePatientId(item.patientId) === patientId)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 }
@@ -214,7 +219,7 @@ function mapAlertDto(alert: Alert): MockAlertDto {
 }
 
 export function listMockAlerts(): MockAlertDto[] {
-  return [...mockAlerts]
+  return [...getAlerts()]
     .map(mapAlertDto)
     .sort(
       (left, right) =>
@@ -229,7 +234,7 @@ export function listMockPatientItems(params?: {
   const query = params?.query?.trim().toLowerCase() ?? "";
   const status = params?.status?.trim().toLowerCase() ?? "";
 
-  return mockPatients
+  return getPatients()
     .filter((patient) => {
       if (query) {
         const values = [patient.id, patient.mrn, patient.name].map((value) => value.toLowerCase());
@@ -249,16 +254,21 @@ export function listMockPatientItems(params?: {
       return {
         patient: mapPatientDto(patient),
         latest_vital: getLatestVital(normalizedPatientId),
-        open_alert_count: mockAlerts.filter(
-          (alert) => normalizePatientId(alert.patientId) === normalizedPatientId && !alert.acknowledged,
-        ).length,
+        open_alert_count: getAlerts().filter((alert) => {
+          if (normalizePatientId(alert.patientId) !== normalizedPatientId) return false;
+          const workflow = enrichAlertDto({
+            id: alert.id,
+            patient_id: normalizedPatientId,
+          }).workflow_status;
+          return workflow !== "doctor_confirmed";
+        }).length,
       };
     });
 }
 
 export function getMockPatientById(patientId: string): MockPatientDto | null {
   const normalizedPatientId = normalizePatientId(patientId);
-  const patient = mockPatients.find(
+  const patient = getPatients().find(
     (item) => normalizePatientId(item.id) === normalizedPatientId,
   );
   return patient ? mapPatientDto(patient) : null;

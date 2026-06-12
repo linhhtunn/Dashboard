@@ -1,8 +1,13 @@
 import { getPatientStatusLabel } from "@/lib/i18n";
-import type { Alert, AlertSeverity, Patient, PatientStatus } from "@/types";
+import type { Alert, AlertSeverity, AlertWorkflowStatus, Patient, PatientStatus } from "@/types";
 
-export type AlertStatus = "open" | "review" | "resolved";
-export type AlertStatusFilter = "all" | AlertStatus;
+export type AlertStatusFilter =
+  | "all"
+  | "open"
+  | "pending_doctor"
+  | "needs_follow_up"
+  | "noise"
+  | "resolved";
 export type SeverityBucket = "critical" | "warning";
 export type PatientSeverityFilter = "all" | PatientStatus;
 
@@ -27,13 +32,22 @@ export const defaultAlertZoneFilters: AlertZoneFilters = {
   status: "all",
 };
 
-export function getAlertStatus(
-  alert: Alert,
-  resolvedIds: string[],
-): AlertStatus {
-  if (resolvedIds.includes(alert.id)) return "resolved";
-  if (alert.acknowledged) return "review";
-  return "open";
+export function getWorkflowFilterBucket(
+  workflowStatus: AlertWorkflowStatus,
+): Exclude<AlertStatusFilter, "all"> {
+  switch (workflowStatus) {
+    case "doctor_confirmed":
+      return "resolved";
+    case "nurse_treated":
+      return "pending_doctor";
+    case "noise":
+      return "noise";
+    case "needs_follow_up":
+      return "needs_follow_up";
+    case "open":
+    default:
+      return "open";
+  }
 }
 
 export function matchesSeverityBucket(
@@ -49,14 +63,13 @@ export function filterAlertsByZone(
   bucket: SeverityBucket,
   filters: AlertZoneFilters,
   patients: Record<string, Patient>,
-  resolvedIds: string[],
   locale: "vi" | "en",
 ): Alert[] {
   return alerts.filter((alert) => {
     if (!matchesSeverityBucket(alert.severity, bucket)) return false;
 
     const patient = patients[alert.patientId];
-    const currentStatus = getAlertStatus(alert, resolvedIds);
+    const currentStatus = getWorkflowFilterBucket(alert.workflowStatus);
 
     if (filters.status !== "all" && filters.status !== currentStatus) {
       return false;
@@ -83,4 +96,8 @@ export function filterAlertsByZone(
 
     return true;
   });
+}
+
+export function isAwaitingDoctor(alert: Alert): boolean {
+  return ["nurse_treated", "noise", "needs_follow_up"].includes(alert.workflowStatus);
 }

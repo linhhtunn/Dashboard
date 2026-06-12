@@ -1,5 +1,5 @@
 import type { MetricSummary, VitalSignalSample } from "@/types";
-import { getApiErrorMessage } from "@/lib/api-response";
+import { clinicalApiGet } from "@/lib/api/client";
 import { normalizePatientId } from "@/lib/patient-id";
 
 type VitalDto = {
@@ -57,13 +57,9 @@ function mapSummary(dto: MetricSummaryDto): MetricSummary {
 
 async function fetchVitalsPayload(patientId: string, range = "15m") {
   const normalizedPatientId = normalizePatientId(patientId);
-  const response = await fetch(`/api/patients/${normalizedPatientId}/vitals?range=${range}`, {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(await getApiErrorMessage(response, "Unable to load patient vitals"));
-  }
-  return (await response.json()) as PatientVitalsDto;
+  return clinicalApiGet<PatientVitalsDto>(
+    `/api/patients/${normalizedPatientId}/vitals?range=${range}`,
+  );
 }
 
 export const vitalRepository = {

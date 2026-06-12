@@ -1,51 +1,55 @@
 "use client";
 
-import { Check, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, ClipboardCheck, Sparkles, Stethoscope } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { getAlertSeverityPresentation } from "@/lib/alert-severity";
-import { getAlertStatus } from "@/lib/alerts-filters";
+import { getWorkflowFilterBucket, isAwaitingDoctor } from "@/lib/alerts-filters";
 import {
   formatAlertTimestamp,
   getAlertTypeLabel,
   getMetricLabel,
 } from "@/lib/i18n";
-import type { Alert, Patient } from "@/types";
+import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
+import { getZoneLabel } from "@/lib/staff-ui";
+import type { Alert, OperatorRole, Patient } from "@/types";
 
 type AlertHistoryRowProps = {
   alert: Alert;
   patient?: Patient;
-  resolvedIds: string[];
-  onResolve: () => void;
+  operatorRole: OperatorRole;
+  onTreat: () => void;
+  onDoctorConfirm: () => void;
   onAskAI: () => void;
 };
 
 export function AlertHistoryRow({
   alert,
   patient,
-  resolvedIds,
-  onResolve,
+  operatorRole,
+  onTreat,
+  onDoctorConfirm,
   onAskAI,
 }: AlertHistoryRowProps) {
   const { locale } = useLocale();
+  const ui = useClinicalUi();
   const severity = getAlertSeverityPresentation(alert.severity);
   const evidence = alert.evidence.find((item) => item.value !== undefined);
-  const resolved = resolvedIds.includes(alert.id);
-  const status = getAlertStatus(alert, resolvedIds);
-
-  const stateLabel =
-    status === "resolved"
-      ? locale === "vi"
-        ? "Đã xử lý"
-        : "Resolved"
-      : status === "review"
-        ? locale === "vi"
-          ? "Cần xem lại"
-          : "Review"
-        : locale === "vi"
-          ? "Chưa xử lý"
-          : "Open";
+  const workflowBucket = getWorkflowFilterBucket(alert.workflowStatus);
+  const workflowLabels = {
+    open: ui.workflow.open,
+    pending_doctor: ui.workflow.pendingDoctor,
+    needs_follow_up: ui.workflow.followUp,
+    noise: ui.workflow.noise,
+    resolved: ui.workflow.resolved,
+  } as const;
+  const stateLabel = workflowLabels[workflowBucket];
+  const resolved = alert.workflowStatus === "doctor_confirmed";
+  const canTreat =
+    operatorRole === "coordinator" && alert.workflowStatus === "open";
+  const canDoctorConfirm =
+    operatorRole === "doctor" && isAwaitingDoctor(alert);
 
   return (
     <article
@@ -83,13 +87,16 @@ export function AlertHistoryRow({
             <span className="text-[11px] text-[color:var(--cs-text-soft)]">
               · {getAlertTypeLabel(alert.type, locale)}
             </span>
+            {alert.assignedZoneCode ? (
+              <span className="rounded-full bg-white/60 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--cs-text-soft)]">
+                {getZoneLabel(alert.assignedZoneCode, locale)}
+              </span>
+            ) : null}
           </div>
           <p className="mt-0.5 text-[11px] leading-4 text-[color:var(--cs-text)]">
             {evidence?.metric
               ? `${getMetricLabel(evidence.metric, locale)} ${evidence.value}${evidence.unit ?? ""}`
-              : locale === "vi"
-                ? "Tín hiệu cần xác nhận lâm sàng."
-                : "Signal requires clinical confirmation."}
+              : ui.common.clinicalSignalFallback}
           </p>
         </div>
 
@@ -100,30 +107,40 @@ export function AlertHistoryRow({
             className="dashboard-input inline-flex h-8 items-center gap-1 rounded-[0.6rem] px-2.5 text-[10px] font-semibold text-[color:var(--cs-primary)]"
           >
             <Sparkles className="h-3 w-3" />
-            {locale === "vi" ? "Hỏi AI" : "Ask AI"}
+            {ui.alerts.askAi}
           </button>
           <Link
             href={`/patients/${alert.patientId}`}
             className="dashboard-input inline-flex h-8 items-center gap-1 rounded-[0.6rem] px-2.5 text-[10px] font-semibold text-[color:var(--cs-primary)]"
           >
-            {locale === "vi" ? "Chi tiết" : "Details"}
+            {ui.common.details}
             <ChevronRight className="h-3 w-3" />
           </Link>
-          <button
-            type="button"
-            disabled={resolved}
-            onClick={onResolve}
-            className="inline-flex h-8 items-center gap-1 rounded-[0.6rem] bg-[linear-gradient(135deg,var(--cs-primary),var(--cs-teal))] px-2.5 text-[10px] font-semibold text-white shadow-[0_12px_28px_rgba(13,71,161,0.18)] disabled:opacity-60"
-          >
-            <Check className="h-3 w-3" />
-            {resolved
-              ? locale === "vi"
-                ? "Đã xử lý"
-                : "Resolved"
-              : locale === "vi"
-                ? "Xác nhận"
-                : "Resolve"}
-          </button>
+          {canTreat ? (
+            <button
+              type="button"
+              onClick={onTreat}
+              className="inline-flex h-8 items-center gap-1 rounded-[0.6rem] bg-[linear-gradient(135deg,var(--cs-primary),var(--cs-teal))] px-2.5 text-[10px] font-semibold text-white shadow-[0_12px_28px_rgba(13,71,161,0.18)]"
+            >
+              <ClipboardCheck className="h-3 w-3" />
+              {ui.alerts.recordTreatment}
+            </button>
+          ) : null}
+          {canDoctorConfirm ? (
+            <button
+              type="button"
+              onClick={onDoctorConfirm}
+              className="inline-flex h-8 items-center gap-1 rounded-[0.6rem] bg-[linear-gradient(135deg,#8a6100,var(--cs-primary))] px-2.5 text-[10px] font-semibold text-white"
+            >
+              <Stethoscope className="h-3 w-3" />
+              {ui.alerts.doctorConfirm}
+            </button>
+          ) : null}
+          {resolved ? (
+            <span className="inline-flex h-8 items-center rounded-[0.6rem] bg-white/60 px-2.5 text-[10px] font-semibold text-[color:var(--cs-text-soft)]">
+              {ui.alerts.resolved}
+            </span>
+          ) : null}
         </div>
       </div>
     </article>

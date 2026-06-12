@@ -65,9 +65,7 @@ export function PatientCard({ item }: PatientCardProps) {
     >
       <div className="grid gap-3 xl:grid-cols-[minmax(230px,1.05fr)_minmax(420px,1.8fr)_minmax(210px,0.9fr)_24px] xl:items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/65 bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(142,211,230,0.34))] text-[12px] font-bold text-[color:var(--cs-primary)] shadow-[0_10px_22px_rgba(13,71,161,0.08)]">
-            {initials}
-          </span>
+          <PatientListAvatar initials={initials} hasOpenAlert={openAlertCount > 0} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="truncate text-[14px] font-semibold text-[color:var(--cs-heading)]">
@@ -139,6 +137,35 @@ export function PatientCard({ item }: PatientCardProps) {
         <ArrowRight className="hidden h-4 w-4 text-[color:var(--cs-primary)] transition group-hover:translate-x-0.5 xl:block" />
       </div>
     </Link>
+  );
+}
+
+function PatientListAvatar({
+  initials,
+  hasOpenAlert,
+}: {
+  initials: string;
+  hasOpenAlert: boolean;
+}) {
+  return (
+    <span className="relative h-10 w-10 shrink-0">
+      {hasOpenAlert ? (
+        <>
+          <span className="alert-pulse-ring" aria-hidden />
+          <span className="alert-pulse-ring alert-pulse-ring--delay" aria-hidden />
+        </>
+      ) : null}
+      <span
+        className={[
+          "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(142,211,230,0.34))] text-[12px] font-bold text-[color:var(--cs-primary)] shadow-[0_10px_22px_rgba(13,71,161,0.08)]",
+          hasOpenAlert
+            ? "border-[color:rgba(229,72,77,0.45)] ring-2 ring-[color:rgba(229,72,77,0.22)]"
+            : "border-white/65",
+        ].join(" ")}
+      >
+        {initials}
+      </span>
+    </span>
   );
 }
 

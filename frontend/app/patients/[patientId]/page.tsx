@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { AlertItem } from "@/components/alerts";
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { PatientAIChatPanel } from "@/components/clinical/PatientAIChatPanel";
+import { PatientClinicalProfilePanel } from "@/components/patients/PatientClinicalProfilePanel";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   BloodPressureCard,
@@ -223,32 +224,38 @@ export default function PatientDetailPage() {
               </div>
             </section>
 
-            <section className="dashboard-surface flex min-h-0 flex-col rounded-[1.15rem] p-2">
-              <div className="flex shrink-0 items-center justify-between gap-2">
-                <div>
-                  <p className="text-[7px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
-                    {locale === "vi" ? "Lịch sử cảnh báo" : "Alert history"}
-                  </p>
-                  <h2 className="text-[9px] font-semibold text-[color:var(--cs-heading)]">
-                    {locale === "vi" ? "Cảnh báo gần đây" : "Recent alerts"}
-                  </h2>
+            <div className="flex min-h-0 flex-col gap-2">
+              <PatientClinicalProfilePanel patient={patient} />
+
+              <section className="dashboard-surface flex min-h-0 flex-1 flex-col rounded-[1.15rem] p-2">
+                <div className="flex shrink-0 items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[7px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
+                      {locale === "vi" ? "Lịch sử cảnh báo" : "Alert history"}
+                    </p>
+                    <h2 className="text-[9px] font-semibold text-[color:var(--cs-heading)]">
+                      {locale === "vi" ? "Cảnh báo gần đây" : "Recent alerts"}
+                    </h2>
+                  </div>
+                  <span className="rounded-full bg-[color:rgba(229,72,77,0.08)] px-2 py-0.5 text-[8px] font-semibold text-[color:var(--cs-danger)]">
+                    {openAlerts.length} {locale === "vi" ? "chưa xử lý" : "unresolved"}
+                  </span>
                 </div>
-                <span className="rounded-full bg-[color:rgba(229,72,77,0.08)] px-2 py-0.5 text-[8px] font-semibold text-[color:var(--cs-danger)]">
-                  {openAlerts.length} {locale === "vi" ? "chưa xử lý" : "unresolved"}
-                </span>
-              </div>
-              <div className="dashboard-scroll-area mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-                {alerts.length ? (
-                  alerts.map((alert) => (
-                    <AlertItem key={alert.id} alert={alert} compact />
-                  ))
-                ) : (
-                  <p className="rounded-[0.8rem] bg-white/64 px-2 py-3 text-[9px] text-[color:var(--cs-text-soft)]">
-                    {locale === "vi" ? "Chưa có cảnh báo cho bệnh nhân này." : "No alerts for this patient."}
-                  </p>
-                )}
-              </div>
-            </section>
+                <div className="dashboard-scroll-area mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                  {alerts.length ? (
+                    alerts.map((alert) => (
+                      <AlertItem key={alert.id} alert={alert} compact />
+                    ))
+                  ) : (
+                    <p className="rounded-[0.8rem] bg-white/64 px-2 py-3 text-[9px] text-[color:var(--cs-text-soft)]">
+                      {locale === "vi"
+                        ? "Chưa có cảnh báo cho bệnh nhân này."
+                        : "No alerts for this patient."}
+                    </p>
+                  )}
+                </div>
+              </section>
+            </div>
           </div>
 
           <PatientAIChatPanel patient={patient} compact />

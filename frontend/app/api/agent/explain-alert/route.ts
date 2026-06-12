@@ -10,13 +10,13 @@ import {
 } from "@/lib/ai/agent-backend";
 import { buildMockExplainAlertPayload } from "@/lib/ai/mock-chat";
 import type { AgentExplainAlertProxyRequest } from "@/lib/ai/types";
-import { mockAlerts } from "@/lib/mock/alerts";
+import { getAlertById } from "@/lib/server/clinical-store";
 import { getMetricLabel } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
 function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
-  const alert = mockAlerts.find((item) => item.id === body.alertId);
+  const alert = getAlertById(body.alertId);
   const evidence = alert?.evidence.find((item) => item.value !== undefined);
 
   return buildMockExplainAlertPayload({

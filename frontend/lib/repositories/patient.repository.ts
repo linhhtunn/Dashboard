@@ -1,6 +1,6 @@
 import type { Patient, VitalSignalSample } from "@/types";
 import type { PatientListItem } from "@/components/patients/patient-card";
-import { getApiErrorMessage } from "@/lib/api-response";
+import { clinicalApiGet } from "@/lib/api/client";
 import { normalizePatientId } from "@/lib/patient-id";
 
 type PatientDto = {
@@ -93,14 +93,9 @@ export const patientRepository = {
     if (params?.query) search.set("query", params.query);
     if (params?.status && params.status !== "all") search.set("status", params.status);
 
-    const response = await fetch(
+    const payload = await clinicalApiGet<PatientListItemDto[]>(
       `/api/patients${search.toString() ? `?${search.toString()}` : ""}`,
-      { cache: "no-store" },
     );
-    if (!response.ok) {
-      throw new Error(await getApiErrorMessage(response, "Unable to load patients"));
-    }
-    const payload = (await response.json()) as PatientListItemDto[];
     return payload.map((item) => ({
       patient: mapPatient(item.patient),
       latestVital: mapVital(item.latest_vital),
@@ -110,12 +105,13 @@ export const patientRepository = {
 
   async findById(patientId: string): Promise<Patient | null> {
     const normalizedPatientId = normalizePatientId(patientId);
-    const response = await fetch(`/api/patients/${normalizedPatientId}`, { cache: "no-store" });
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      throw new Error(await getApiErrorMessage(response, "Unable to load patient"));
+    try {
+      const payload = await clinicalApiGet<PatientDto>(
+        `/api/patients/${normalizedPatientId}`,
+      );
+      return mapPatient(payload);
+    } catch {
+      return null;
     }
-    const payload = (await response.json()) as PatientDto;
-    return mapPatient(payload);
   },
 };

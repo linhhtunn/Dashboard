@@ -21,6 +21,7 @@ type VitalChartProps = {
   data: VitalSignalSample[];
   metric: VitalMetric;
   height?: number;
+  fill?: boolean;
   className?: string;
   baseline?: number;
 };
@@ -112,6 +113,7 @@ export function VitalChart({
   data,
   metric,
   height = 300,
+  fill = false,
   className = "",
   baseline,
 }: VitalChartProps) {
@@ -142,9 +144,10 @@ export function VitalChart({
     <div
       className={[
         "w-full overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm",
+        fill ? "h-full min-h-[72px]" : "",
         className,
       ].join(" ")}
-      style={{ height }}
+      style={fill ? undefined : { height }}
     >
       {!isMounted ? (
         <div className="h-full w-full" />

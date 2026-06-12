@@ -11,17 +11,19 @@ import {
   type SeverityBucket,
 } from "@/lib/alerts-filters";
 import { getPatientStatusLabel } from "@/lib/i18n";
-import type { Alert, Patient } from "@/types";
+import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
+import type { Alert, OperatorRole, Patient } from "@/types";
 
 type AlertZonePanelProps = {
   title: string;
   bucket: SeverityBucket;
   alerts: Alert[];
   patients: Record<string, Patient>;
-  resolvedIds: string[];
+  operatorRole: OperatorRole;
   filters: AlertZoneFilters;
   onFiltersChange: (filters: AlertZoneFilters) => void;
-  onResolve: (alertId: string) => void;
+  onTreat: (alert: Alert) => void;
+  onDoctorConfirm: (alert: Alert) => void;
   onAskAI: (alert: Alert) => void;
 };
 
@@ -30,13 +32,15 @@ export function AlertZonePanel({
   bucket,
   alerts,
   patients,
-  resolvedIds,
+  operatorRole,
   filters,
   onFiltersChange,
-  onResolve,
+  onTreat,
+  onDoctorConfirm,
   onAskAI,
 }: AlertZonePanelProps) {
   const { locale } = useLocale();
+  const ui = useClinicalUi();
 
   const zoneAlerts = alerts.filter((alert) =>
     bucket === "critical"
@@ -49,7 +53,6 @@ export function AlertZonePanel({
     bucket,
     filters,
     patients,
-    resolvedIds,
     locale,
   );
 
@@ -66,10 +69,12 @@ export function AlertZonePanel({
   );
 
   const statusOptions = [
-    { value: "all", label: locale === "vi" ? "Tất cả trạng thái" : "All statuses" },
-    { value: "open", label: locale === "vi" ? "Chưa xử lý" : "Open" },
-    { value: "review", label: locale === "vi" ? "Cần xem lại" : "Review" },
-    { value: "resolved", label: locale === "vi" ? "Đã xử lý" : "Resolved" },
+    { value: "all", label: ui.alerts.filterAllStatus },
+    { value: "open", label: ui.alerts.statusOpen },
+    { value: "pending_doctor", label: ui.alerts.statusPendingDoctor },
+    { value: "needs_follow_up", label: ui.alerts.statusFollowUp },
+    { value: "noise", label: ui.alerts.statusNoise },
+    { value: "resolved", label: ui.alerts.statusResolved },
   ] as const;
 
   return (
@@ -92,11 +97,7 @@ export function AlertZonePanel({
               onChange={(event) =>
                 onFiltersChange({ ...filters, query: event.target.value })
               }
-              placeholder={
-                locale === "vi"
-                  ? "Tìm bệnh nhân hoặc mức độ nghiêm trọng"
-                  : "Search patient or severity level"
-              }
+              placeholder={ui.alerts.searchPlaceholder}
               className="min-w-0 flex-1 bg-transparent text-[11px] outline-none"
             />
           </label>
@@ -109,9 +110,7 @@ export function AlertZonePanel({
               }
               className="dashboard-input h-9 rounded-[0.65rem] px-2 text-[11px]"
             >
-              <option value="all">
-                {locale === "vi" ? "Tất cả bệnh nhân" : "All patients"}
-              </option>
+              <option value="all">{ui.alerts.filterAllPatients}</option>
               {zonePatients.map((patient) => (
                 <option key={patient.id} value={patient.id}>
                   {patient.name}
@@ -128,9 +127,7 @@ export function AlertZonePanel({
               }
               className="dashboard-input h-9 rounded-[0.65rem] px-2 text-[11px]"
             >
-              <option value="all">
-                {locale === "vi" ? "Tất cả mức độ" : "All severity levels"}
-              </option>
+              <option value="all">{ui.alerts.filterAllSeverity}</option>
               {zonePatientSeverities.map((status) => (
                 <option key={status} value={status}>
                   {getPatientStatusLabel(status, locale)}
@@ -164,17 +161,16 @@ export function AlertZonePanel({
               key={alert.id}
               alert={alert}
               patient={patients[alert.patientId]}
-              resolvedIds={resolvedIds}
-              onResolve={() => onResolve(alert.id)}
+              operatorRole={operatorRole}
+              onTreat={() => onTreat(alert)}
+              onDoctorConfirm={() => onDoctorConfirm(alert)}
               onAskAI={() => onAskAI(alert)}
             />
           ))
         ) : (
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center text-[12px] text-[color:var(--cs-text-soft)]">
             <Filter className="mb-2 h-5 w-5" />
-            {locale === "vi"
-              ? "Không có cảnh báo phù hợp trong zone này."
-              : "No alerts match the filters in this zone."}
+            {ui.alerts.emptyZone}
           </div>
         )}
       </div>
