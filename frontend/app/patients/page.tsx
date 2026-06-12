@@ -4,7 +4,9 @@ import { RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
+import { PageState } from "@/components/clinical/PageState";
 import { PatientsBubbleChat } from "@/components/clinical/PatientsBubbleChat";
+import { pageSplitGrid, pageSurface } from "@/lib/page-layout";
 import { PatientTable, type PatientListItem } from "@/components/patients";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { patientRepository } from "@/lib/repositories/patient.repository";
@@ -100,8 +102,8 @@ export default function PatientsPage() {
           : "Vital signs sync every 5 minutes. The list is sorted by severity by default."
       }
     >
-      <div className="grid h-full min-h-0 flex-1 gap-3 max-lg:grid-rows-[minmax(0,36%)_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-1">
-        <aside className="dashboard-surface flex min-h-0 flex-col rounded-[1.15rem] p-4">
+      <div className={pageSplitGrid}>
+        <aside className={`${pageSurface} flex min-h-0 flex-col p-4`}>
           <div className="flex shrink-0 items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-[0.8rem] bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.1))] text-[color:var(--cs-primary)] shadow-[0_10px_24px_rgba(13,71,161,0.08)]">
@@ -136,8 +138,8 @@ export default function PatientsPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-[color:var(--cs-danger)]">
                   {locale === "vi"
-                    ? `Cần chú ý (4)`
-                    : `Needs attention (4)`}
+                    ? `Cần chú ý (${attentionItems.length})`
+                    : `Needs attention (${attentionItems.length})`}
                 </h3>
                 <span className="h-2 w-2 rounded-full bg-[color:var(--cs-danger)]" />
               </div>
@@ -187,13 +189,15 @@ export default function PatientsPage() {
 
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {loading ? (
-            <div className="dashboard-surface rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-text-soft)]">
-              {locale === "vi" ? "Đang tải danh sách bệnh nhân..." : "Loading patients..."}
-            </div>
+            <PageState
+              fill
+              variant="loading"
+              message={
+                locale === "vi" ? "Đang tải danh sách bệnh nhân..." : "Loading patients..."
+              }
+            />
           ) : error ? (
-            <div className="dashboard-surface rounded-[1.15rem] px-4 py-8 text-center text-[13px] text-[color:var(--cs-danger)]">
-              {error}
-            </div>
+            <PageState fill variant="error" message={error} />
           ) : (
             <PatientTable items={items} fillHeight />
           )}

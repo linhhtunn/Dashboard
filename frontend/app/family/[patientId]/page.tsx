@@ -13,7 +13,9 @@ import {
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { PageState } from "@/components/clinical/PageState";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { familyContainer, pageSectionTitle, pageSurface } from "@/lib/page-layout";
 import { normalizePatientId } from "@/lib/patient-id";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
@@ -45,8 +47,14 @@ export default function FamilyPage() {
   if (!patient) {
     return (
       <main className="dashboard-scroll-area h-full overflow-y-auto">
-        <div className="mx-auto flex min-h-full max-w-3xl items-center justify-center p-6 text-[14px] text-[color:var(--cs-text-soft)]">
-          {locale === "vi" ? "Đang tải thông tin người thân..." : "Loading family view..."}
+        <div className={`${familyContainer} flex min-h-full items-center justify-center`}>
+          <PageState
+            variant="loading"
+            message={
+              locale === "vi" ? "Đang tải thông tin người thân..." : "Loading family view..."
+            }
+            className="w-full"
+          />
         </div>
       </main>
     );
@@ -63,7 +71,7 @@ export default function FamilyPage() {
 
   return (
     <main className="dashboard-scroll-area h-full overflow-y-auto">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className={familyContainer}>
         <header className="flex flex-col gap-3 border-b border-[color:var(--cs-border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
@@ -84,7 +92,7 @@ export default function FamilyPage() {
         </header>
 
         <section className="mt-6">
-          <h2 className="text-[1rem] font-semibold text-[color:var(--cs-heading)]">
+          <h2 className={pageSectionTitle}>
             {locale === "vi" ? "Tổng quan hôm nay" : "Today's overview"}
           </h2>
           <div className={["mt-3 rounded-[1.4rem] border p-5", toneClasses(overall.color)].join(" ")}>
@@ -105,7 +113,7 @@ export default function FamilyPage() {
         </section>
 
         <section className="mt-7">
-          <h2 className="text-[1rem] font-semibold text-[color:var(--cs-heading)]">
+          <h2 className={pageSectionTitle}>
             {locale === "vi" ? "Các chỉ số" : "Health indicators"}
           </h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -117,8 +125,8 @@ export default function FamilyPage() {
         </section>
 
         <div className="mt-7 grid gap-4 lg:grid-cols-2">
-          <section className="dashboard-surface rounded-[1.3rem] p-5">
-            <h2 className="text-[1rem] font-semibold text-[color:var(--cs-heading)]">
+          <section className={`${pageSurface} p-5`}>
+            <h2 className={pageSectionTitle}>
               {locale === "vi" ? "Thông báo từ bác sĩ" : "Message from the clinician"}
             </h2>
             <div className="mt-3 rounded-[1rem] bg-[color:var(--cs-primary-soft)] p-4">
@@ -133,8 +141,8 @@ export default function FamilyPage() {
             </div>
           </section>
 
-          <section className="dashboard-surface rounded-[1.3rem] p-5">
-            <h2 className="text-[1rem] font-semibold text-[color:var(--cs-heading)]">
+          <section className={`${pageSurface} p-5`}>
+            <h2 className={pageSectionTitle}>
               {locale === "vi" ? "Nhắc nhở uống thuốc" : "Medication reminder"}
             </h2>
             <div className="mt-3 flex items-start gap-3 rounded-[1rem] bg-white/68 p-4">
@@ -188,10 +196,10 @@ function FamilyMetric({ icon: Icon, label, state, locale }: { icon: typeof Activ
 
 function SimpleActivity({ icon: Icon, title, text }: { icon: typeof Activity; title: string; text: string }) {
   return (
-    <article className="dashboard-surface rounded-[1.3rem] p-5">
+    <article className={`${pageSurface} p-5`}>
       <div className="flex items-center gap-2">
         <Icon className="h-5 w-5 text-[color:var(--cs-primary)]" />
-        <h2 className="text-[1rem] font-semibold text-[color:var(--cs-heading)]">{title}</h2>
+        <h2 className={pageSectionTitle}>{title}</h2>
       </div>
       <p className="mt-3 text-[14px] leading-6 text-[color:var(--cs-text)]">{text}</p>
     </article>
