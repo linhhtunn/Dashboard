@@ -9,6 +9,7 @@ import {
   type IssueId,
 } from "@/components/dashboard/dashboard-demo-data";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { shouldHideKeyFindings } from "@/lib/ai/agent-fallback";
 import { formatShortClockTime, localizeText } from "@/lib/i18n";
 import type { AISummary } from "@/types";
 
@@ -45,7 +46,13 @@ export function AIAnswerCard({
 }: AIAnswerCardProps) {
   const { locale } = useLocale();
   const router = useRouter();
-  const primaryFindings = summary.keyFindings.slice(0, 3);
+  const hideKeyFindings = shouldHideKeyFindings(
+    summary.answer,
+    summary.keyFindings,
+  );
+  const primaryFindings = hideKeyFindings
+    ? []
+    : summary.keyFindings.slice(0, 3);
   const visibleIssues = dashboardIssues.filter((issue) => issueIds.includes(issue.id));
 
   return (
@@ -84,7 +91,11 @@ export function AIAnswerCard({
             style={{ animationDelay: `${index * 80}ms` }}
           >
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--cs-teal)]" />
-            <span>{finding}</span>
+            <MarkdownLite
+              content={finding}
+              density="default"
+              className="min-w-0 flex-1 text-[15px] leading-6"
+            />
           </div>
         ))}
       </div>

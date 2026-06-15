@@ -6,20 +6,25 @@ import { useEffect, useMemo, useState } from "react";
 import { AIComposer } from "@/components/dashboard/AIComposer";
 import {
   ConversationThread,
-  type ChatMessage,
+  toChatMessages,
 } from "@/components/dashboard/ConversationThread";
+import { AgentErrorBanner } from "@/components/chat/AgentErrorBanner";
 import { SuggestedPromptList } from "@/components/dashboard/SuggestedPromptList";
 import { type IssueId } from "@/components/dashboard/dashboard-demo-data";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
-import { streamAgentChat } from "@/lib/ai/chat-client";
-import type { DashboardIssueId, ThreadMessage } from "@/lib/ai/types";
+import {
+  classifyAgentAnswer,
+  classifyAgentError,
+} from "@/lib/ai/agent-fallback";
+import type { DashboardIssueId } from "@/lib/ai/types";
+import { useAgentChatStream } from "@/lib/ai/use-agent-chat-stream";
 import type { AISummary } from "@/types";
 
 type AIWorkspacePanelProps = {
   activeIssueId: IssueId | null;
   currentThreadId: string;
-  initialMessages: ThreadMessage[];
+  initialMessages: { role: "user" | "assistant"; content: string }[];
   patientId: string;
   userId: string;
   onConversationStateChange: (hasConversation: boolean) => void;
@@ -41,16 +46,56 @@ export function AIWorkspacePanel({
 }: AIWorkspacePanelProps) {
   const { locale } = useLocale();
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    initialMessages.map((message, index) => ({
-      id: `${currentThreadId}-${message.role}-${index}`,
-      role: message.role,
-      content: message.content,
-    })),
-  );
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [summaryIssueIds, setSummaryIssueIds] = useState<DashboardIssueId[]>([]);
-  const [isThinking, setIsThinking] = useState(false);
+
+  const {
+    messages,
+    setMessages,
+    chatting,
+    streamingMessageId,
+    error,
+    submitQuestion,
+  } = useAgentChatStream({
+    threadId: currentThreadId,
+    patientId,
+    locale,
+    userId,
+    onComplete: async (payload) => {
+      const fallbackKind = classifyAgentAnswer(payload.summary.answer);
+      if (!fallbackKind) {
+        setSummary(payload.summary);
+        setSummaryIssueIds(payload.suggestedIssueIds);
+        const primaryIssue =
+          payload.recommendedIssueId ?? payload.suggestedIssueIds[0];
+        if (primaryIssue) {
+          onOpenIssue(primaryIssue as IssueId);
+        }
+      } else {
+        setSummary(null);
+        setSummaryIssueIds([]);
+      }
+
+      const primaryIssue =
+        payload.recommendedIssueId ?? payload.suggestedIssueIds[0];
+      await onThreadUpdated({
+        title: payload.title,
+        lastIssue: getIssueDisplayLabel(primaryIssue, locale),
+      });
+    },
+  });
+
+  useEffect(() => {
+    setMessages(
+      initialMessages.map((message, index) => ({
+        id: `${currentThreadId}-${message.role}-${index}`,
+        role: message.role,
+        content: message.content,
+      })),
+    );
+    setSummary(null);
+    setSummaryIssueIds([]);
+  }, [currentThreadId, initialMessages, setMessages]);
 
   useEffect(() => {
     onConversationStateChange(
@@ -62,108 +107,19 @@ export function AIWorkspacePanel({
   const prompts = useMemo(() => getPrompts(locale), [locale]);
   const placeholders = useMemo(() => getEmptyStatePlaceholders(locale), [locale]);
   const hasConversation = messages.length > 0;
+  const chatMessages = toChatMessages(messages);
 
   const handleSubmit = async (promptOverride?: string) => {
     const nextPrompt = (promptOverride ?? draft).trim();
-    if (!nextPrompt || isThinking) return;
+    if (!nextPrompt || chatting) return;
 
-    const nextHistory = messages
-      .filter(
-        (message): message is ChatMessage & { role: "user" | "assistant" } =>
-          message.role === "user" || message.role === "assistant",
-      )
-      .map((message) => ({
-        role: message.role,
-        content: message.content,
-      }));
-
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: nextPrompt,
-    };
-    const assistantMessageId = `assistant-${Date.now()}`;
-
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      {
-        id: assistantMessageId,
-        role: "assistant",
-        content: "",
-      },
-    ]);
     setDraft("");
-    setIsThinking(true);
     setSummary(null);
     setSummaryIssueIds([]);
-
-    try {
-      let hasStartedStreaming = false;
-      const payload = await streamAgentChat(
-        {
-          threadId: currentThreadId,
-          patientId,
-          locale,
-          question: nextPrompt,
-          message: nextPrompt,
-          userId,
-          history: nextHistory,
-        },
-        {
-          onDelta: (event) => {
-            if (!hasStartedStreaming) {
-              hasStartedStreaming = true;
-              setIsThinking(false);
-            }
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantMessageId
-                  ? { ...message, content: `${message.content}${event.text}` }
-                  : message,
-              ),
-            );
-          },
-          onComplete: (event) => {
-            setSummary(event.payload.summary);
-            setSummaryIssueIds(event.payload.suggestedIssueIds);
-            const primaryIssue = event.payload.recommendedIssueId ?? event.payload.suggestedIssueIds[0];
-            if (primaryIssue) {
-              onOpenIssue(primaryIssue as IssueId);
-            }
-          },
-        },
-      );
-
-      const primaryIssue = payload.recommendedIssueId ?? payload.suggestedIssueIds[0];
-      await onThreadUpdated({
-        title: payload.title,
-        lastIssue: getIssueDisplayLabel(primaryIssue, locale),
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : locale === "vi"
-            ? "Không thể lấy phản hồi từ hệ thống AI."
-            : "Unable to reach the AI backend.";
-
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === assistantMessageId
-            ? {
-                ...message,
-                content: errorMessage,
-              }
-            : message,
-        ),
-      );
-    } finally {
-      setIsThinking(false);
-    }
+    await submitQuestion(nextPrompt);
   };
 
-  if (!hasConversation && !isThinking) {
+  if (!hasConversation && !chatting) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-4">
@@ -198,13 +154,21 @@ export function AIWorkspacePanel({
     <div className="flex h-full min-h-0 flex-col">
       <div className="dashboard-scroll-area min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-1.5">
         <div className="mx-auto flex min-h-full w-full max-w-[820px] flex-col">
+          {error && !messages.some((m) => m.isError) ? (
+            <AgentErrorBanner
+              kind={classifyAgentError(error)}
+              locale={locale}
+              patientId={patientId}
+              className="mb-3"
+            />
+          ) : null}
+
           <ConversationThread
-            messages={messages.filter(
-              (message) =>
-                message.role !== "assistant" || message.content.trim().length > 0,
-            )}
+            messages={chatMessages}
             activeIssueId={activeIssueId}
-            isThinking={isThinking}
+            isThinking={chatting}
+            streamingMessageId={streamingMessageId}
+            patientId={patientId}
             onOpenIssue={onOpenIssue}
             onToggleIssue={onToggleIssue}
             summary={summary}

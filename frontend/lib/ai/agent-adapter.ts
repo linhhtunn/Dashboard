@@ -125,19 +125,28 @@ function extractKeyFindings(
     return evidence.slice(0, 4).map((item) => buildEvidenceFinding(item, locale));
   }
 
+  if (/^#{1,3}\s/m.test(answer) || /\n[-*]\s+/m.test(answer)) {
+    const bullets = answer
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => /^[-*]\s+/.test(line))
+      .map((line) => line.replace(/^[-*]\s+/, "").trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+    if (bullets.length > 0) return bullets;
+    return [];
+  }
+
   const fallback = answer
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
-    .filter(Boolean)
+    .filter((item) => item && !/^#{1,3}\s/.test(item))
     .slice(0, 4);
 
   return fallback.length > 0
     ? fallback
-    : [
-        locale === "vi"
-          ? "Cần rà soát thêm phản hồi gốc từ AI."
-          : "Further review of the raw AI response is needed.",
-      ];
+    : [];
 }
 
 function extractIntent(raw: unknown): AgentChatIntent {

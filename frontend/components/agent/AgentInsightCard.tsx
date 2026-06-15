@@ -1,10 +1,16 @@
 "use client";
 
-import { AlertTriangle, BarChart3, Loader2, Table2 } from "lucide-react";
+import { BarChart3, Loader2, Table2 } from "lucide-react";
 
+import { AgentErrorBanner } from "@/components/chat/AgentErrorBanner";
 import { PanelCard } from "@/components/common/PanelCard";
 import { MarkdownLite } from "@/components/common/MarkdownLite";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import {
+  classifyAgentAnswer,
+  classifyAgentError,
+  shouldHideKeyFindings,
+} from "@/lib/ai/agent-fallback";
 import { formatShortClockTime, getMetricLabel } from "@/lib/i18n";
 import type { AgentInsightPayload } from "@/lib/ai/types";
 import type { VitalMetric } from "@/types";
@@ -55,9 +61,12 @@ export function AgentInsightCard({
       ) : null}
 
       {!loading && error ? (
-        <div className="mt-4 flex items-start gap-3 rounded-[1rem] border border-[color:rgba(229,72,77,0.18)] bg-[color:rgba(229,72,77,0.08)] px-4 py-4 text-sm text-[color:var(--cs-danger)]">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
+        <div className="mt-4">
+          <AgentErrorBanner
+            kind={classifyAgentError(error)}
+            locale={locale}
+            patientId={payload?.patientId}
+          />
         </div>
       ) : null}
 
@@ -69,12 +78,23 @@ export function AgentInsightCard({
 
       {!loading && !error && payload ? (
         <div className="mt-4 space-y-4">
-          <MarkdownLite
-            className="text-[0.98rem] leading-7 text-[color:var(--cs-text)]"
-            content={payload.summary.answer}
-          />
+          {classifyAgentAnswer(payload.summary.answer) ? (
+            <AgentErrorBanner
+              kind={classifyAgentAnswer(payload.summary.answer)!}
+              locale={locale}
+              patientId={payload.patientId}
+            />
+          ) : (
+            <MarkdownLite
+              className="text-[0.98rem] leading-7 text-[color:var(--cs-text)]"
+              content={payload.summary.answer}
+            />
+          )}
 
-          {payload.summary.keyFindings.length > 0 ? (
+          {!shouldHideKeyFindings(
+            payload.summary.answer,
+            payload.summary.keyFindings,
+          ) && payload.summary.keyFindings.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-text-soft)]">
                 {locale === "vi" ? "Điểm chính" : "Key findings"}
@@ -85,7 +105,7 @@ export function AgentInsightCard({
                     key={finding}
                     className="rounded-[1rem] bg-white/72 px-3.5 py-3 text-sm text-[color:var(--cs-text)]"
                   >
-                    {finding}
+                    <MarkdownLite content={finding} density="compact" />
                   </div>
                 ))}
               </div>

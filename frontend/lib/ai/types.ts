@@ -103,6 +103,14 @@ export type ThreadMessage = {
   content: string;
 };
 
+export type AgentChatThreadMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  fallbackKind?: "patient_not_found" | "safe_response" | "unavailable" | "generic" | null;
+  isError?: boolean;
+};
+
 export type ThreadDetail = {
   meta: ThreadMeta;
   messages: ThreadMessage[];
