@@ -1,59 +1,147 @@
 # MVP Demo Plan
 
-## Muc tieu demo hien tai
+> Cập nhật theo **frontend hiện tại** (`frontend/` là source of truth).  
+> Chi tiết kiến trúc: [frontend-architecture.md](./frontend-architecture.md)
 
-- Chay duoc luong dashboard -> patient detail -> AI chat voi `P001`.
-- Danh sach patient load nhanh, khong goi lap vitals/alerts theo tung patient.
-- `GET /api/patients/{id}` va `GET /api/patients/{id}/alerts` khong con chan demo vi proxy status sai hoac schema `evidence`.
-- Section panel ben phai trong chat hien thong tin `P001` tu backend neu co, fallback demo data neu backend loi.
+## Mục tiêu demo
 
-## Kich ban test MVP
+Hai luồng độc lập — có thể demo riêng hoặc kết hợp:
 
-1. Dashboard load:
-   - Mo dashboard.
-   - Xac nhan thread history hien duoc.
-   - Mo 1 issue trong chat summary.
-   - Xac nhan patient context panel hien dung thong tin `P001`, khong con ten demo sai context.
+| Luồng | Patient ID | Cần agent? | Màn hình chính |
+|-------|------------|------------|----------------|
+| **A. Clinical** | `P001` (seed) | Không | `/patients`, `/alerts`, `/staff` |
+| **B. AI Agent** | MIMIC `10003400` | Có (`AI_AGENT_BASE_URL`) | `/patients/10003400`, `/dashboard` |
 
-2. Patient list:
-   - Mo `/patients`.
-   - Xac nhan danh sach hien trong vai giay, khong bi loading keo dai do query lap theo tung patient.
-   - Search `P001` va mo detail.
+---
 
-3. Patient detail:
-   - Mo `/patients/P001`.
-   - Xac nhan profile load duoc.
-   - Xac nhan vitals, metric summaries, alerts cung hien.
-   - Xac nhan khong co loi `502` gia khi backend tra `404`.
+## Chuẩn bị môi trường
 
-4. Alert panel:
-   - Goi `/api/patients/P001/alerts`.
-   - Xac nhan response 200 va `evidence` luon la list.
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+```
 
-5. AI chat:
-   - Gui prompt "Tom tat tinh trang hien tai cua P001".
-   - Xac nhan co response, thread duoc ghi vao history.
-   - Xac nhan panel ben phai mo theo issue goi y.
+**Chỉ demo clinical (A):** không cần set `AI_AGENT_BASE_URL` — mock chat local.
 
-## Script demo < 5 phut
+**Demo agent thật (B):**
 
-1. Vao dashboard, mo issue tu chat de show panel `P001`.
-2. Vao `/patients`, search `P001`, mo detail.
-3. Show vitals + alerts dang load tu backend.
-4. Quay lai dashboard, gui 1 cau hoi AI cho `P001`.
-5. Show thread vua tao trong history.
+```bash
+AI_AGENT_BASE_URL=https://cuongnd03-health-app.hf.space
+AI_AGENT_CHAT_PATH=/api/agent/chat
+```
 
-## Out of scope sprint hien tai
+Health check: `curl https://cuongnd03-health-app.hf.space/health` (cold start ~30s).
 
-- Real-time websocket/push update cho vitals va alerts.
-- Dong bo hoan toan moi metric/issue trong panel theo AI output thay vi mapping issue demo.
-- Toi uu latency LLM o muc sub-second.
-- Hoan thien i18n/encoding cho toan bo text UI.
-- Full e2e automation va load test production-grade.
+---
 
-## Ke hoach xu ly nhanh neu can demo truoc
+## Kịch bản A — Clinical (5 phút, không agent)
 
-1. Uu tien chay backend + frontend voi `P001` la golden path.
-2. Neu data DB thieu, giu fallback fixture/demo cho panel va alert list.
-3. Neu chat LLM cham, demo bang 1 prompt ngan va thread da co san.
-4. Neu can an toan hon, freeze scope: dashboard + patient detail + 1 luot AI chat.
+### 1. Danh sách bệnh nhân
+- Mở `/patients`
+- Danh sách load từ seed store qua `/api/patients`
+- Avatar **pulse đỏ** khi BN có cảnh báo mở
+- Search `P001` → mở chi tiết
+
+### 2. Chi tiết bệnh nhân
+- Mở `/patients/P001`
+- Vitals charts + metric summaries (`/api/patients/P001/vitals`)
+- `PatientClinicalProfilePanel` — bệnh nền, lịch thuốc
+- Alerts inline (`/api/patients/P001/alerts`)
+- AI chat: mock local (không cần HF)
+
+### 3. Cảnh báo & workflow
+- Mở `/alerts` — filter theo zone/severity
+- `GlobalAlertModal` (popup toàn cục từ layout)
+- Role **điều dưỡng** → `AlertTreatmentModal` ghi xử trí
+- Đổi role **bác sĩ** (navbar) → `DoctorConfirmModal` xác nhận
+- Audit: `GET /api/alerts/[id]/history`
+
+### 4. Ca trực
+- Mở `/staff`
+- Lịch tuần + sidebar nhân sự
+- Click ô lịch → `ShiftCellModal`
+
+---
+
+## Kịch bản B — AI Agent (5 phút, cần HF)
+
+### 1. Patient với MIMIC ID
+- Mở `/patients/10003400` (hoặc `10014354` cho case thuốc/CDSS)
+- `PatientAIChatPanel` → **Tóm tắt tình trạng**
+- Quan sát: thinking → stream token → markdown render
+
+### 2. Follow-up chat
+- Gợi ý: "Chỉ số nào cần ưu tiên theo dõi?"
+- Response stream qua `useAgentChatStream`
+
+### 3. Giải thích cảnh báo
+- Từ `/alerts` hoặc `GlobalAlertModal` → mở AI panel
+- `AlertAIChatPanel` load explanation + `metadata.alert_id` cho follow-up
+
+### 4. Dashboard AI workspace
+- Mở `/dashboard`
+- Chat → `AIAnswerCard` + issue chips (SpO₂, BP, HR) khi response hợp lệ
+- Thread history (cần agent backend cho `/api/threads`)
+
+### 5. Bubble chat ca trực
+- `/patients` → FAB góc phải → `PatientsBubbleChat`
+
+---
+
+## Script demo nhanh (< 5 phút)
+
+**Clinical only:**
+1. `/patients` → `P001` → vitals + profile
+2. `/alerts` → workflow xử trí (đổi role BS)
+3. `/staff` → lịch ca
+
+**Agent + clinical:**
+1. `/patients/10003400` → tóm tắt AI (stream)
+2. `/alerts` → giải thích cảnh báo AI
+3. `/dashboard` → 1 câu hỏi + mở issue chip
+
+---
+
+## Điều cần tránh khi demo
+
+| Tình huống | Kết quả | Cách xử lý |
+|------------|---------|------------|
+| Chat AI với `P001` + HF agent | `AgentErrorBanner` patient_not_found | Dùng `10003400` hoặc tắt `AI_AGENT_BASE_URL` để mock |
+| Thread history không load | 500 từ `/api/threads` | Cần `AI_AGENT_BASE_URL`; hoặc bỏ qua trong demo |
+| HF cold start | Timeout 30s+ | Gọi `/health` trước khi demo |
+
+---
+
+## API checklist (smoke test)
+
+```bash
+# Clinical (seed)
+curl http://localhost:3000/api/patients
+curl http://localhost:3000/api/patients/P001
+curl http://localhost:3000/api/patients/P001/alerts
+curl http://localhost:3000/api/clinical/summary
+
+# Agent (cần .env.local)
+curl -X POST http://localhost:3000/api/agent/summary \
+  -H "Content-Type: application/json" \
+  -d '{"patientId":"10003400","locale":"vi","threadId":"demo-1","message":"Tóm tắt bệnh án."}'
+```
+
+---
+
+## Out of scope hiện tại
+
+- WebSocket real-time vitals/alerts
+- Clinical backend tách khỏi Next.js seed store
+- Agent chart time-series render (Recharts) từ `visualizations.data_points`
+- Full e2e automation
+- i18n/encoding 100%
+
+---
+
+## Nếu cần demo gấp — freeze scope tối thiểu
+
+1. `/patients/P001` — vitals + alerts (không agent)
+2. `/patients/10003400` — 1 lượt AI tóm tắt (có agent)
+3. `/alerts` — 1 workflow xử trí cảnh báo

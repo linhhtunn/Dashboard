@@ -1,9 +1,59 @@
-# 🩺 AI Agent Clinical Assistant - Frontend Integration Guide
+# AI Agent — Frontend Integration Guide
 
-Tài liệu này hướng dẫn cách kết nối giao diện Frontend với backend AI Agent thông qua một Endpoint hợp nhất (Unified Chat Router) duy nhất `/api/agent/chat`. 
+Tài liệu này mô tả contract **backend agent** và cách **frontend thực sự tích hợp** (lấy FE làm trục).  
+Kiến trúc tổng thể: [frontend-architecture.md](./frontend-architecture.md) · README: [frontend/README.md](../frontend/README.md)
 
 > [!NOTE]
-> Các endpoint cũ như `/api/agent/summary` và `/api/agent/explain-alert` đã được loại bỏ hoàn toàn và gộp vào làm các intent tự động xử lý bên trong router của `/api/agent/chat`. 
+> Backend chỉ expose **một router** `POST /api/agent/chat`.  
+> Frontend vẫn giữ proxy `/api/agent/summary` và `/api/agent/explain-alert` — chúng tự dựng `message` + `metadata` rồi gọi cùng router phía server.
+
+---
+
+## Frontend implementation map
+
+| Backend concept | Frontend file | Ghi chú |
+|-----------------|---------------|---------|
+| `ChatRequest` body | `lib/ai/agent-chat-request.ts` | `buildAgentChatBackendBody()` |
+| Gọi backend | `lib/ai/invoke-agent-chat.ts` | Server-only |
+| URL / path config | `lib/ai/agent-backend.ts` | `AI_AGENT_BASE_URL`, `AI_AGENT_CHAT_PATH` |
+| Response → UI model | `lib/ai/agent-adapter.ts` | `adaptBackendResponse()` |
+| Client stream | `lib/ai/chat-client.ts` | Parse NDJSON `meta`/`delta`/`complete` |
+| React hook | `lib/ai/use-agent-chat-stream.ts` | Dùng chung mọi chat panel |
+| BFF route | `app/api/agent/chat/route.ts` | Mock nếu không config URL |
+| Summary proxy | `app/api/agent/summary/route.ts` | `buildSummaryPrompt()` |
+| Explain proxy | `app/api/agent/explain-alert/route.ts` | `metadata.alert_id` |
+| Markdown render | `components/common/MarkdownLite.tsx` | Không dùng react-markdown |
+| Error fallback | `lib/ai/agent-fallback.ts` + `AgentErrorBanner` | patient_not_found, safe_response, … |
+
+### Chat panels dùng agent
+
+| Component | Màn hình |
+|-----------|----------|
+| `PatientAIChatPanel` | `/patients/[patientId]` |
+| `AlertAIChatPanel` | Modal cảnh báo |
+| `PatientsBubbleChat` | Bubble `/patients` |
+| `AIWorkspacePanel` | `/dashboard` |
+
+### Luồng stream (client)
+
+```
+POST /api/agent/chat
+  ← NDJSON lines:
+     { "type": "meta", ... }
+     { "type": "delta", "text": "..." }   ← append vào bubble
+     { "type": "complete", "payload": AgentInsightPayload }
+```
+
+Proxy server **luôn** trả stream NDJSON — kể cả mock (`lib/ai/mock-chat.ts`) và backend thật.
+
+### Hai loại patient ID
+
+| ID | Nguồn | Agent HF |
+|----|-------|----------|
+| `P001`, `P002`, … | Seed clinical (`data/*.seed.json`) | ❌ Không có fixture → safe response |
+| `10003400`, `10014354`, … | MIMIC trên Supabase (agent) | ✅ Có data thật |
+
+**Demo agent:** mở `/patients/10003400`, không dùng `P001`.
 
 ---
 
@@ -75,26 +125,16 @@ Backend sẽ luôn trả về một cấu trúc dữ liệu nhất quán để f
 
 #### 1. Phần Văn bản chính (`narrative_summary`)
 *   **Định dạng:** Markdown văn bản thô.
-*   **Cách hiển thị:** Sử dụng một thư viện render Markdown (như `react-markdown` cho React, hoặc `marked` cho JS thuần) để hiển thị văn bản có định dạng tiêu đề, danh sách, chữ đậm/nghiêng.
+*   **Cách hiển thị (FE):** `MarkdownLite` trong `AssistantTextBubble` — hỗ trợ `###` heading, bullet `-`, `**bold**`, `` `code` ``.  
+    Không dùng `react-markdown`; parser nằm tại `components/common/MarkdownLite.tsx`.
 
 #### 2. Phần Biểu đồ (`visualizations`)
 *   Nếu `has_chart` là `true`:
-    *   **Loại biểu đồ:** Dùng `chart_type` (thường là `"time-series"`) và `chart_title` làm tiêu đề cho biểu đồ.
-    *   **Dữ liệu:** Vẽ biểu đồ đường (Line Chart) hoặc cột (Bar Chart) từ danh sách `data_points`. Mỗi điểm dữ liệu gồm:
-        *   `timestamp` (thời gian điểm dữ liệu).
-        *   `metric` (tên chỉ số ví dụ: `cha2ds2_vasc`, `crcl`, `serum_creatinine`).
-        *   `value` (giá trị số).
-        *   `unit` (đơn vị đo).
-        *   `status` (`NORMAL`, `WARNING`, `ABNORMAL`, `CRITICAL` - dùng để tô màu điểm biểu đồ).
-*   Nếu `has_chart` is `false`: Ẩn phần biểu đồ trên UI.
+    *   **FE:** `AgentInsightCard` / payload `visualization` — grid metric cards (chưa vẽ Recharts từ agent data).
 
 #### 3. Bảng so sánh / Đối chiếu (`comparisons`)
 *   Nếu `has_comparison` là `true`:
-    *   **Cách hiển thị:** Vẽ một bảng dữ liệu (Data Table) sử dụng danh sách cột trong `headers` và danh sách hàng trong `rows`.
-    *   **Ví dụ:**
-        *   `headers`: `["Tiêu chí", "Giá trị", "Trạng thái", "Bằng chứng"]`
-        *   `rows`: `[["CHA2DS2-VASc", "6", "WARNING", "Nguy cơ huyết khối cao"], ...]`
-*   Nếu `has_comparison` là `false`: Ẩn phần bảng trên UI.
+    *   **FE:** `AgentInsightCard` render table từ `payload.comparison.headers` + `rows`.
 
 ---
 
