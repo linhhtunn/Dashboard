@@ -187,10 +187,6 @@
     overflow-y: auto;
   }
 
-  body:has(.marketing-page) {
-    background: var(--cs-surface);
-  }
-
   h1,
   h2,
   h3,

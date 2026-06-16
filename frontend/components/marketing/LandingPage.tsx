@@ -13,7 +13,7 @@ export function LandingPage() {
   return (
     <>
       <MarketingNavbar />
-      <main>
+      <main className="space-y-3 pb-2 pt-1">
         <HeroSection />
         <ProblemSolutionSection />
         <FeatureGrid />

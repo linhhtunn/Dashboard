@@ -4,6 +4,7 @@ import { Activity, Bell, Sparkles, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { RevealOnScroll } from "@/components/marketing/RevealOnScroll";
+import { marketingContainer } from "@/components/marketing/marketing-styles";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { MARKETING_COPY, t } from "@/lib/i18n/marketing";
 
@@ -14,17 +15,19 @@ export function FeatureGrid() {
   const copy = MARKETING_COPY.features;
 
   return (
-    <section className="marketing-section-panel py-16 sm:py-20">
-      <div className="marketing-container">
-        <h2 className="marketing-h2">{t(copy.headline, locale)}</h2>
+    <section className={`py-2 ${marketingContainer}`}>
+      <div className="dashboard-surface rounded-[1.15rem] p-5 sm:p-6">
+        <h2 className="text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
+          {t(copy.headline, locale)}
+        </h2>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {copy.items.map((item, index) => {
             const Icon = icons[index] ?? Activity;
             return (
               <RevealOnScroll key={item.title.vi} delayMs={index * 70}>
-                <article className="marketing-card h-full bg-[color:var(--cs-surface)] p-6">
-                  <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[color:rgba(142,211,230,0.22)] text-[color:var(--cs-primary)]">
+                <article className="dashboard-glass-soft h-full rounded-[1rem] p-5">
+                  <span className="relative inline-flex h-10 w-10 items-center justify-center rounded-[0.8rem] bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.1))] text-[color:var(--cs-primary)]">
                     <Icon className="h-5 w-5" strokeWidth={1.75} />
                     {index === 1 ? (
                       <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--cs-danger)] px-1 text-[9px] font-bold text-white">
@@ -32,10 +35,12 @@ export function FeatureGrid() {
                       </span>
                     ) : null}
                   </span>
-                  <h3 className="mt-4 text-[18px] font-semibold leading-[26px] text-[color:var(--cs-heading)]">
+                  <h3 className="mt-3 text-[18px] font-semibold leading-[26px] text-[color:var(--cs-heading)]">
                     {t(item.title, locale)}
                   </h3>
-                  <p className="marketing-body mt-2">{t(item.body, locale)}</p>
+                  <p className="mt-2 text-[14px] leading-[22px] text-[color:var(--cs-text-soft)]">
+                    {t(item.body, locale)}
+                  </p>
                 </article>
               </RevealOnScroll>
             );

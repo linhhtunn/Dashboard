@@ -35,7 +35,7 @@ export function AppShell({ children }: AppShellProps) {
     <div
       className={
         marketing
-          ? "marketing-page min-h-dvh w-full"
+          ? "marketing-page dashboard-canvas min-h-dvh w-full overflow-x-hidden overflow-y-auto"
           : "dashboard-canvas relative h-dvh overflow-hidden"
       }
     >
