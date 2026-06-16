@@ -1,0 +1,274 @@
+[
+  {
+    "id": "P001",
+    "mrn": "MRN-2026-001",
+    "name": "Nguyễn Văn An",
+    "age": 68,
+    "gender": "male",
+    "status": "at_risk",
+    "ward_code": "cardiology_ward",
+    "department_code": "cardiology",
+    "bed": "A-102",
+    "underlying_condition_codes": [
+      "hypertension",
+      "type_2_diabetes"
+    ],
+    "recent_symptom_codes": [
+      "shortness_of_breath"
+    ],
+    "last_updated": "2026-06-02T08:12:00Z",
+    "medications": [
+      {
+        "medication_code": "amlodipine",
+        "dosage": "5 mg",
+        "schedule_code": "daily_0800",
+        "last_taken_at": null,
+        "next_dose_at": "2026-06-03T08:00:00Z"
+      }
+    ]
+  },
+  {
+    "id": "P002",
+    "mrn": "MRN-2026-002",
+    "name": "Trần Thị Bình",
+    "age": 57,
+    "gender": "female",
+    "status": "healthy",
+    "ward_code": "general_ward",
+    "department_code": "internal_medicine",
+    "bed": "B-204",
+    "underlying_condition_codes": [
+      "asthma"
+    ],
+    "recent_symptom_codes": [],
+    "last_updated": "2026-06-02T08:10:00Z",
+    "medications": []
+  },
+  {
+    "id": "P003",
+    "mrn": "MRN-2026-003",
+    "name": "Lê Văn Công",
+    "age": 74,
+    "gender": "male",
+    "status": "critical",
+    "ward_code": "icu",
+    "department_code": "emergency",
+    "bed": "ICU-03",
+    "underlying_condition_codes": [
+      "coronary_artery_disease"
+    ],
+    "recent_symptom_codes": [
+      "chest_discomfort"
+    ],
+    "last_updated": "2026-06-02T08:09:00Z",
+    "medications": [
+      {
+        "medication_code": "nitroglycerin",
+        "dosage": "0.4 mg",
+        "schedule_code": "as_ordered",
+        "last_taken_at": null,
+        "next_dose_at": null
+      }
+    ]
+  },
+  {
+    "id": "P004",
+    "mrn": "12345678",
+    "name": "Minh Trần",
+    "age": 62,
+    "gender": "male",
+    "status": "recent_symptom",
+    "ward_code": "respiratory_ward",
+    "department_code": "pulmonology",
+    "bed": "R-118",
+    "underlying_condition_codes": [
+      "chronic_bronchitis"
+    ],
+    "recent_symptom_codes": [
+      "new_cough",
+      "fatigue"
+    ],
+    "last_updated": "2026-06-02T08:11:00Z",
+    "medications": []
+  },
+  {
+    "id": "P005",
+    "mrn": "MRN-2026-005",
+    "name": "Phạm Ngọc Lan",
+    "age": 45,
+    "gender": "female",
+    "status": "healthy",
+    "ward_code": "general_ward",
+    "department_code": "endocrinology",
+    "bed": "C-105",
+    "underlying_condition_codes": [
+      "type_2_diabetes"
+    ],
+    "recent_symptom_codes": [],
+    "last_updated": "2026-06-02T08:05:00Z",
+    "medications": []
+  },
+  {
+    "id": "P006",
+    "mrn": "MRN-2026-006",
+    "name": "Đỗ Gia Hưng",
+    "age": 51,
+    "gender": "male",
+    "status": "at_risk",
+    "ward_code": "cardiology_ward",
+    "department_code": "cardiology",
+    "bed": "A-108",
+    "underlying_condition_codes": [
+      "hypertension"
+    ],
+    "recent_symptom_codes": [
+      "fatigue"
+    ],
+    "last_updated": "2026-06-02T08:03:00Z",
+    "medications": []
+  },
+  {
+    "id": "P007",
+    "mrn": "MRN-2026-007",
+    "name": "Bùi Thanh Mai",
+    "age": 63,
+    "gender": "female",
+    "status": "critical",
+    "ward_code": "stroke_unit",
+    "department_code": "neurology",
+    "bed": "N-12",
+    "underlying_condition_codes": [
+      "hypertension"
+    ],
+    "recent_symptom_codes": [
+      "dizziness"
+    ],
+    "last_updated": "2026-06-02T08:02:00Z",
+    "medications": []
+  },
+  {
+    "id": "P008",
+    "mrn": "MRN-2026-008",
+    "name": "Hoàng Đức Bảo",
+    "age": 59,
+    "gender": "male",
+    "status": "at_risk",
+    "ward_code": "respiratory_ward",
+    "department_code": "pulmonology",
+    "bed": "R-203",
+    "underlying_condition_codes": [
+      "copd"
+    ],
+    "recent_symptom_codes": [
+      "shortness_of_breath"
+    ],
+    "last_updated": "2026-06-02T08:01:00Z",
+    "medications": []
+  },
+  {
+    "id": "P009",
+    "mrn": "MRN-2026-009",
+    "name": "Ngô Thị Hoa",
+    "age": 36,
+    "gender": "female",
+    "status": "recent_symptom",
+    "ward_code": "observation",
+    "department_code": "general_medicine",
+    "bed": "O-05",
+    "underlying_condition_codes": [],
+    "recent_symptom_codes": [
+      "palpitations"
+    ],
+    "last_updated": "2026-06-02T08:00:00Z",
+    "medications": []
+  },
+  {
+    "id": "P010",
+    "mrn": "MRN-2026-010",
+    "name": "Lý Quốc Khang",
+    "age": 70,
+    "gender": "male",
+    "status": "healthy",
+    "ward_code": "general_ward",
+    "department_code": "geriatrics",
+    "bed": "G-14",
+    "underlying_condition_codes": [
+      "hypertension"
+    ],
+    "recent_symptom_codes": [],
+    "last_updated": "2026-06-02T07:58:00Z",
+    "medications": []
+  },
+  {
+    "id": "P011",
+    "mrn": "MRN-2026-011",
+    "name": "Võ Yến Nhi",
+    "age": 29,
+    "gender": "female",
+    "status": "healthy",
+    "ward_code": "general_ward",
+    "department_code": "general_medicine",
+    "bed": "B-112",
+    "underlying_condition_codes": [],
+    "recent_symptom_codes": [],
+    "last_updated": "2026-06-02T07:55:00Z",
+    "medications": []
+  },
+  {
+    "id": "P012",
+    "mrn": "MRN-2026-012",
+    "name": "Dương Hữu Phúc",
+    "age": 66,
+    "gender": "male",
+    "status": "recent_symptom",
+    "ward_code": "cardiology_ward",
+    "department_code": "cardiology",
+    "bed": "A-212",
+    "underlying_condition_codes": [
+      "ischemic_heart_disease"
+    ],
+    "recent_symptom_codes": [
+      "chest_discomfort"
+    ],
+    "last_updated": "2026-06-02T07:53:00Z",
+    "medications": []
+  },
+  {
+    "id": "P013",
+    "mrn": "MRN-2026-013",
+    "name": "Phan Tuấn Kiệt",
+    "age": 48,
+    "gender": "male",
+    "status": "at_risk",
+    "ward_code": "endocrine_ward",
+    "department_code": "endocrinology",
+    "bed": "E-07",
+    "underlying_condition_codes": [
+      "type_2_diabetes"
+    ],
+    "recent_symptom_codes": [
+      "fatigue"
+    ],
+    "last_updated": "2026-06-02T07:50:00Z",
+    "medications": []
+  },
+  {
+    "id": "P014",
+    "mrn": "MRN-2026-014",
+    "name": "Mai Thanh Tâm",
+    "age": 54,
+    "gender": "female",
+    "status": "critical",
+    "ward_code": "icu",
+    "department_code": "critical_care",
+    "bed": "ICU-08",
+    "underlying_condition_codes": [
+      "chronic_kidney_disease"
+    ],
+    "recent_symptom_codes": [
+      "confusion"
+    ],
+    "last_updated": "2026-06-02T07:48:00Z",
+    "medications": []
+  }
+]

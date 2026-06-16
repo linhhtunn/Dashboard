@@ -1,0 +1,12 @@
+{
+  "roles": {
+    "coordinator": {
+      "actor_id": "staff-coord-1",
+      "staff_id": "staff-coord-1"
+    },
+    "doctor": {
+      "actor_id": "staff-doc-1",
+      "staff_id": "staff-doc-1"
+    }
+  }
+}

@@ -1,107 +1,213 @@
-// ---------- Enums / Unions ----------
+// -----------------------------
+// i18n
+// -----------------------------
+
+export type Locale = "vi" | "en";
+
+export interface LocalizedString {
+  vi: string;
+  en: string;
+}
+
+// -----------------------------
+// shared primitives
+// -----------------------------
+
+export type ISODateString = string;
+
+export interface Range {
+  min: number;
+  max: number;
+}
+
+export type TimeRange = "15m" | "30m" | "1h" | "6h";
+
+// -----------------------------
+// controlled vocabulary
+// -----------------------------
+
+export type UserRole = "clinician" | "admin";
+
+export type Gender = "male" | "female" | "other";
 
 export type PatientStatus =
-  | 'healthy'        // Healthy / Khỏe mạnh  (header có thể hiển thị "Stable")
-  | 'at_risk'        // At Risk / Có nguy cơ
-  | 'critical'       // Critical / Cần xử lý ngay
-  | 'recent_symptom'; // Recent Symptom / Gần đây có triệu chứng
+  | "healthy"
+  | "at_risk"
+  | "critical"
+  | "recent_symptom";
 
-export type Gender = 'male' | 'female' | 'other';
+export type ActivityState =
+  | "sleeping"
+  | "sitting"
+  | "standing"
+  | "walking"
+  | "exercise";
 
 export type VitalMetric =
-  | 'heart_rate'
-  | 'respiratory_rate'
-  | 'blood_pressure'
-  | 'spo2'           // NEW — oxygen saturation (flag #3)
-  | 'glucose'
-  | 'motion';
+  | "heart_rate"
+  | "respiratory_rate"
+  | "spo2"
+  | "systolic_bp"
+  | "diastolic_bp";
 
-export type Trend = 'up' | 'down' | 'stable';
+export type SignalUnit = "bpm" | "rpm" | "%" | "mmHg";
 
-export type MotionStatus = 'still' | 'walking' | 'running' | 'fall_detected';
+export type Trend = "up" | "down" | "stable";
 
-export type AlertSeverity = 'info' | 'warning' | 'critical';
+export type AlertSeverity = "info" | "warning" | "critical";
 
 export type AlertType =
-  | 'fall'
-  | 'high_blood_pressure'
-  | 'low_blood_pressure'
-  | 'abnormal_glucose'
-  | 'high_heart_rate'
-  | 'low_heart_rate'
-  | 'abnormal_respiratory'
-  | 'low_oxygen'          // NEW — Low Oxygen Saturation
-  | 'deterioration_risk'; // NEW — framing an toàn cho "sepsis risk" (flag #5)
+  | "high_heart_rate"
+  | "low_heart_rate"
+  | "low_oxygen"
+  | "high_blood_pressure"
+  | "low_blood_pressure"
+  | "deterioration_risk"
+  | "stroke_risk";
 
-export type AISummaryStatus = 'pending' | 'ready' | 'error';
+export type EvidenceKind =
+  | "metric_threshold"
+  | "trend_change"
+  | "recent_alert"
+  | "symptom_report"
+  | "patient_context";
 
-export type AIConfidence = 'low' | 'medium' | 'high';
+export type AISummaryStatus = "pending" | "ready" | "error";
 
-// ---------- Evidence ----------
+export type AIConfidence = "low" | "medium" | "high";
 
-export interface Evidence {
-  metric?: VitalMetric;
-  value?: number;
-  unit?: string;
-  timestamp?: string;
-  /** Wording an toàn: "dấu hiệu bất thường", "cần theo dõi thêm". */
-  note: string;
+export type DisclaimerKey = "ai_support_only";
+
+export type ConditionCode = string;
+export type SymptomCode = string;
+export type WardCode = string;
+export type DepartmentCode = string;
+export type HospitalCode = string;
+
+// -----------------------------
+// lookup / taxonomy helpers
+// -----------------------------
+
+export interface CodeLabel {
+  code: string;
+  label: LocalizedString;
 }
 
-// ---------- Medication ----------
+export type ActivityThresholdMap = Record<ActivityState, Range>;
+
+export interface VitalThresholdProfile {
+  metric: VitalMetric;
+  unit: SignalUnit;
+  thresholds: ActivityThresholdMap;
+  notes?: string;
+  referenceUrl?: string;
+}
+
+// -----------------------------
+// domain entities
+// -----------------------------
 
 export interface MedicationCycle {
-  medication: string;
+  medication: LocalizedString;
   dosage: string;
-  schedule: string;
-  lastTakenAt: string | null;
-  nextDoseAt: string | null;
+  schedule: LocalizedString;
+  lastTakenAt: ISODateString | null;
+  nextDoseAt: ISODateString | null;
 }
-
-// ---------- Core entities ----------
 
 export interface Patient {
   id: string;
-  /** Medical Record Number (hiển thị ở header/list). */
   mrn: string;
   name: string;
   age: number;
   gender: Gender;
   status: PatientStatus;
-  /** Phòng/khoa, vd "Cardiology Ward", "ICU". */
-  ward: string;
-  department?: string;
-  /** Giường, vd "Bed 12A". */
+  wardCode: WardCode;
+  wardLabel?: LocalizedString;
+  departmentCode?: DepartmentCode;
+  departmentLabel?: LocalizedString;
   bed?: string;
-  underlyingConditions: string[];
+  underlyingConditionCodes: ConditionCode[];
   medicationCycle: MedicationCycle[];
-  recentSymptoms: string[];
-  lastUpdated: string; // ISO 8601
+  recentSymptomCodes: SymptomCode[];
+  lastUpdated: ISODateString;
 }
 
-export interface VitalSign {
+export interface VitalSignalSet {
+  heartRate?: number;
+  respiratoryRate?: number;
+  spo2?: number;
+  systolicBp?: number;
+  diastolicBp?: number;
+}
+
+export interface VitalSignalSample {
   patientId: string;
-  timestamp: string;
-  heartRate: number;        // bpm
-  respiratoryRate: number;  // rpm
-  systolicBp: number;       // mmHg
-  diastolicBp: number;      // mmHg
-  spo2: number;             // % — NEW
-  glucoseLevel: number;     // mg/dL
-  motionStatus: MotionStatus;
+  timestamp: ISODateString;
+  activityState?: ActivityState;
+  vitals: VitalSignalSet;
 }
 
 export interface MetricSummary {
   metric: VitalMetric;
   currentValue: number;
-  /** Chuỗi hiển thị khi 1 số không đủ, vd "118/76" cho BP (flag #4). */
   displayValue?: string;
-  unit: string;
-  average15Min: number;
+  unit: SignalUnit;
+  average15Min?: number;
   trend: Trend;
-  /** % thay đổi so với 15 phút trước (UI: "↓ 4% vs 15 min ago"). */
   changePct?: number;
   status: PatientStatus;
+}
+
+export interface Evidence {
+  kind: EvidenceKind;
+  metric?: VitalMetric;
+  conditionCode?: ConditionCode;
+  symptomCode?: SymptomCode;
+  alertType?: AlertType;
+  value?: number;
+  unit?: SignalUnit;
+  timestamp?: ISODateString;
+  comparisonValue?: number;
+  comparisonWindow?: TimeRange;
+  activityState?: ActivityState;
+  noteKey?: string;
+}
+
+export type AlertWorkflowStatus =
+  | "open"
+  | "nurse_treated"
+  | "needs_follow_up"
+  | "noise"
+  | "doctor_confirmed";
+
+export type OperatorRole = "coordinator" | "floor_nurse" | "doctor";
+
+export interface AlertTreatmentRecord {
+  symptomsBefore: string;
+  actionTaken: string;
+  symptomsAfter: string;
+  outcome: "completed" | "needs_follow_up";
+  floorNurseId: string;
+  floorNurseName: string;
+  zoneCode: string;
+  followUpNote?: string;
+  recordedById: string;
+  recordedByName: string;
+  recordedAt: ISODateString;
+  doctorConclusion?: string;
+  doctorConfirmedAt?: ISODateString;
+}
+
+export interface AlertActionLogEntry {
+  id: string;
+  alertId: string;
+  action: "nurse_treat" | "mark_noise" | "needs_follow_up" | "doctor_confirm";
+  actorId: string;
+  actorName: string;
+  actorRole: OperatorRole;
+  payload: Record<string, unknown>;
+  createdAt: ISODateString;
 }
 
 export interface Alert {
@@ -109,37 +215,168 @@ export interface Alert {
   patientId: string;
   type: AlertType;
   severity: AlertSeverity;
-  message: string;
-  /** Điểm số mô hình (UI: "Score 8.4") — luôn kèm disclaimer, KHÔNG phải chẩn đoán (flag #5). */
   score?: number;
   evidence: Evidence[];
-  timestamp: string;
+  timestamp: ISODateString;
   acknowledged: boolean;
+  workflowStatus: AlertWorkflowStatus;
+  assignedFloorNurseId?: string;
+  assignedZoneCode?: string;
+  noiseNote?: string;
+  treatment?: AlertTreatmentRecord;
+}
+
+export type ShiftStaffRole = "coordinator" | "floor_nurse" | "doctor";
+
+export type ShiftStaffStatus = "active" | "break" | "off";
+
+export interface ShiftStaffMember {
+  id: string;
+  name: string;
+  role: ShiftStaffRole;
+  zoneCode: string;
+  status: ShiftStaffStatus;
+}
+
+export type ShiftBand = "morning" | "afternoon" | "night";
+
+export interface ShiftScheduleSlot {
+  id: string;
+  staffId: string;
+  date: string;
+  band: ShiftBand;
+  zoneCode: string;
+}
+
+export interface Shift {
+  id: string;
+  wardCode: string;
+  wardLabel: LocalizedString;
+  startedAt: ISODateString;
+  coordinatorId: string;
+  staff: ShiftStaffMember[];
 }
 
 export interface AISummary {
   patientId: string;
+  locale: Locale;
   question: string;
   answer: string;
   keyFindings: string[];
   status: AISummaryStatus;
-  confidence: AIConfidence; // UI: "Confidence: High"
-  evidence: Evidence[];     // bắt buộc — không trả lời tự do
-  generatedAt: string;
-  disclaimer: string;      
+  confidence: AIConfidence;
+  evidence: Evidence[];
+  generatedAt: ISODateString;
+  disclaimerKey: DisclaimerKey;
 }
-
-// ---------- User / tenant ----------
 
 export interface Clinician {
   id: string;
-  name: string;            // "Dr. Linh Nguyen"
-  specialty: string;       // "Cardiology"
+  name: string;
+  specialty: LocalizedString;
   onDuty: boolean;
   avatarUrl?: string;
 }
 
 export interface Hospital {
   id: string;
-  name: string;            // "Vinmec International Hospital"
+  code: HospitalCode;
+  name: LocalizedString;
+}
+
+// -----------------------------
+// auth / session
+// -----------------------------
+
+export interface SessionUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  hospitalId: string;
+  preferredLocale: Locale;
+}
+
+export interface SessionResponse {
+  user: SessionUser;
+}
+
+export interface UpdatePreferencesRequest {
+  preferredLocale: Locale;
+}
+
+export interface UpdatePreferencesResponse {
+  success: boolean;
+  preferredLocale: Locale;
+}
+
+// -----------------------------
+// endpoint-specific contracts
+// -----------------------------
+
+export type GetPatientsResponse = Patient[];
+
+export type GetPatientByIdResponse = Patient;
+
+export interface LatestMetricsResponse {
+  patientId: string;
+  metrics: MetricSummary[];
+}
+
+export interface GetPatientVitalsResponse {
+  patientId: string;
+  range: TimeRange;
+  samples: VitalSignalSample[];
+}
+
+export type GetPatientAlertsResponse = Alert[];
+
+export interface PatientSummarySnapshot {
+  patientId: string;
+  status: PatientStatus;
+  keyMetrics: MetricSummary[];
+  recentAlerts: Alert[];
+  lastUpdated: ISODateString;
+}
+
+export type GetPatientSummaryResponse = PatientSummarySnapshot;
+
+export interface AskAIRequest {
+  patientId: string;
+  locale: Locale;
+  question: string;
+}
+
+export type AskAIResponse = AISummary;
+
+// -----------------------------
+// API contract
+// -----------------------------
+
+export interface HealthApi {
+  getPatients(): Promise<GetPatientsResponse>;
+  getPatientById(patientId: string): Promise<GetPatientByIdResponse>;
+  getPatientLatest(patientId: string): Promise<LatestMetricsResponse>;
+  getPatientVitals(
+    patientId: string,
+    range: TimeRange,
+  ): Promise<GetPatientVitalsResponse>;
+  getPatientAlerts(patientId: string): Promise<GetPatientAlertsResponse>;
+  getPatientSummary(patientId: string): Promise<GetPatientSummaryResponse>;
+  askAI(input: AskAIRequest): Promise<AskAIResponse>;
+}
+
+// -----------------------------
+// frontend helper maps
+// -----------------------------
+
+export interface StatusLabelMap {
+  healthy: LocalizedString;
+  at_risk: LocalizedString;
+  critical: LocalizedString;
+  recent_symptom: LocalizedString;
+}
+
+export interface DisclaimerMap {
+  ai_support_only: LocalizedString;
 }

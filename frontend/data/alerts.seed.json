@@ -1,0 +1,161 @@
+[
+  {
+    "id": "alert-001",
+    "patient_id": "P001",
+    "type": "low_oxygen",
+    "severity": "warning",
+    "score": 7.2,
+    "timestamp": "2026-06-02T08:09:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "metric_threshold",
+        "metric": "spo2",
+        "value": 94,
+        "unit": "%",
+        "timestamp": "2026-06-02T08:09:00Z",
+        "note_key": "spo2_below_recent_baseline"
+      }
+    ]
+  },
+  {
+    "id": "alert-002",
+    "patient_id": "P003",
+    "type": "high_blood_pressure",
+    "severity": "critical",
+    "score": 8.4,
+    "timestamp": "2026-06-02T08:09:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "metric_threshold",
+        "metric": "systolic_bp",
+        "value": 156,
+        "unit": "mmHg",
+        "timestamp": "2026-06-02T08:09:00Z",
+        "note_key": "systolic_bp_above_threshold"
+      }
+    ]
+  },
+  {
+    "id": "alert-003",
+    "patient_id": "P006",
+    "type": "high_blood_pressure",
+    "severity": "warning",
+    "score": 6.8,
+    "timestamp": "2026-06-02T08:12:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "trend_change",
+        "metric": "systolic_bp",
+        "value": 140,
+        "unit": "mmHg",
+        "comparison_value": 136,
+        "comparison_window": "15m",
+        "timestamp": "2026-06-02T08:12:00Z"
+      }
+    ]
+  },
+  {
+    "id": "alert-004",
+    "patient_id": "P007",
+    "type": "stroke_risk",
+    "severity": "critical",
+    "score": 9.1,
+    "timestamp": "2026-06-02T08:10:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "symptom_report",
+        "symptom_code": "dizziness",
+        "timestamp": "2026-06-02T08:10:00Z",
+        "note_key": "neurologic_symptom_reported"
+      }
+    ]
+  },
+  {
+    "id": "alert-005",
+    "patient_id": "P008",
+    "type": "low_oxygen",
+    "severity": "warning",
+    "score": 7.5,
+    "timestamp": "2026-06-02T08:09:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "metric_threshold",
+        "metric": "spo2",
+        "value": 93,
+        "unit": "%",
+        "timestamp": "2026-06-02T08:09:00Z",
+        "note_key": "spo2_below_resting_threshold"
+      }
+    ]
+  },
+  {
+    "id": "alert-006",
+    "patient_id": "P012",
+    "type": "high_heart_rate",
+    "severity": "info",
+    "score": 5.4,
+    "timestamp": "2026-06-02T08:09:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "trend_change",
+        "metric": "heart_rate",
+        "value": 99,
+        "unit": "bpm",
+        "comparison_value": 86,
+        "comparison_window": "15m",
+        "timestamp": "2026-06-02T08:09:00Z"
+      }
+    ]
+  },
+  {
+    "id": "alert-007",
+    "patient_id": "P013",
+    "type": "deterioration_risk",
+    "severity": "warning",
+    "score": 6.9,
+    "timestamp": "2026-06-02T08:12:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "trend_change",
+        "metric": "respiratory_rate",
+        "value": 23,
+        "unit": "rpm",
+        "comparison_value": 18,
+        "comparison_window": "15m",
+        "timestamp": "2026-06-02T08:12:00Z"
+      }
+    ]
+  },
+  {
+    "id": "alert-008",
+    "patient_id": "P014",
+    "type": "high_blood_pressure",
+    "severity": "critical",
+    "score": 8.9,
+    "timestamp": "2026-06-02T08:09:00Z",
+    "acknowledged": false,
+    "evidence": [
+      {
+        "kind": "metric_threshold",
+        "metric": "systolic_bp",
+        "value": 158,
+        "unit": "mmHg",
+        "timestamp": "2026-06-02T08:09:00Z"
+      },
+      {
+        "kind": "metric_threshold",
+        "metric": "spo2",
+        "value": 91,
+        "unit": "%",
+        "timestamp": "2026-06-02T08:09:00Z"
+      }
+    ]
+  }
+]
