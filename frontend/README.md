@@ -41,13 +41,14 @@ Scripts: `dev` · `build` · `start` · `lint`
 | `/patients` | Danh sách BN, search, bubble chat AI | `ClinicalShell` |
 | `/patients/[patientId]` | Vitals, alerts, hồ sơ lâm sàng, AI chat | `ClinicalShell` |
 | `/alerts` | Danh sách cảnh báo + workflow | `ClinicalShell` |
+| `/report` | Báo cáo tổng hợp khoa (KPI, charts, heatmap) | `ClinicalShell` |
 | `/staff` | Lịch ca trực tuần | `ClinicalShell` |
 | `/metrics` | Demo metrics (client simulation) | `ClinicalShell` |
 | `/dashboard` | AI workspace 3 cột (chat / context / evidence) | `DashboardShell` |
 | `/family/[patientId]` | View gia đình (demo) | — |
 | `/vitals-preview` | Preview component vitals | — |
 
-**Navbar chính** (`ClinicalShell`): `/patients` · `/alerts` · `/staff` · `/metrics`  
+**Navbar chính** (`ClinicalShell`): `/patients` · `/alerts` · `/report` · `/staff` · `/metrics`  
 `/dashboard` tồn tại nhưng không nằm trong navbar lâm sàng.
 
 **Global:** `GlobalAlertModal` mount tại `app/layout.tsx` — popup cảnh báo toàn cục.
@@ -156,6 +157,11 @@ Khi **có** URL: luôn gọi backend; lỗi trả 502 (không fallback im lặng
 | POST | `/api/alerts/[id]/actions` | Workflow (xử trí / xác nhận) |
 | GET | `/api/clinical/summary` | Tổng hợp counts (navbar badge) |
 | GET | `/api/clinical/zones` | Zone filters |
+| GET | `/api/report/summary` | KPI báo cáo khoa |
+| GET | `/api/report/alert-trend` | Xu hướng cảnh báo theo ngày |
+| GET | `/api/report/alert-by-type` | Phân bố theo loại alert |
+| GET | `/api/report/heatmap` | Heatmap bất thường BN × ngày |
+| GET | `/api/report/patient-risk` | Bảng rủi ro BN (sort/page) |
 | GET/PUT | `/api/shifts/current` | Ca hiện tại |
 | GET | `/api/shifts/current/staff` | Nhân sự ca |
 | GET | `/api/shifts/schedule` | Lịch tuần |

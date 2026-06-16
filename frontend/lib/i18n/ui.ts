@@ -7,6 +7,7 @@ const clinicalUi = {
     nav: {
       patients: "Danh sách bệnh nhân",
       alerts: "Cảnh báo lâm sàng",
+      report: "Báo cáo",
       staff: "Phân công ca trực",
       metrics: "Mô phỏng dấu hiệu sinh tồn",
       internal: "nội bộ",
@@ -135,6 +136,7 @@ const clinicalUi = {
     nav: {
       patients: "Patient census",
       alerts: "Clinical alerts",
+      report: "Report",
       staff: "Shift assignment",
       metrics: "Vital sign simulation",
       internal: "internal",

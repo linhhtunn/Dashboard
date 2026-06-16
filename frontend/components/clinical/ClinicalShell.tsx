@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Activity,
+  BarChart3,
   Bell,
   ChevronDown,
   FlaskConical,
@@ -127,6 +128,7 @@ function ClinicalNavbar() {
       icon: Bell,
       badge: openAlertCount !== null ? String(openAlertCount) : undefined,
     },
+    { href: "/report", label: ui.nav.report, icon: BarChart3 },
     { href: "/staff", label: ui.nav.staff, icon: UserCog },
     { href: "/metrics", label: ui.nav.metrics, icon: FlaskConical, internal: true },
   ];
