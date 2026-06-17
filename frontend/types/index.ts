@@ -131,6 +131,34 @@ export interface Patient {
   medicationCycle: MedicationCycle[];
   recentSymptomCodes: SymptomCode[];
   lastUpdated: ISODateString;
+  dbProfile?: PatientDbProfile;
+}
+
+export interface PatientBaselineSignals {
+  heartRate?: number;
+  respiratoryRate?: number;
+  systolicBp?: number;
+  diastolicBp?: number;
+  spo2?: number;
+  stressScore?: number;
+  hrvRmssdMorning?: number;
+  ecgRhythm?: string;
+}
+
+export interface PatientDbProfile {
+  mimicSubjectId?: number | null;
+  ageGroup?: string | null;
+  pregnancyStatus?: string | null;
+  lifestyle?: string | null;
+  activityLevel?: string | null;
+  medicalHistory?: string | null;
+  healthStatus?: string | null;
+  recordStatus?: string | null;
+  weightKg?: number | null;
+  heightCm?: number | null;
+  riskFactors: string[];
+  baselineSignals?: PatientBaselineSignals;
+  createdAt?: string | null;
 }
 
 export interface VitalSignalSet {

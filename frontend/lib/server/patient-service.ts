@@ -6,7 +6,14 @@ import {
 } from "@/lib/server/clinical-db";
 import { getLatestVitalsForList } from "@/lib/server/vitals-db";
 import { normalizePatientId } from "@/lib/patient-id";
-import type { Alert, Evidence, MetricSummary, Patient, VitalSignalSample } from "@/types";
+import type {
+  Alert,
+  Evidence,
+  MetricSummary,
+  Patient,
+  PatientDbProfile,
+  VitalSignalSample,
+} from "@/types";
 
 type LocalizedTextDto = {
   vi: string;
@@ -35,6 +42,23 @@ export type PatientDto = {
   }>;
   recent_symptom_codes: string[];
   last_updated: string;
+  db_profile?: PatientDbProfileDto | null;
+};
+
+type PatientDbProfileDto = {
+  mimic_subject_id?: number | null;
+  age_group?: string | null;
+  pregnancy_status?: string | null;
+  lifestyle?: string | null;
+  activity_level?: string | null;
+  medical_history?: string | null;
+  health_status?: string | null;
+  record_status?: string | null;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  risk_factors: string[];
+  baseline_signals?: PatientDbProfile["baselineSignals"];
+  created_at?: string | null;
 };
 
 export type VitalDto = {
@@ -80,6 +104,25 @@ export type AlertDto = {
   message: string;
 };
 
+function mapDbProfileDto(profile?: PatientDbProfile): PatientDbProfileDto | null {
+  if (!profile) return null;
+  return {
+    mimic_subject_id: profile.mimicSubjectId ?? null,
+    age_group: profile.ageGroup ?? null,
+    pregnancy_status: profile.pregnancyStatus ?? null,
+    lifestyle: profile.lifestyle ?? null,
+    activity_level: profile.activityLevel ?? null,
+    medical_history: profile.medicalHistory ?? null,
+    health_status: profile.healthStatus ?? null,
+    record_status: profile.recordStatus ?? null,
+    weight_kg: profile.weightKg ?? null,
+    height_cm: profile.heightCm ?? null,
+    risk_factors: profile.riskFactors,
+    baseline_signals: profile.baselineSignals,
+    created_at: profile.createdAt ?? null,
+  };
+}
+
 function mapPatientDto(patient: Patient): PatientDto {
   return {
     id: patient.id,
@@ -103,6 +146,7 @@ function mapPatientDto(patient: Patient): PatientDto {
     })),
     recent_symptom_codes: patient.recentSymptomCodes,
     last_updated: patient.lastUpdated,
+    db_profile: mapDbProfileDto(patient.dbProfile),
   };
 }
 

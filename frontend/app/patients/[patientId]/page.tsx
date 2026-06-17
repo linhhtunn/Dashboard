@@ -9,6 +9,7 @@ import { AlertItem } from "@/components/alerts";
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { PatientAIChatPanel } from "@/components/clinical/PatientAIChatPanel";
 import { PatientClinicalProfilePanel } from "@/components/patients/PatientClinicalProfilePanel";
+import { PatientDbProfilePanel } from "@/components/patients/PatientDbProfilePanel";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   BloodPressureCard,
@@ -224,7 +225,8 @@ export default function PatientDetailPage() {
               </div>
             </section>
 
-            <div className="flex min-h-0 flex-col gap-2">
+            <div className="dashboard-scroll-area flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
+              <PatientDbProfilePanel patient={patient} />
               <PatientClinicalProfilePanel patient={patient} />
 
               <section className="dashboard-surface flex min-h-0 flex-1 flex-col rounded-[1.15rem] p-2">
@@ -299,6 +301,14 @@ function PatientHeader({ patient, alertCount }: { patient: Patient; alertCount: 
               <span>{locale === "vi" ? "Mã hồ sơ" : "MRN"} {patient.mrn}</span>
               <span>{patient.age} {locale === "vi" ? "tuổi" : "years"}</span>
               <span>{getGenderLabel(patient.gender, locale)}</span>
+              {patient.dbProfile?.ageGroup ? (
+                <span>{patient.dbProfile.ageGroup.replace(/_/g, " ")}</span>
+              ) : null}
+              {patient.dbProfile?.healthStatus ? (
+                <span className="font-semibold text-[color:var(--cs-danger)]">
+                  {patient.dbProfile.healthStatus}
+                </span>
+              ) : null}
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
                 {getWardLabel(patient, locale)} {patient.bed ? `· ${patient.bed}` : ""}

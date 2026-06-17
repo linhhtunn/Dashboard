@@ -1,4 +1,4 @@
-import type { Patient, VitalSignalSample } from "@/types";
+import type { Patient, PatientDbProfile, VitalSignalSample } from "@/types";
 import type { PatientListItem } from "@/components/patients/patient-card";
 import { clinicalApiGet } from "@/lib/api/client";
 import { normalizePatientId } from "@/lib/patient-id";
@@ -25,6 +25,21 @@ type PatientDto = {
   }>;
   recent_symptom_codes: string[];
   last_updated: string;
+  db_profile?: {
+    mimic_subject_id?: number | null;
+    age_group?: string | null;
+    pregnancy_status?: string | null;
+    lifestyle?: string | null;
+    activity_level?: string | null;
+    medical_history?: string | null;
+    health_status?: string | null;
+    record_status?: string | null;
+    weight_kg?: number | null;
+    height_cm?: number | null;
+    risk_factors: string[];
+    baseline_signals?: PatientDbProfile["baselineSignals"];
+    created_at?: string | null;
+  } | null;
 };
 
 type VitalDto = {
@@ -42,6 +57,27 @@ type PatientListItemDto = {
   latest_vital: VitalDto | null;
   open_alert_count: number;
 };
+
+function mapDbProfile(
+  dto: PatientDto["db_profile"],
+): PatientDbProfile | undefined {
+  if (!dto) return undefined;
+  return {
+    mimicSubjectId: dto.mimic_subject_id ?? null,
+    ageGroup: dto.age_group ?? null,
+    pregnancyStatus: dto.pregnancy_status ?? null,
+    lifestyle: dto.lifestyle ?? null,
+    activityLevel: dto.activity_level ?? null,
+    medicalHistory: dto.medical_history ?? null,
+    healthStatus: dto.health_status ?? null,
+    recordStatus: dto.record_status ?? null,
+    weightKg: dto.weight_kg ?? null,
+    heightCm: dto.height_cm ?? null,
+    riskFactors: dto.risk_factors ?? [],
+    baselineSignals: dto.baseline_signals,
+    createdAt: dto.created_at ?? null,
+  };
+}
 
 function mapPatient(dto: PatientDto): Patient {
   return {
@@ -66,6 +102,7 @@ function mapPatient(dto: PatientDto): Patient {
     })),
     recentSymptomCodes: dto.recent_symptom_codes,
     lastUpdated: dto.last_updated,
+    dbProfile: mapDbProfile(dto.db_profile),
   };
 }
 

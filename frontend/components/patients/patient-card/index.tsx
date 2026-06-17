@@ -74,7 +74,15 @@ export function PatientCard({ item }: PatientCardProps) {
               <span className={["h-2 w-2 rounded-full", state.dot].join(" ")} />
             </div>
             <p className="mt-0.5 truncate text-[11px] text-[color:var(--cs-text-soft)]">
-              {patient.age} {locale === "vi" ? "tuổi" : "years"} · {getWardLabel(patient, locale)}
+              {patient.age} {locale === "vi" ? "tuổi" : "years"}
+              {patient.dbProfile?.ageGroup
+                ? ` · ${patient.dbProfile.ageGroup.replace(/_/g, " ")}`
+                : ""}
+              {patient.dbProfile?.healthStatus
+                ? ` · ${patient.dbProfile.healthStatus}`
+                : ""}
+              {" · "}
+              {getWardLabel(patient, locale)}
               {patient.bed ? ` · ${locale === "vi" ? "Phòng" : "Bed"} ${patient.bed}` : ""}
             </p>
           </div>

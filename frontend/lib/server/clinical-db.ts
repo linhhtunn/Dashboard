@@ -81,6 +81,7 @@ function mergePatientWithPortalOverlay(base: Patient, overlay: Patient): Patient
       ? overlay.recentSymptomCodes
       : base.recentSymptomCodes,
     lastUpdated: overlay.lastUpdated || base.lastUpdated,
+    dbProfile: base.dbProfile,
   };
 }
 

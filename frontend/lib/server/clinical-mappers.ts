@@ -17,6 +17,7 @@ import type {
   MedicationCycle,
   OperatorRole,
   Patient,
+  PatientBaselineSignals,
   PatientStatus,
   Shift,
   ShiftBand,
@@ -63,6 +64,15 @@ export type DbBackendPatientRow = {
   medical_history?: string | null;
   risk_factors?: string[] | unknown;
   updated_at?: string | null;
+  created_at?: string | null;
+  mimic_subject_id?: number | null;
+  age_group?: string | null;
+  pregnancy_status?: string | null;
+  lifestyle?: string | null;
+  activity_level?: string | null;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  baseline_signals?: Record<string, unknown> | null;
 };
 
 export type DbAlertRow = {
@@ -226,18 +236,38 @@ export function mapDbPatientRow(row: DbPatientRow): Patient {
   };
 }
 
+function mapBaselineSignals(
+  raw: Record<string, unknown> | null | undefined,
+): PatientBaselineSignals | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const signals: PatientBaselineSignals = {};
+  if (typeof raw.heart_rate === "number") signals.heartRate = raw.heart_rate;
+  if (typeof raw.respiratory_rate === "number") signals.respiratoryRate = raw.respiratory_rate;
+  if (typeof raw.systolic_bp === "number") signals.systolicBp = raw.systolic_bp;
+  if (typeof raw.diastolic_bp === "number") signals.diastolicBp = raw.diastolic_bp;
+  if (typeof raw.spo2 === "number") signals.spo2 = raw.spo2;
+  if (typeof raw.stress_score === "number") signals.stressScore = raw.stress_score;
+  if (typeof raw.hrv_rmssd_morning === "number") signals.hrvRmssdMorning = raw.hrv_rmssd_morning;
+  if (typeof raw.ecg_rhythm === "string") signals.ecgRhythm = raw.ecg_rhythm;
+
+  return Object.keys(signals).length > 0 ? signals : undefined;
+}
+
 export function mapBackendPatientRow(row: DbBackendPatientRow): Patient {
-  const underlyingConditionCodes: string[] = [];
-  if (row.medical_history) underlyingConditionCodes.push(row.medical_history);
+  const riskFactors: string[] = [];
   if (Array.isArray(row.risk_factors)) {
     for (const factor of row.risk_factors) {
-      if (typeof factor === "string" && !underlyingConditionCodes.includes(factor)) {
-        underlyingConditionCodes.push(factor);
+      if (typeof factor === "string" && !riskFactors.includes(factor)) {
+        riskFactors.push(factor);
       }
     }
   }
 
-  return mapDbPatientRow({
+  const underlyingConditionCodes: string[] = [...riskFactors];
+  if (row.medical_history) underlyingConditionCodes.push(row.medical_history);
+
+  const patient = mapDbPatientRow({
     id: row.patient_id,
     mrn: row.patient_id,
     name: row.name,
@@ -252,6 +282,25 @@ export function mapBackendPatientRow(row: DbBackendPatientRow): Patient {
     medications: [],
     last_updated: row.updated_at ?? new Date().toISOString(),
   });
+
+  return {
+    ...patient,
+    dbProfile: {
+      mimicSubjectId: row.mimic_subject_id ?? null,
+      ageGroup: row.age_group ?? null,
+      pregnancyStatus: row.pregnancy_status ?? null,
+      lifestyle: row.lifestyle ?? null,
+      activityLevel: row.activity_level ?? null,
+      medicalHistory: row.medical_history ?? null,
+      healthStatus: row.health_status ?? null,
+      recordStatus: row.status ?? null,
+      weightKg: row.weight_kg ?? null,
+      heightCm: row.height_cm ?? null,
+      riskFactors,
+      baselineSignals: mapBaselineSignals(row.baseline_signals),
+      createdAt: row.created_at ?? null,
+    },
+  };
 }
 
 export function mapAlertSeed(seed: AlertSeed): Alert {
