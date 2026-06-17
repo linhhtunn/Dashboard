@@ -1,67 +1,31 @@
-import { getPatientById, updatePatientStatus } from "@/lib/server/clinical-store";
+import {
+  appendAlertActionLog,
+  getAlertActionHistory,
+  getAlertById,
+  listPendingDoctorConfirmations,
+  updateAlertWorkflow,
+  updatePatientStatus,
+} from "@/lib/server/clinical-db";
 import type {
   AlertActionLogEntry,
   AlertTreatmentRecord,
   AlertWorkflowStatus,
-  OperatorRole,
 } from "@/types";
 
-type WorkflowState = {
-  workflowStatus: AlertWorkflowStatus;
-  assignedFloorNurseId?: string;
-  assignedZoneCode?: string;
-  noiseNote?: string;
-  treatment?: AlertTreatmentRecord;
-};
+export { listPendingDoctorConfirmations, getAlertActionHistory };
 
-const workflowByAlertId = new Map<string, WorkflowState>();
-const actionLogs: AlertActionLogEntry[] = [];
-
-function getOrCreate(alertId: string): WorkflowState {
-  const existing = workflowByAlertId.get(alertId);
-  if (existing) return existing;
-  const initial: WorkflowState = { workflowStatus: "open" };
-  workflowByAlertId.set(alertId, initial);
-  return initial;
-}
-
-export function getAlertWorkflow(alertId: string): WorkflowState {
-  return structuredClone(getOrCreate(alertId));
-}
-
-export function listPendingDoctorConfirmations(): string[] {
-  return [...workflowByAlertId.entries()]
-    .filter(([, state]) =>
-      ["nurse_treated", "noise", "needs_follow_up"].includes(state.workflowStatus),
-    )
-    .map(([alertId]) => alertId);
-}
-
-function appendLog(entry: Omit<AlertActionLogEntry, "id" | "createdAt">): AlertActionLogEntry {
-  const next: AlertActionLogEntry = {
-    ...entry,
-    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    createdAt: new Date().toISOString(),
-  };
-  actionLogs.push(next);
-  return structuredClone(next);
-}
-
-export function getAlertActionHistory(alertId: string): AlertActionLogEntry[] {
-  return actionLogs
-    .filter((entry) => entry.alertId === alertId)
-    .sort(
-      (left, right) =>
-        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-    )
-    .map((entry) => structuredClone(entry));
-}
-
-function setPatientRecentSymptom(patientId: string) {
-  const patient = getPatientById(patientId);
-  if (patient && patient.status !== "critical") {
-    updatePatientStatus(patientId, "recent_symptom");
+export async function getAlertWorkflow(alertId: string) {
+  const alert = await getAlertById(alertId);
+  if (!alert) {
+    return { workflowStatus: "open" as AlertWorkflowStatus };
   }
+  return {
+    workflowStatus: alert.workflowStatus,
+    assignedFloorNurseId: alert.assignedFloorNurseId,
+    assignedZoneCode: alert.assignedZoneCode,
+    noiseNote: alert.noiseNote,
+    treatment: alert.treatment,
+  };
 }
 
 export type NurseTreatInput = {
@@ -77,12 +41,19 @@ export type NurseTreatInput = {
   actorName: string;
 };
 
-export function recordNurseTreatment(
+async function setPatientRecentSymptom(patientId: string) {
+  const { getPatientById } = await import("@/lib/server/clinical-db");
+  const patient = await getPatientById(patientId);
+  if (patient && patient.status !== "critical") {
+    await updatePatientStatus(patientId, "recent_symptom");
+  }
+}
+
+export async function recordNurseTreatment(
   alertId: string,
   patientId: string,
   input: NurseTreatInput,
-): WorkflowState {
-  const state = getOrCreate(alertId);
+) {
   const treatment: AlertTreatmentRecord = {
     symptomsBefore: input.symptomsBefore,
     actionTaken: input.actionTaken,
@@ -97,19 +68,21 @@ export function recordNurseTreatment(
     recordedAt: new Date().toISOString(),
   };
 
+  const workflowStatus: AlertWorkflowStatus =
+    input.outcome === "needs_follow_up" ? "needs_follow_up" : "nurse_treated";
+
   if (input.outcome === "needs_follow_up") {
-    state.workflowStatus = "needs_follow_up";
-    setPatientRecentSymptom(patientId);
-  } else {
-    state.workflowStatus = "nurse_treated";
+    await setPatientRecentSymptom(patientId);
   }
 
-  state.treatment = treatment;
-  state.assignedFloorNurseId = input.floorNurseId;
-  state.assignedZoneCode = input.zoneCode;
-  workflowByAlertId.set(alertId, state);
+  await updateAlertWorkflow(alertId, {
+    workflow_status: workflowStatus,
+    assigned_floor_nurse_id: input.floorNurseId,
+    assigned_zone_code: input.zoneCode,
+    treatment,
+  });
 
-  appendLog({
+  await appendAlertActionLog({
     alertId,
     action: input.outcome === "needs_follow_up" ? "needs_follow_up" : "nurse_treat",
     actorId: input.actorId,
@@ -118,21 +91,21 @@ export function recordNurseTreatment(
     payload: { ...treatment },
   });
 
-  return structuredClone(state);
+  return getAlertWorkflow(alertId);
 }
 
-export function recordNoise(
+export async function recordNoise(
   alertId: string,
   description: string,
   actorId: string,
   actorName: string,
-): WorkflowState {
-  const state = getOrCreate(alertId);
-  state.workflowStatus = "noise";
-  state.noiseNote = description;
-  workflowByAlertId.set(alertId, state);
+) {
+  await updateAlertWorkflow(alertId, {
+    workflow_status: "noise",
+    noise_note: description,
+  });
 
-  appendLog({
+  await appendAlertActionLog({
     alertId,
     action: "mark_noise",
     actorId,
@@ -141,47 +114,49 @@ export function recordNoise(
     payload: { description },
   });
 
-  return structuredClone(state);
+  return getAlertWorkflow(alertId);
 }
 
-export function recordDoctorConfirm(
+export async function recordDoctorConfirm(
   alertId: string,
   conclusion: string,
   actorId: string,
   actorName: string,
-): WorkflowState {
-  const state = getOrCreate(alertId);
-  if (!["nurse_treated", "noise", "needs_follow_up"].includes(state.workflowStatus)) {
+) {
+  const current = await getAlertWorkflow(alertId);
+  if (!["nurse_treated", "noise", "needs_follow_up"].includes(current.workflowStatus)) {
     throw new Error("Alert is not awaiting doctor confirmation.");
   }
 
-  state.workflowStatus = "doctor_confirmed";
-  if (state.treatment) {
-    state.treatment = {
-      ...state.treatment,
-      doctorConclusion: conclusion,
-      doctorConfirmedAt: new Date().toISOString(),
-    };
-  } else if (state.noiseNote) {
-    state.treatment = {
-      symptomsBefore: "",
-      actionTaken: state.noiseNote,
-      symptomsAfter: "",
-      outcome: "completed",
-      floorNurseId: "",
-      floorNurseName: "",
-      zoneCode: "",
-      recordedById: actorId,
-      recordedByName: actorName,
-      recordedAt: new Date().toISOString(),
-      doctorConclusion: conclusion,
-      doctorConfirmedAt: new Date().toISOString(),
-    };
-  }
+  const treatment: AlertTreatmentRecord | undefined = current.treatment
+    ? {
+        ...current.treatment,
+        doctorConclusion: conclusion,
+        doctorConfirmedAt: new Date().toISOString(),
+      }
+    : current.noiseNote
+      ? {
+          symptomsBefore: "",
+          actionTaken: current.noiseNote,
+          symptomsAfter: "",
+          outcome: "completed",
+          floorNurseId: "",
+          floorNurseName: "",
+          zoneCode: "",
+          recordedById: actorId,
+          recordedByName: actorName,
+          recordedAt: new Date().toISOString(),
+          doctorConclusion: conclusion,
+          doctorConfirmedAt: new Date().toISOString(),
+        }
+      : undefined;
 
-  workflowByAlertId.set(alertId, state);
+  await updateAlertWorkflow(alertId, {
+    workflow_status: "doctor_confirmed",
+    treatment: treatment ?? null,
+  });
 
-  appendLog({
+  await appendAlertActionLog({
     alertId,
     action: "doctor_confirm",
     actorId,
@@ -190,19 +165,21 @@ export function recordDoctorConfirm(
     payload: { conclusion },
   });
 
-  return structuredClone(state);
+  return getAlertWorkflow(alertId);
 }
 
-export function enrichAlertDto<T extends { id: string; patient_id: string }>(
+export async function enrichAlertDto<T extends { id: string; patient_id: string }>(
   dto: T,
-): T & {
-  workflow_status: AlertWorkflowStatus;
-  assigned_floor_nurse_id: string | null;
-  assigned_zone_code: string | null;
-  noise_note: string | null;
-  treatment: AlertTreatmentRecord | null;
-} {
-  const state = getOrCreate(dto.id);
+): Promise<
+  T & {
+    workflow_status: AlertWorkflowStatus;
+    assigned_floor_nurse_id: string | null;
+    assigned_zone_code: string | null;
+    noise_note: string | null;
+    treatment: AlertTreatmentRecord | null;
+  }
+> {
+  const state = await getAlertWorkflow(dto.id);
   return {
     ...dto,
     workflow_status: state.workflowStatus,

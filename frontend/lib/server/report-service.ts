@@ -1,4 +1,4 @@
-import { getAlertWorkflow, listPendingDoctorConfirmations } from "@/lib/mock/alert-workflow-store";
+import { listPendingDoctorConfirmations } from "@/lib/mock/alert-workflow-store";
 import {
   buildLocalizedPair,
   getAlertTypeLabel,
@@ -29,7 +29,7 @@ import {
   getWeekDates,
   listStaff,
 } from "@/lib/server/clinical-store";
-import type { AlertSeverity, AlertType, Patient, PatientStatus } from "@/types";
+import type { Alert, AlertSeverity, AlertType, Patient, PatientStatus } from "@/types";
 import {
   DEFAULT_REPORT_DEPARTMENT,
 } from "@/lib/report/constants";
@@ -94,18 +94,17 @@ function departmentLabel(code: string) {
   });
 }
 
-function filterPatients(department: string): Patient[] {
-  const patients = getPatients();
+async function filterPatients(department: string): Promise<Patient[]> {
+  const patients = await getPatients();
   if (department === "all") return patients;
   return patients.filter((patient) => patient.departmentCode === department);
 }
 
-function isResolved(alertId: string, acknowledged: boolean): boolean {
-  const workflow = getAlertWorkflow(alertId);
+function isResolved(alert: Pick<Alert, "acknowledged" | "workflowStatus">): boolean {
   return (
-    acknowledged ||
-    workflow.workflowStatus === "doctor_confirmed" ||
-    workflow.workflowStatus === "noise"
+    alert.acknowledged ||
+    alert.workflowStatus === "doctor_confirmed" ||
+    alert.workflowStatus === "noise"
   );
 }
 
@@ -147,12 +146,13 @@ function pickSeverity(patient: Patient, seed: number): AlertSeverity {
 function buildReportAlerts(
   patients: Patient[],
   dates: string[],
+  sourceAlerts: Alert[],
 ): ReportAlertRecord[] {
   const patientIds = new Set(patients.map((patient) => patient.id));
   const records: ReportAlertRecord[] = [];
   const seen = new Set<string>();
 
-  for (const alert of getAlerts()) {
+  for (const alert of sourceAlerts) {
     if (!patientIds.has(alert.patientId)) continue;
     const dayIndex = hashCode(alert.id) % dates.length;
     const date = dates[dayIndex];
@@ -166,7 +166,7 @@ function buildReportAlerts(
       severity: alert.severity,
       date,
       timestamp,
-      resolved: isResolved(alert.id, alert.acknowledged),
+      resolved: isResolved(alert),
       responseMinutes,
     });
     seen.add(alert.id);
@@ -236,9 +236,13 @@ function computeAvgResponse(alerts: ReportAlertRecord[]) {
   return Math.round(total / acknowledged.length);
 }
 
-function getPatientVitalAverages(patientId: string, dates: string[]) {
+function getPatientVitalAverages(
+  patientId: string,
+  dates: string[],
+  allVitals: Awaited<ReturnType<typeof getVitals>>,
+) {
   const dateSet = new Set(dates);
-  const samples = getVitals().filter((sample) => {
+  const samples = allVitals.filter((sample) => {
     if (sample.patientId !== patientId) return false;
     return dateSet.has(sample.timestamp.slice(0, 10));
   });
@@ -319,7 +323,7 @@ function heatmapLevel(
   return "normal";
 }
 
-function buildContext(query: ReportQuery) {
+async function buildContext(query: ReportQuery) {
   const range = parseRange(query.range);
   const days = rangeDays(range);
   const dates = buildDateRange(days);
@@ -327,10 +331,11 @@ function buildContext(query: ReportQuery) {
   prevAnchor.setDate(prevAnchor.getDate() - 1);
   const prevDates = buildDateRange(days, prevAnchor);
   const department = query.department || DEFAULT_REPORT_DEPARTMENT;
-  const patients = filterPatients(department);
-  const alerts = buildReportAlerts(patients, dates);
-  const prevPatients = filterPatients(department);
-  const prevAlerts = buildReportAlerts(prevPatients, prevDates);
+  const sourceAlerts = await getAlerts();
+  const patients = await filterPatients(department);
+  const alerts = buildReportAlerts(patients, dates, sourceAlerts);
+  const prevPatients = await filterPatients(department);
+  const prevAlerts = buildReportAlerts(prevPatients, prevDates, sourceAlerts);
 
   return {
     range,
@@ -339,6 +344,7 @@ function buildContext(query: ReportQuery) {
     patients,
     alerts,
     prevAlerts,
+    sourceAlerts,
     filterDate: query.filter_date ?? null,
   };
 }
@@ -353,8 +359,8 @@ export function parseReportQuery(searchParams: URLSearchParams): ReportQuery {
   };
 }
 
-export function getReportSummary(query: ReportQuery): ReportSummaryResponse {
-  const ctx = buildContext(query);
+export async function getReportSummary(query: ReportQuery): Promise<ReportSummaryResponse> {
+  const ctx = await buildContext(query);
   const { critical, warning } = countSeverity(ctx.alerts);
 
   return {
@@ -381,12 +387,12 @@ export function getReportSummary(query: ReportQuery): ReportSummaryResponse {
   };
 }
 
-export function getReportOverview(query: ReportQuery): ReportOverviewResponse {
+export async function getReportOverview(query: ReportQuery): Promise<ReportOverviewResponse> {
   const department = query.department || DEFAULT_REPORT_DEPARTMENT;
-  const patients = filterPatients(department);
+  const patients = await filterPatients(department);
   const now = new Date();
   const currentShift = getCurrentShiftBand(now);
-  const shiftStaff = getShiftStaffForBand(currentShift);
+  const shiftStaff = await getShiftStaffForBand(currentShift);
   const nurses = shiftStaff.filter((member) => member.role === "floor_nurse").length;
   const doctors = shiftStaff.filter((member) => member.role === "doctor").length;
   const coordinators = shiftStaff.filter(
@@ -424,10 +430,10 @@ function toShiftStaffDto(member: ShiftStaffMember) {
   };
 }
 
-function getShiftStaffForBand(band: ShiftBand): ShiftStaffMember[] {
+async function getShiftStaffForBand(band: ShiftBand): Promise<ShiftStaffMember[]> {
   const today = toDateKey(new Date());
-  const weekStart = getWeekDates()[0];
-  const slots = buildWeekSchedule(weekStart).filter(
+  const weekStart = (await getWeekDates())[0];
+  const slots = (await buildWeekSchedule(weekStart)).filter(
     (slot) => slot.date === today && slot.band === band,
   );
   const seen = new Set<string>();
@@ -435,7 +441,7 @@ function getShiftStaffForBand(band: ShiftBand): ShiftStaffMember[] {
 
   for (const slot of slots) {
     if (seen.has(slot.staffId)) continue;
-    const member = getStaffMember(slot.staffId);
+    const member = await getStaffMember(slot.staffId);
     if (!member || member.status === "off") continue;
     seen.add(slot.staffId);
     members.push(member);
@@ -445,7 +451,7 @@ function getShiftStaffForBand(band: ShiftBand): ShiftStaffMember[] {
     return members.sort((left, right) => left.name.localeCompare(right.name));
   }
 
-  return listStaff()
+  return (await listStaff())
     .filter((member) => member.status === "active")
     .sort((left, right) => left.name.localeCompare(right.name));
 }
@@ -463,9 +469,10 @@ function countPatientStatus(patients: Patient[]) {
   return counts;
 }
 
-function getDepartmentVitalsSnapshot(patients: Patient[]) {
+async function getDepartmentVitalsSnapshot(patients: Patient[]) {
   const patientIds = new Set(patients.map((patient) => patient.id));
-  const samples = getVitals().filter((sample) => patientIds.has(sample.patientId));
+  const allVitals = await getVitals();
+  const samples = allVitals.filter((sample) => patientIds.has(sample.patientId));
 
   if (!samples.length) {
     let spo2Sum = 0;
@@ -527,33 +534,35 @@ function getDepartmentVitalsSnapshot(patients: Patient[]) {
   };
 }
 
-export function getReportInsights(query: ReportQuery): ReportInsightsResponse {
-  const ctx = buildContext(query);
+export async function getReportInsights(query: ReportQuery): Promise<ReportInsightsResponse> {
+  const ctx = await buildContext(query);
   const today = toDateKey(new Date());
   const todayAlerts = ctx.alerts.filter((alert) => alert.date === today);
   const patientIds = new Set(ctx.patients.map((patient) => patient.id));
-  const pendingDoctor = listPendingDoctorConfirmations().filter((alertId) => {
-    const alert = getAlerts().find((item) => item.id === alertId);
+  const pendingIds = await listPendingDoctorConfirmations();
+  const pendingDoctor = pendingIds.filter((alertId) => {
+    const alert = ctx.sourceAlerts.find((item) => item.id === alertId);
     return alert && patientIds.has(alert.patientId);
   }).length;
 
-  const openUnresolved = getAlerts().filter((alert) => {
+  const openUnresolved = ctx.sourceAlerts.filter((alert) => {
     if (!patientIds.has(alert.patientId)) return false;
-    const workflow = getAlertWorkflow(alert.id);
-    return workflow.workflowStatus === "open";
+    return alert.workflowStatus === "open";
   }).length;
 
   let workflowOpen = 0;
   let workflowPending = 0;
   let workflowResolved = 0;
+  const sourceById = new Map(ctx.sourceAlerts.map((alert) => [alert.id, alert]));
   for (const alert of ctx.alerts) {
-    const workflow = getAlertWorkflow(alert.id);
-    if (workflow.workflowStatus === "open") workflowOpen += 1;
+    const source = sourceById.get(alert.id);
+    const workflowStatus = source?.workflowStatus ?? "open";
+    if (workflowStatus === "open") workflowOpen += 1;
     else if (
-      ["nurse_treated", "needs_follow_up", "noise"].includes(workflow.workflowStatus)
+      ["nurse_treated", "needs_follow_up", "noise"].includes(workflowStatus)
     ) {
       workflowPending += 1;
-    } else if (workflow.workflowStatus === "doctor_confirmed" || alert.resolved) {
+    } else if (workflowStatus === "doctor_confirmed" || alert.resolved) {
       workflowResolved += 1;
     }
   }
@@ -603,15 +612,15 @@ export function getReportInsights(query: ReportQuery): ReportInsightsResponse {
       pending_doctor: workflowPending,
       resolved: workflowResolved,
     },
-    vitals_snapshot: getDepartmentVitalsSnapshot(ctx.patients),
+    vitals_snapshot: await getDepartmentVitalsSnapshot(ctx.patients),
     attention_patients: attentionPatients,
     range: ctx.range,
     department_code: ctx.department,
   };
 }
 
-export function getReportAlertTrend(query: ReportQuery): ReportAlertTrendResponse {
-  const ctx = buildContext(query);
+export async function getReportAlertTrend(query: ReportQuery): Promise<ReportAlertTrendResponse> {
+  const ctx = await buildContext(query);
 
   const critical = ctx.dates.map(
     (date) =>
@@ -637,10 +646,10 @@ export function getReportAlertTrend(query: ReportQuery): ReportAlertTrendRespons
   };
 }
 
-export function getReportAlertByType(
+export async function getReportAlertByType(
   query: ReportQuery,
-): ReportAlertByTypeResponse {
-  const ctx = buildContext(query);
+): Promise<ReportAlertByTypeResponse> {
+  const ctx = await buildContext(query);
   const alerts = ctx.alerts;
 
   const counts = new Map<AlertType, { count: number; severity: AlertSeverity }>();
@@ -686,8 +695,8 @@ export function getReportAlertByType(
   };
 }
 
-export function getReportHeatmap(query: ReportQuery): ReportHeatmapResponse {
-  const ctx = buildContext(query);
+export async function getReportHeatmap(query: ReportQuery): Promise<ReportHeatmapResponse> {
+  const ctx = await buildContext(query);
   const rows = ctx.patients.map((patient) => {
     const days = ctx.dates.map((date) => {
       const dayAlerts = ctx.alerts.filter(
@@ -745,19 +754,20 @@ function sortPatients(
   }
 }
 
-export function getReportPatientRisk(
+export async function getReportPatientRisk(
   query: ReportQuery,
-): ReportPatientRiskResponse {
-  const ctx = buildContext(query);
+): Promise<ReportPatientRiskResponse> {
+  const ctx = await buildContext(query);
   const pageSize = 10;
   const page = query.page ?? 1;
   const alerts = ctx.filterDate
     ? ctx.alerts.filter((alert) => alert.date === ctx.filterDate)
     : ctx.alerts;
 
+  const allVitals = await getVitals();
   const rows: ReportPatientRiskRow[] = ctx.patients.map((patient) => {
     const patientAlerts = alerts.filter((alert) => alert.patientId === patient.id);
-    const vitals = getPatientVitalAverages(patient.id, ctx.dates);
+    const vitals = getPatientVitalAverages(patient.id, ctx.dates, allVitals);
     return {
       patient_id: patient.id,
       patient_name: patient.name,

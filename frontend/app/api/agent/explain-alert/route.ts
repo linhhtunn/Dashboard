@@ -14,8 +14,8 @@ import { getMetricLabel } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
-function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
-  const alert = getAlertById(body.alertId);
+async function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
+  const alert = await getAlertById(body.alertId);
   const evidence = alert?.evidence.find((item) => item.value !== undefined);
 
   return buildMockExplainAlertPayload({
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     body.locale === "vi" ? "Giải thích cảnh báo" : "Alert explanation";
 
   if (!isAgentBackendConfigured()) {
-    return Response.json(buildMockFromAlert(body));
+    return Response.json(await buildMockFromAlert(body));
   }
 
   try {

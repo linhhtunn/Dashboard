@@ -1,3 +1,5 @@
 import { getVitals } from "@/lib/server/clinical-store";
 
-export const mockVitals = getVitals();
+export async function loadVitals() {
+  return getVitals();
+}

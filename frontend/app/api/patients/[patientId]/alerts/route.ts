@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { enrichAlertDto } from "@/lib/mock/alert-workflow-store";
-import { listMockPatientAlerts } from "@/lib/mock/patient-api";
+import { listPatientAlerts } from "@/lib/server/patient-service";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,8 @@ export async function GET(
   const { patientId } = await context.params;
 
   try {
-    const payload = listMockPatientAlerts(patientId).map(enrichAlertDto);
+    const alerts = await listPatientAlerts(patientId);
+    const payload = await Promise.all(alerts.map((alert) => enrichAlertDto(alert)));
     return NextResponse.json(payload);
   } catch (error) {
     return NextResponse.json(

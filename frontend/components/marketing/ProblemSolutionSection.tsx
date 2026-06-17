@@ -14,13 +14,15 @@ export function ProblemSolutionSection() {
   return (
     <section id="problem" className={`py-2 ${marketingContainer}`}>
       <div className="dashboard-surface rounded-[1.15rem] p-5 sm:p-6">
-        <h2 className="max-w-3xl text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
-          {t(copy.headline, locale)}
-        </h2>
+        <RevealOnScroll>
+          <h2 className="max-w-3xl text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
+            {t(copy.headline, locale)}
+          </h2>
+        </RevealOnScroll>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {copy.items.map((item, index) => (
-            <RevealOnScroll key={item.pain.vi} delayMs={index * 80}>
+            <RevealOnScroll key={item.pain.vi} delayMs={index * 80} lift>
               <article className="dashboard-glass-soft h-full rounded-[1rem] p-4">
                 <p className="text-[14px] leading-[22px] text-[color:var(--cs-text-soft)]">
                   {t(item.pain, locale)}

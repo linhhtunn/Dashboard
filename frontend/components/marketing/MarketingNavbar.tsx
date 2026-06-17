@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Globe2 } from "lucide-react";
+import { Globe2 } from "lucide-react";
+import { motion } from "motion/react";
 
 import { BrandLogo } from "@/components/marketing/BrandLogo";
 import {
   dashboardPrimaryBtn,
+  dashboardSecondaryBtn,
 } from "@/components/marketing/marketing-styles";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import { MARKETING_COPY, t } from "@/lib/i18n/marketing";
+import { navbarVariants } from "@/lib/motion/presets";
 
 export function MarketingNavbar() {
   const { locale, setLocale } = useLocale();
@@ -17,28 +20,46 @@ export function MarketingNavbar() {
   const copy = MARKETING_COPY.nav;
 
   return (
-    <header className="dashboard-glass relative z-40 mx-3 mt-3 shrink-0 rounded-[1.15rem] border border-white/45 px-3 shadow-[0_22px_48px_rgba(15,23,42,0.08)] sm:mx-5 sm:px-5 xl:mx-6">
+    <motion.header
+      className="dashboard-glass relative z-40 mx-3 mt-3 shrink-0 rounded-[1.15rem] border border-white/45 px-3 shadow-[0_22px_48px_rgba(15,23,42,0.08)] sm:mx-5 sm:px-5 xl:mx-6"
+      variants={navbarVariants}
+      initial="hidden"
+      animate="visible"
+    >
       <div className="mx-auto flex h-[60px] w-full max-w-[1600px] items-center justify-between gap-3">
-        <Link href="/">
-          <BrandLogo compact />
-        </Link>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Link href="/">
+            <BrandLogo compact />
+          </Link>
+        </motion.div>
 
-        <div className="flex items-center gap-1.5">
-          <button
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <motion.button
             type="button"
             onClick={() => setLocale(locale === "vi" ? "en" : "vi")}
-            className="dashboard-input flex h-9 items-center gap-1.5 rounded-[0.7rem] px-2 text-[12px] font-semibold text-[color:var(--cs-text)] transition hover:border-white/80 hover:bg-white/70"
+            className="dashboard-input flex h-9 items-center gap-1.5 rounded-[0.7rem] px-2 text-[12px] font-semibold text-[color:var(--cs-text)]"
             aria-label={ui.common.switchLanguage}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
           >
             <Globe2 className="h-4 w-4 text-[color:var(--cs-teal)]" />
             {locale.toUpperCase()}
-          </button>
-          <Link href="/login" className={`${dashboardPrimaryBtn} h-9 px-4 text-[13px]`}>
-            {t(copy.signIn, locale)}
-            <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
-          </Link>
+          </motion.button>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Link
+              href="/login"
+              className={`${dashboardSecondaryBtn} hidden h-9 px-4 text-[13px] sm:inline-flex`}
+            >
+              {t(copy.signIn, locale)}
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Link href="/login?demo=1" className={`${dashboardPrimaryBtn} h-9 px-4 text-[13px]`}>
+              {locale === "vi" ? "Vào demo" : "Try demo"}
+            </Link>
+          </motion.div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }

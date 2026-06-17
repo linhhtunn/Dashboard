@@ -27,7 +27,7 @@ cp .env.example .env.local   # tùy chọn — cấu hình agent
 npm run dev
 ```
 
-Mở `http://localhost:3000` (redirect → `/patients`).
+Mở `http://localhost:3000` — landing công khai; đăng nhập tại `/login` để vào khu vực lâm sàng.
 
 Scripts: `dev` · `build` · `start` · `lint`
 
@@ -35,9 +35,23 @@ Scripts: `dev` · `build` · `start` · `lint`
 
 ## Routes (App Router)
 
+### Marketing & auth (public)
+
 | Route | Mô tả | Shell |
 |-------|--------|-------|
-| `/` | Redirect → `/patients` | — |
+| `/` | Landing — hero, tính năng, CTA | `MarketingShell` |
+| `/privacy` | Chính sách bảo mật | `MarketingShell` |
+| `/terms` | Điều khoản sử dụng | `MarketingShell` |
+| `/login` | Đăng nhập (Supabase hoặc demo) | `AuthShell` |
+| `/register` | Đăng ký tài khoản | `AuthShell` |
+| `/forgot-password` | Quên mật khẩu | `AuthShell` |
+| `/reset-password` | Đặt lại mật khẩu (sau email recovery) | `AuthShell` |
+| `/auth/callback` | OAuth / email confirmation callback | — |
+
+### Clinical (yêu cầu đăng nhập)
+
+| Route | Mô tả | Shell |
+|-------|--------|-------|
 | `/patients` | Danh sách BN, search, bubble chat AI | `ClinicalShell` |
 | `/patients/[patientId]` | Vitals, alerts, hồ sơ lâm sàng, AI chat | `ClinicalShell` |
 | `/alerts` | Danh sách cảnh báo + workflow | `ClinicalShell` |
@@ -51,7 +65,9 @@ Scripts: `dev` · `build` · `start` · `lint`
 **Navbar chính** (`ClinicalShell`): `/patients` · `/alerts` · `/staff` · `/report` · `/metrics`  
 `/dashboard` tồn tại nhưng không nằm trong navbar lâm sàng.
 
-**Global:** `GlobalAlertModal` mount tại `app/layout.tsx` — popup cảnh báo toàn cục.
+**Global:** `GlobalAlertModal` mount tại `app/layout.tsx` — popup cảnh báo toàn cục (ẩn trên route public).
+
+**Auth:** Supabase khi có `NEXT_PUBLIC_SUPABASE_*`; không cấu hình thì demo (`caresignal` / `demo@caresignal.ai`).
 
 ---
 

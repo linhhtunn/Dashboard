@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const slot = addScheduleAssignment(body.date, body.band, body.staff_id);
+    const slot = await addScheduleAssignment(body.date, body.band, body.staff_id);
     return NextResponse.json(mapScheduleSlotDto(slot), { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -42,7 +42,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "id is required." }, { status: 400 });
     }
 
-    const removed = removeScheduleAssignment(id);
+    const removed = await removeScheduleAssignment(id);
     if (!removed) {
       return NextResponse.json({ error: "Assignment not found." }, { status: 404 });
     }

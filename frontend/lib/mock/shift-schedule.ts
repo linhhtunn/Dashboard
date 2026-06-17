@@ -1,10 +1,31 @@
 import {
   buildWeekSchedule,
-  getWeekDates,
   getStaffMember as resolveScheduleStaff,
 } from "@/lib/server/clinical-store";
 
-export { buildWeekSchedule, getWeekDates, resolveScheduleStaff };
+export { buildWeekSchedule, resolveScheduleStaff };
+
+function startOfWeek(date: Date): Date {
+  const next = new Date(date);
+  const day = next.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  next.setDate(next.getDate() + diff);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function toDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function getWeekDates(anchor = new Date()): string[] {
+  const monday = startOfWeek(anchor);
+  return Array.from({ length: 7 }, (_, index) => {
+    const next = new Date(monday);
+    next.setDate(monday.getDate() + index);
+    return toDateKey(next);
+  });
+}
 
 export function getWeekStartKey(anchor = new Date()): string {
   return getWeekDates(anchor)[0];

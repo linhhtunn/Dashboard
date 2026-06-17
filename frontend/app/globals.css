@@ -179,8 +179,8 @@
     text-rendering: optimizeLegibility;
   }
 
-  html:has(.marketing-page),
-  body:has(.marketing-page) {
+  html:has(.public-page),
+  body:has(.public-page) {
     height: auto;
     min-height: 100dvh;
     overflow-x: hidden;

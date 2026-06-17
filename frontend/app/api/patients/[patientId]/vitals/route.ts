@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getMockPatientVitalsById } from "@/lib/mock/patient-api";
+import { getPatientVitalsDto } from "@/lib/server/patient-service";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function GET(
   const range = request.nextUrl.searchParams.get("range") ?? "15m";
 
   try {
-    const payload = getMockPatientVitalsById(patientId, range);
+    const payload = await getPatientVitalsDto(patientId, range);
     if (!payload) {
       return NextResponse.json({ error: "Vitals not found." }, { status: 404 });
     }

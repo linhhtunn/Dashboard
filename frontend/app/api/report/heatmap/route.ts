@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    return NextResponse.json(getReportHeatmap(parseReportQuery(searchParams)));
+    return NextResponse.json(await getReportHeatmap(parseReportQuery(searchParams)));
   } catch (error) {
     return NextResponse.json(
       {

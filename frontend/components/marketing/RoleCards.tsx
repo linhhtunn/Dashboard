@@ -12,13 +12,15 @@ export function RoleCards() {
   return (
     <section className={`py-2 ${marketingContainer}`}>
       <div className="dashboard-surface rounded-[1.15rem] p-5 sm:p-6">
-        <h2 className="text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
-          {t(copy.headline, locale)}
-        </h2>
+        <RevealOnScroll>
+          <h2 className="text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
+            {t(copy.headline, locale)}
+          </h2>
+        </RevealOnScroll>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           {copy.items.map((role, index) => (
-            <RevealOnScroll key={role.title.vi} delayMs={index * 80}>
+            <RevealOnScroll key={role.title.vi} delayMs={index * 80} lift>
               <article className="dashboard-glass-soft h-full rounded-[1rem] p-5">
                 <h3 className="text-[18px] font-semibold leading-[26px] text-[color:var(--cs-heading)]">
                   {t(role.title, locale)}

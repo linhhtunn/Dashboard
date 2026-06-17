@@ -13,13 +13,13 @@ export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ alertId: string }> };
 
-function findAlert(alertId: string) {
-  return getAlertById(alertId) ?? null;
+async function findAlert(alertId: string) {
+  return (await getAlertById(alertId)) ?? null;
 }
 
-function getActor(request: Request) {
+async function getActor(request: Request) {
   const role = (request.headers.get("x-operator-role") ?? "coordinator") as OperatorRole;
-  const session = getOperatorActor(role);
+  const session = await getOperatorActor(role);
   return {
     role,
     actorId: request.headers.get("x-operator-id") ?? session?.actorId ?? role,
@@ -30,14 +30,14 @@ function getActor(request: Request) {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { alertId } = await context.params;
-    const alert = findAlert(alertId);
+    const alert = await findAlert(alertId);
     if (!alert) {
       return NextResponse.json({ error: "Alert not found." }, { status: 404 });
     }
 
     const body = (await request.json()) as Record<string, unknown>;
     const action = body.action as string;
-    const actor = getActor(request);
+    const actor = await getActor(request);
 
     if (action === "nurse_treat" || action === "needs_follow_up") {
       if (actor.role !== "coordinator") {
@@ -48,7 +48,8 @@ export async function POST(request: Request, context: RouteContext) {
       }
 
       const floorNurseId = String(body.floorNurseId ?? "");
-      const floorNurse = getFloorNurses().find((member) => member.id === floorNurseId);
+      const floorNurses = await getFloorNurses();
+      const floorNurse = floorNurses.find((member) => member.id === floorNurseId);
       if (!floorNurse) {
         return NextResponse.json(
           { error: "Select a floor nurse on shift." },
@@ -75,7 +76,7 @@ export async function POST(request: Request, context: RouteContext) {
           ? ("needs_follow_up" as const)
           : (String(body.outcome ?? "completed") as "completed" | "needs_follow_up");
 
-      const state = recordNurseTreatment(alertId, normalizePatientId(alert.patientId), {
+      const state = await recordNurseTreatment(alertId, normalizePatientId(alert.patientId), {
         symptomsBefore,
         actionTaken,
         symptomsAfter,
@@ -110,7 +111,7 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
 
-      const state = recordNoise(alertId, description, actor.actorId, actor.actorName);
+      const state = await recordNoise(alertId, description, actor.actorId, actor.actorName);
       return NextResponse.json(state);
     }
 
@@ -130,7 +131,7 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
 
-      const state = recordDoctorConfirm(
+      const state = await recordDoctorConfirm(
         alertId,
         conclusion,
         actor.actorId,

@@ -1,3 +1,5 @@
 import { getAlerts } from "@/lib/server/clinical-store";
 
-export const mockAlerts = getAlerts();
+export async function loadAlerts() {
+  return getAlerts();
+}

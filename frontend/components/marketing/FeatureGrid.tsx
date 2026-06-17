@@ -17,15 +17,17 @@ export function FeatureGrid() {
   return (
     <section className={`py-2 ${marketingContainer}`}>
       <div className="dashboard-surface rounded-[1.15rem] p-5 sm:p-6">
-        <h2 className="text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
-          {t(copy.headline, locale)}
-        </h2>
+        <RevealOnScroll>
+          <h2 className="text-[1.5rem] font-semibold leading-8 tracking-tight text-[color:var(--cs-heading)]">
+            {t(copy.headline, locale)}
+          </h2>
+        </RevealOnScroll>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {copy.items.map((item, index) => {
             const Icon = icons[index] ?? Activity;
             return (
-              <RevealOnScroll key={item.title.vi} delayMs={index * 70}>
+              <RevealOnScroll key={item.title.vi} delayMs={index * 70} lift>
                 <article className="dashboard-glass-soft h-full rounded-[1rem] p-5">
                   <span className="relative inline-flex h-10 w-10 items-center justify-center rounded-[0.8rem] bg-[linear-gradient(135deg,rgba(13,71,161,0.12),rgba(0,150,136,0.1))] text-[color:var(--cs-primary)]">
                     <Icon className="h-5 w-5" strokeWidth={1.75} />

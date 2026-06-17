@@ -2,21 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { AUTH_COOKIE_NAME, isSupabaseAuthConfigured } from "@/lib/auth/config";
+import { isPublicPageRoute } from "@/lib/auth/public-routes";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname;
+  const isPageRoute =
+    !pathname.startsWith("/api") && !pathname.startsWith("/_next");
 
   if (!isSupabaseAuthConfigured()) {
     const demoSession = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-    const pathname = request.nextUrl.pathname;
-    const isPageRoute =
-      !pathname.startsWith("/api") && !pathname.startsWith("/_next");
-    const isPublicPage =
-      pathname === "/" ||
-      pathname.startsWith("/login") ||
-      pathname.startsWith("/auth/callback");
 
-    if (!demoSession && isPageRoute && !isPublicPage) {
+    if (!demoSession && isPageRoute && !isPublicPageRoute(pathname)) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("next", pathname);
@@ -28,7 +25,7 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
         getAll() {
@@ -51,15 +48,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-  const isPageRoute =
-    !pathname.startsWith("/api") && !pathname.startsWith("/_next");
-  const isPublicPage =
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/auth/callback");
-
-  if (!user && isPageRoute && !isPublicPage) {
+  if (!user && isPageRoute && !isPublicPageRoute(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

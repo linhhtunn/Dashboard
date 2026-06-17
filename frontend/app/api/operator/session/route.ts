@@ -9,13 +9,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const role = (searchParams.get("role") ?? "coordinator") as OperatorRole;
-    const actor = getOperatorActor(role);
+    const actor = await getOperatorActor(role);
 
     if (!actor) {
       return NextResponse.json({ error: "Operator session not found." }, { status: 404 });
     }
 
-    const staff = getStaffMember(actor.staffId);
+    const staff = await getStaffMember(actor.staffId);
 
     return NextResponse.json({
       role: actor.role,

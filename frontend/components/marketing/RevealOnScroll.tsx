@@ -1,64 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { motion } from "motion/react";
+import type { ReactNode } from "react";
 
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { transitionBase } from "@/lib/motion/presets";
 
 type RevealOnScrollProps = {
   children: ReactNode;
   className?: string;
   delayMs?: number;
+  lift?: boolean;
 };
 
 export function RevealOnScroll({
   children,
   className = "",
   delayMs = 0,
+  lift = false,
 }: RevealOnScrollProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
-  const [visible, setVisible] = useState(reducedMotion);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setVisible(true);
-      return;
-    }
-
-    const node = ref.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          if (delayMs > 0) {
-            window.setTimeout(() => setVisible(true), delayMs);
-          } else {
-            setVisible(true);
-          }
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [delayMs, reducedMotion]);
-
   return (
-    <div
-      ref={ref}
-      className={[
-        className,
-        reducedMotion
-          ? ""
-          : visible
-            ? "marketing-reveal-visible"
-            : "marketing-reveal-hidden",
-      ].join(" ")}
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.12, margin: "0px 0px -40px 0px" }}
+      transition={{ ...transitionBase, delay: delayMs / 1000 }}
+      whileHover={
+        lift
+          ? { y: -4, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }
+          : undefined
+      }
     >
       {children}
-    </div>
+    </motion.div>
   );
 }

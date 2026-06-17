@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Manrope } from "next/font/google";
 
 import { AppShell, ClinicalChrome } from "@/components/AppShell";
+import { MotionProvider } from "@/components/motion/MotionProvider";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 
 import "./globals.css";
@@ -35,8 +36,10 @@ export default function RootLayout({
     >
       <body className="min-h-dvh">
         <LocaleProvider>
-          <AppShell>{children}</AppShell>
-          <ClinicalChrome />
+          <MotionProvider>
+            <AppShell>{children}</AppShell>
+            <ClinicalChrome />
+          </MotionProvider>
         </LocaleProvider>
       </body>
     </html>

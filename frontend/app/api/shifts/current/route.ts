@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    return NextResponse.json(mapShiftDto(getShift()));
+    return NextResponse.json(mapShiftDto(await getShift()));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Không thể tải ca trực." },
@@ -26,7 +26,7 @@ export async function PUT(request: Request) {
         { status: 400 },
       );
     }
-    return NextResponse.json(mapShiftDto(updateShiftCoordinator(coordinatorId)));
+    return NextResponse.json(mapShiftDto(await updateShiftCoordinator(coordinatorId)));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Không thể cập nhật ca trực." },

@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const summary = getClinicalSummary();
-    const pendingDoctorCount = listPendingDoctorConfirmations().length;
+    const summary = await getClinicalSummary();
+    const pendingDoctorCount = (await listPendingDoctorConfirmations()).length;
 
     return NextResponse.json({
       ...summary,

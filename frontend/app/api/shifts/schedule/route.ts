@@ -9,8 +9,10 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const weekStart = searchParams.get("weekStart") ?? undefined;
-    const slots = buildWeekSchedule(weekStart ?? undefined);
-    const dates = getWeekDates(weekStart ? new Date(`${weekStart}T00:00:00`) : new Date());
+    const slots = await buildWeekSchedule(weekStart ?? undefined);
+    const dates = await getWeekDates(
+      weekStart ? new Date(`${weekStart}T00:00:00`) : new Date(),
+    );
 
     return NextResponse.json({
       week_start: dates[0],

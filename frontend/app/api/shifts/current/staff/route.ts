@@ -13,7 +13,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    return NextResponse.json(listStaff().map(mapStaffDto));
+    const staff = await listStaff();
+    return NextResponse.json(staff.map(mapStaffDto));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Không thể tải nhân sự ca trực." },
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const member = addStaff(parseStaffInput(body));
+    const member = await addStaff(parseStaffInput(body));
     return NextResponse.json(mapStaffDto(member), { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -61,7 +62,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "id is required." }, { status: 400 });
     }
 
-    const updated = updateStaff(body.id, {
+    const updated = await updateStaff(body.id, {
       zoneCode: body.zone_code,
       status: body.status,
       name: body.name,
@@ -88,7 +89,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "id query param is required." }, { status: 400 });
     }
 
-    const removed = removeStaff(id);
+    const removed = await removeStaff(id);
     if (!removed) {
       return NextResponse.json({ error: "Staff member not found." }, { status: 404 });
     }
