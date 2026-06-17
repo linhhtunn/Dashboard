@@ -25,10 +25,10 @@ import {
   getAlerts,
   getPatients,
   getStaffMember,
-  getVitals,
   getWeekDates,
   listStaff,
 } from "@/lib/server/clinical-store";
+import { getAllVitals as getVitals } from "@/lib/server/vitals-db";
 import type { Alert, AlertSeverity, AlertType, Patient, PatientStatus } from "@/types";
 import {
   DEFAULT_REPORT_DEPARTMENT,

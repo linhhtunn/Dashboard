@@ -203,25 +203,6 @@ export async function updateAlertWorkflow(
   if (error) throw new Error(error.message);
 }
 
-import {
-  getAllVitals,
-  getVitalsForPatient,
-  parseVitalsRange,
-} from "@/lib/server/vitals-db";
-
-export async function getVitals(): Promise<VitalSignalSample[]> {
-  return getAllVitals();
-}
-
-export async function getVitalsByPatient(
-  patientId: string,
-  range?: string,
-): Promise<VitalSignalSample[]> {
-  return getVitalsForPatient(patientId, {
-    since: range ? parseVitalsRange(range) : undefined,
-  });
-}
-
 async function getCurrentShiftRow() {
   const supabase = getClient();
   const { data, error } = await supabase

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "D" },
+  { href: "/overview", label: "Overview", icon: "O" },
   { href: "/patients", label: "Patients", icon: "P" },
 ];
 
@@ -15,7 +15,7 @@ export function Sidebar() {
     <aside className="border-b border-border bg-panel md:min-h-screen md:w-64 md:border-b-0 md:border-r">
       <div className="flex h-full flex-col gap-4 px-4 py-4">
         <Link
-          href="/dashboard"
+          href="/overview"
           className="flex items-center gap-3 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary/25"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-semibold text-white">
@@ -26,7 +26,7 @@ export function Sidebar() {
               CareSignal AI
             </span>
             <span className="block truncate text-xs text-text-body">
-              Doctor dashboard
+              Clinical portal
             </span>
           </span>
         </Link>

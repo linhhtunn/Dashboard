@@ -25,13 +25,13 @@ export default function Navbar() {
           { href: "/", label: "Dashboard", icon: LayoutDashboard },
           { href: "/patients", label: "Bệnh nhân", icon: Users },
           { href: "/signals", label: "Tín hiệu", icon: Zap },
-          { href: "/reports", label: "Báo cáo", icon: FileText },
+          { href: "/overview", label: "Tổng quan", icon: FileText },
         ]
       : [
           { href: "/", label: "Dashboard", icon: LayoutDashboard },
           { href: "/patients", label: "Patients", icon: Users },
           { href: "/signals", label: "Signals", icon: Zap },
-          { href: "/reports", label: "Reports", icon: FileText },
+          { href: "/overview", label: "Overview", icon: FileText },
         ];
 
   return (

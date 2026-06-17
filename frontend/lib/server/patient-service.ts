@@ -4,7 +4,7 @@ import {
   getPatientById,
   getPatients,
 } from "@/lib/server/clinical-db";
-import { getLatestVitalsForList } from "@/lib/server/vitals-db";
+import { getLatestVitalsForList, getVitalsForPatient, parseVitalsRange } from "@/lib/server/vitals-db";
 import { normalizePatientId } from "@/lib/patient-id";
 import type {
   Alert,
@@ -64,11 +64,11 @@ type PatientDbProfileDto = {
 export type VitalDto = {
   patient_id: string;
   timestamp: string;
-  heart_rate: number;
-  respiratory_rate: number;
-  systolic_bp: number;
-  diastolic_bp: number;
-  spo2: number;
+  heart_rate: number | null;
+  respiratory_rate: number | null;
+  systolic_bp: number | null;
+  diastolic_bp: number | null;
+  spo2: number | null;
 };
 
 export type PatientListItemDto = {
@@ -154,11 +154,11 @@ function mapVitalDto(vital: VitalSignalSample): VitalDto {
   return {
     patient_id: vital.patientId,
     timestamp: vital.timestamp,
-    heart_rate: vital.vitals.heartRate ?? 0,
-    respiratory_rate: vital.vitals.respiratoryRate ?? 0,
-    systolic_bp: vital.vitals.systolicBp ?? 0,
-    diastolic_bp: vital.vitals.diastolicBp ?? 0,
-    spo2: vital.vitals.spo2 ?? 0,
+    heart_rate: vital.vitals.heartRate ?? null,
+    respiratory_rate: vital.vitals.respiratoryRate ?? null,
+    systolic_bp: vital.vitals.systolicBp ?? null,
+    diastolic_bp: vital.vitals.diastolicBp ?? null,
+    spo2: vital.vitals.spo2 ?? null,
   };
 }
 
@@ -166,10 +166,46 @@ function getLatestVitalFromSamples(
   samples: VitalSignalSample[],
   patientId: string,
 ): VitalDto | null {
-  const latest = samples
-    .filter((item) => normalizePatientId(item.patientId) === patientId)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-  return latest ? mapVitalDto(latest) : null;
+  const relevant = samples.filter(
+    (item) => normalizePatientId(item.patientId) === patientId,
+  );
+  if (relevant.length === 0) return null;
+
+  const merged: VitalSignalSample = {
+    patientId,
+    timestamp: relevant[0].timestamp,
+    vitals: {},
+  };
+
+  const sorted = [...relevant].sort(
+    (left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime(),
+  );
+
+  for (const sample of sorted) {
+    if (merged.vitals.heartRate === undefined && sample.vitals.heartRate !== undefined) {
+      merged.vitals.heartRate = sample.vitals.heartRate;
+    }
+    if (
+      merged.vitals.respiratoryRate === undefined &&
+      sample.vitals.respiratoryRate !== undefined
+    ) {
+      merged.vitals.respiratoryRate = sample.vitals.respiratoryRate;
+    }
+    if (merged.vitals.spo2 === undefined && sample.vitals.spo2 !== undefined) {
+      merged.vitals.spo2 = sample.vitals.spo2;
+    }
+    if (merged.vitals.systolicBp === undefined && sample.vitals.systolicBp !== undefined) {
+      merged.vitals.systolicBp = sample.vitals.systolicBp;
+    }
+    if (merged.vitals.diastolicBp === undefined && sample.vitals.diastolicBp !== undefined) {
+      merged.vitals.diastolicBp = sample.vitals.diastolicBp;
+    }
+    if (new Date(sample.timestamp).getTime() > new Date(merged.timestamp).getTime()) {
+      merged.timestamp = sample.timestamp;
+    }
+  }
+
+  return mapVitalDto(merged);
 }
 
 function determineMetricStatus(metric: MetricSummary["metric"], value: number): MetricSummary["status"] {
@@ -326,9 +362,10 @@ export async function getPatientVitalsDto(
   range = "15m",
 ): Promise<PatientVitalsDto | null> {
   const normalizedPatientId = normalizePatientId(patientId);
-  const { getVitalsByPatient } = await import("@/lib/server/clinical-db");
   const samples = (
-    await getVitalsByPatient(normalizedPatientId, range)
+    await getVitalsForPatient(normalizedPatientId, {
+      since: parseVitalsRange(range),
+    })
   ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   if (samples.length === 0) return null;

@@ -77,7 +77,7 @@ export function ReportDashboard() {
         if (value === null || value === "") params.delete(key);
         else params.set(key, value);
       }
-      router.replace(`/report?${params.toString()}`);
+      router.replace(`/overview?${params.toString()}`);
     },
     [router, searchParams],
   );
@@ -118,8 +118,8 @@ export function ReportDashboard() {
         nextError instanceof Error
           ? nextError.message
           : locale === "vi"
-            ? "Không thể tải báo cáo."
-            : "Unable to load report.",
+            ? "Không thể tải tổng quan."
+            : "Unable to load overview.",
       );
     } finally {
       setLoading(false);

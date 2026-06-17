@@ -179,7 +179,12 @@ export default function PatientDetailPage() {
                     {locale === "vi" ? "Diễn biến chỉ số sinh tồn" : "Vital-sign trends"}
                   </h2>
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
                 <TimeRangeSelector value={range} onChange={setRange} />
+                <span className="text-[10px] text-[color:var(--cs-text-soft)]">
+                  {locale === "vi" ? "Biểu đồ: 5 phút/lần" : "Charts: 5-min buckets"}
+                </span>
+              </div>
               </div>
 
               {error ? (

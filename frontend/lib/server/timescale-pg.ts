@@ -1,3 +1,5 @@
+import "server-only";
+
 import { Pool, type PoolConfig, type QueryResultRow } from "pg";
 
 let pool: Pool | null = null;

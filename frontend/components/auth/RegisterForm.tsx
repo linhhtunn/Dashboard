@@ -61,7 +61,7 @@ export function RegisterForm() {
           if (signInError) throw signInError;
         }
 
-        router.replace("/dashboard");
+        router.replace("/overview");
         router.refresh();
         return;
       }
@@ -79,7 +79,7 @@ export function RegisterForm() {
         throw new Error(payload?.error ?? ui.auth.genericError);
       }
 
-      router.replace("/dashboard");
+      router.replace("/overview");
       router.refresh();
     } catch (nextError: unknown) {
       setError(
@@ -103,7 +103,7 @@ export function RegisterForm() {
         </p>
       }
     >
-      {supabaseEnabled ? <OAuthButtons nextPath="/dashboard" /> : null}
+      {supabaseEnabled ? <OAuthButtons nextPath="/overview" /> : null}
       <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
         <AuthField
           label={ui.auth.fullName}

@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "email and displayName are required." }, { status: 400 });
   }
 
-  const clinicalRole: ClinicalPersona = isClinicalPersona(String(role)) ? role : "coordinator";
+  const clinicalRole: ClinicalPersona = isClinicalPersona(String(role)) ? (role as ClinicalPersona) : "coordinator";
 
   const admin = createSupabaseAdminClient();
   if (admin?.auth.admin.createUser && password.length >= 6 && authz.profile) {
@@ -169,7 +169,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "id is required." }, { status: 400 });
   }
 
-  const clinicalRole = isClinicalPersona(String(body.role)) ? body.role : undefined;
+  const clinicalRole = isClinicalPersona(String(body.role)) ? (body.role as ClinicalPersona) : undefined;
   const displayName =
     body.displayName !== undefined ? String(body.displayName).trim() : undefined;
 

@@ -1,8 +1,16 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { mapDbVitalRow, type DbVitalRow } from "@/lib/server/clinical-mappers";
 import type { VitalSignalSample } from "@/types";
+
+function isTimescaleEnvConfigured(): boolean {
+  return Boolean(
+    process.env.TIMESCALE_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim(),
+  );
+}
 
 function getClient(): SupabaseClient {
   const client = createSupabaseAdminClient();
@@ -318,6 +326,14 @@ async function loadMergedVitals(patientId?: string): Promise<VitalSignalSample[]
 }
 
 export async function getLatestVitalsForList(): Promise<VitalSignalSample[]> {
+  if (isTimescaleEnvConfigured()) {
+    const { getTimescaleLatestVitalsForList } = await import(
+      "@/lib/server/timescale-vitals-db"
+    );
+    const timescaleLatest = await getTimescaleLatestVitalsForList();
+    if (timescaleLatest.length > 0) return timescaleLatest;
+  }
+
   const [latestSnapshots, baselines] = await Promise.all([
     readLatestSensorSnapshots(),
     readPatientBaselineVitals(),
@@ -333,6 +349,12 @@ export async function getVitalsForPatient(
   patientId: string,
   options?: { since?: Date },
 ): Promise<VitalSignalSample[]> {
+  if (isTimescaleEnvConfigured()) {
+    const { getTimescalePatientVitals } = await import("@/lib/server/timescale-vitals-db");
+    const timescaleSamples = await getTimescalePatientVitals(patientId, options?.since);
+    if (timescaleSamples.length > 0) return timescaleSamples;
+  }
+
   const samples = await loadMergedVitals(patientId);
   if (!options?.since) return samples;
 

@@ -62,10 +62,7 @@ export default function AdminUsersPage() {
     try {
       const response = await fetch("/api/admin/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...clinicalPersonaHeaders(persona),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const payload = (await response.json()) as { error?: string };
@@ -87,10 +84,7 @@ export default function AdminUsersPage() {
     try {
       const response = await fetch("/api/admin/users", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...clinicalPersonaHeaders(persona),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: user.id,
           displayName: user.displayName,
@@ -119,7 +113,6 @@ export default function AdminUsersPage() {
     try {
       const response = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
-        headers: clinicalPersonaHeaders(persona),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {

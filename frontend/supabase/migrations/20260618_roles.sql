@@ -192,3 +192,21 @@ CREATE POLICY user_profiles_service ON user_profiles
 GRANT SELECT ON roles TO anon, authenticated;
 GRANT SELECT, UPDATE ON user_profiles TO authenticated;
 GRANT ALL ON roles, user_profiles TO service_role;
+
+-- Backfill profiles for users created before this migration.
+INSERT INTO public.user_profiles (user_id, role_code, display_name, email)
+SELECT
+  u.id,
+  CASE
+    WHEN u.raw_user_meta_data ->> 'clinical_role' IN ('admin', 'coordinator', 'doctor')
+      THEN u.raw_user_meta_data ->> 'clinical_role'
+    ELSE 'coordinator'
+  END,
+  COALESCE(
+    NULLIF(u.raw_user_meta_data ->> 'full_name', ''),
+    NULLIF(u.raw_user_meta_data ->> 'display_name', ''),
+    split_part(COALESCE(u.email, ''), '@', 1)
+  ),
+  u.email
+FROM auth.users u
+ON CONFLICT (user_id) DO NOTHING;

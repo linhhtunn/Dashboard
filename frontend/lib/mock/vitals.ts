@@ -1,4 +1,4 @@
-import { getVitals } from "@/lib/server/clinical-store";
+import { getAllVitals as getVitals } from "@/lib/server/vitals-db";
 
 export async function loadVitals() {
   return getVitals();

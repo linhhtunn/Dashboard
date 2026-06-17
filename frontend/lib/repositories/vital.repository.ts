@@ -5,11 +5,11 @@ import { normalizePatientId } from "@/lib/patient-id";
 type VitalDto = {
   patient_id: string;
   timestamp: string;
-  heart_rate: number;
-  respiratory_rate: number;
-  systolic_bp: number;
-  diastolic_bp: number;
-  spo2: number;
+  heart_rate: number | null;
+  respiratory_rate: number | null;
+  systolic_bp: number | null;
+  diastolic_bp: number | null;
+  spo2: number | null;
 };
 
 type MetricSummaryDto = {
@@ -34,11 +34,11 @@ function mapVital(dto: VitalDto): VitalSignalSample {
     patientId: dto.patient_id,
     timestamp: dto.timestamp,
     vitals: {
-      heartRate: dto.heart_rate,
-      respiratoryRate: dto.respiratory_rate,
-      systolicBp: dto.systolic_bp,
-      diastolicBp: dto.diastolic_bp,
-      spo2: dto.spo2,
+      heartRate: dto.heart_rate ?? undefined,
+      respiratoryRate: dto.respiratory_rate ?? undefined,
+      systolicBp: dto.systolic_bp ?? undefined,
+      diastolicBp: dto.diastolic_bp ?? undefined,
+      spo2: dto.spo2 ?? undefined,
     },
   };
 }

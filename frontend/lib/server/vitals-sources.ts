@@ -1,6 +1,7 @@
 /**
- * Vitals are spread across multiple pipeline tables (no single unified table).
- * Priority when merging: clean_vitals → wearable streams → latest_sensor_values → baseline_signals.
+ * Vitals source priority:
+ * - TimescaleDB (when configured): wearable_continuous + wearable_measurements
+ * - Supabase fallback: clean_vitals → wearable streams → latest_sensor_values → baseline_signals
  */
 export const VITALS_SOURCE_TABLES = {
   clean_vitals: {
