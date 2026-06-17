@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
+import { PersonaGuard } from "@/components/clinical/PersonaGuard";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { VitalChart } from "@/components/vitals";
 import type { VitalMetric, VitalSignalSample } from "@/types";
@@ -80,7 +81,8 @@ export default function MetricsPage() {
   };
 
   return (
-    <ClinicalShell
+    <PersonaGuard require="admin">
+      <ClinicalShell
       eyebrow={locale === "vi" ? "Công cụ nội bộ" : "Internal tool"}
       title={locale === "vi" ? "Mô phỏng chỉ số" : "Metrics Simulator"}
       description={
@@ -247,6 +249,7 @@ export default function MetricsPage() {
         </div>
       </div>
     </ClinicalShell>
+    </PersonaGuard>
   );
 }
 

@@ -9,6 +9,9 @@ const STORAGE_KEY = "caresignal-operator-role";
 
 export function getStoredOperatorRole(): OperatorRole {
   if (typeof window === "undefined") return "coordinator";
+  const persona = window.localStorage.getItem("caresignal-clinical-persona");
+  if (persona === "doctor") return "doctor";
+  if (persona === "coordinator") return "coordinator";
   const value = window.localStorage.getItem(STORAGE_KEY);
   return value === "doctor" ? "doctor" : "coordinator";
 }

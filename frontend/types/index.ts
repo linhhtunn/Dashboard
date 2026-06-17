@@ -211,6 +211,27 @@ export type AlertWorkflowStatus =
 
 export type OperatorRole = "coordinator" | "floor_nurse" | "doctor";
 
+/** UI persona: coordinator nurse and doctor share clinical access; admin manages simulation & users. */
+export type ClinicalPersona = "coordinator" | "doctor" | "admin";
+
+export type RolePermissions = {
+  clinical_access: boolean;
+  record_treatment: boolean;
+  confirm_alerts: boolean;
+  simulation: boolean;
+  manage_users: boolean;
+};
+
+export type UserClinicalProfile = {
+  userId: string;
+  roleCode: ClinicalPersona;
+  displayName: string | null;
+  email: string | null;
+  permissions: RolePermissions;
+  roleLabelVi: string;
+  roleLabelEn: string;
+};
+
 export interface AlertTreatmentRecord {
   symptomsBefore: string;
   actionTaken: string;

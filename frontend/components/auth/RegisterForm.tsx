@@ -48,7 +48,7 @@ export function RegisterForm() {
           email: email.trim(),
           password,
           options: {
-            data: { full_name: fullName.trim() },
+            data: { full_name: fullName.trim(), clinical_role: "coordinator" },
           },
         });
         if (signUpError) throw signUpError;

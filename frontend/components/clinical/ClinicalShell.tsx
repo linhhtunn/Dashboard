@@ -10,7 +10,9 @@ import {
   ChevronDown,
   FlaskConical,
   Globe2,
+  LayoutDashboard,
   LogOut,
+  Shield,
   UserCog,
   UsersRound,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import type { ReactNode } from "react";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
+import { useClinicalPersona } from "@/lib/clinical-persona";
 import { useOperatorRole } from "@/lib/operator-role";
 import { clinicalSummaryRepository } from "@/lib/repositories/clinical-summary.repository";
 
@@ -105,7 +108,8 @@ function ClinicalNavbar() {
   const router = useRouter();
   const { locale, setLocale } = useLocale();
   const ui = useClinicalUi();
-  const { role, setRole, sessionName } = useOperatorRole();
+  const { persona, setPersona, isAdmin, roleLocked, profile } = useClinicalPersona();
+  const { sessionName } = useOperatorRole();
   const [openAlertCount, setOpenAlertCount] = useState<number | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -124,7 +128,14 @@ function ClinicalNavbar() {
     };
   }, []);
 
-  const navItems = [
+  const clinicalNavItems: Array<{
+    href: string;
+    label: string;
+    icon: typeof UsersRound;
+    badge?: string;
+    internal?: boolean;
+  }> = [
+    { href: "/dashboard", label: ui.nav.dashboard, icon: LayoutDashboard },
     { href: "/patients", label: ui.nav.patients, icon: UsersRound },
     {
       href: "/alerts",
@@ -134,12 +145,34 @@ function ClinicalNavbar() {
     },
     { href: "/staff", label: ui.nav.staff, icon: UserCog },
     { href: "/report", label: ui.nav.report, icon: BarChart3 },
-    { href: "/metrics", label: ui.nav.metrics, icon: FlaskConical, internal: true },
   ];
 
-  const displayName = sessionName ?? (role === "doctor" ? ui.roles.doctor : ui.roles.coordinator);
-  const dutyLabel =
-    role === "doctor" ? ui.roles.dutyDoctor : ui.roles.dutyCoordinator;
+  const adminNavItems: Array<{
+    href: string;
+    label: string;
+    icon: typeof UsersRound;
+    badge?: string;
+    internal?: boolean;
+  }> = [
+    { href: "/metrics", label: ui.nav.metrics, icon: FlaskConical, internal: true },
+    { href: "/admin/users", label: ui.nav.users, icon: Shield, internal: true },
+  ];
+
+  const navItems = isAdmin ? adminNavItems : clinicalNavItems;
+
+  const displayName =
+    profile?.displayName ??
+    sessionName ??
+    (isAdmin
+      ? ui.roles.admin
+      : persona === "doctor"
+        ? ui.roles.doctor
+        : ui.roles.coordinator);
+  const dutyLabel = isAdmin
+    ? ui.roles.dutyAdmin
+    : persona === "doctor"
+      ? ui.roles.dutyDoctor
+      : ui.roles.dutyCoordinator;
   const initials = displayName
     .replace(/^(ĐD\.|YT\.|BS\.)\s*/, "")
     .split(/\s+/)
@@ -164,7 +197,7 @@ function ClinicalNavbar() {
     <header className="dashboard-glass relative z-40 mx-3 mt-3 shrink-0 rounded-[1.15rem] border border-white/45 px-3 shadow-[0_22px_48px_rgba(15,23,42,0.08)] sm:mx-5 sm:px-5 xl:mx-6">
       <div className="mx-auto flex h-[60px] max-w-[1600px] items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-5">
-          <Link href="/patients" className="flex shrink-0 items-center gap-2.5">
+          <Link href={isAdmin ? "/metrics" : "/dashboard"} className="flex shrink-0 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-[0.8rem] bg-[linear-gradient(135deg,var(--cs-primary),var(--cs-teal))] text-white shadow-[0_12px_26px_rgba(13,71,161,0.22)]">
               <Activity className="h-[18px] w-[18px]" strokeWidth={2} />
             </span>
@@ -208,15 +241,21 @@ function ClinicalNavbar() {
 
         <div className="flex shrink-0 items-center gap-1.5">
           <select
-            value={role}
-            onChange={(event) =>
-              setRole(event.target.value === "doctor" ? "doctor" : "coordinator")
-            }
-            className="dashboard-input hidden h-9 max-w-[170px] rounded-[0.7rem] px-2 text-[11px] font-semibold text-[color:var(--cs-text)] sm:block"
+            value={persona}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "admin" || value === "doctor" || value === "coordinator") {
+                setPersona(value);
+              }
+            }}
+            disabled={roleLocked}
+            className="dashboard-input hidden h-9 max-w-[190px] rounded-[0.7rem] px-2 text-[11px] font-semibold text-[color:var(--cs-text)] disabled:cursor-not-allowed disabled:opacity-70 sm:block"
             aria-label={ui.roles.demoRoleLabel}
+            title={roleLocked ? ui.roles.lockedRoleLabel : ui.roles.demoRoleLabel}
           >
             <option value="coordinator">{ui.roles.coordinator}</option>
             <option value="doctor">{ui.roles.doctor}</option>
+            <option value="admin">{ui.roles.admin}</option>
           </select>
           <button
             type="button"

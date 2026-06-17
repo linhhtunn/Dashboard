@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "node scripts/seed-clinical-db.mjs",
-    "db:introspect": "node scripts/introspect-db.mjs"
+    "db:introspect": "node scripts/introspect-db.mjs",
+    "db:timescale:probe": "node scripts/probe-timescale.mjs",
+    "db:migrate:roles": "node scripts/apply-roles-migration.mjs"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^16.2.7",
@@ -19,6 +21,7 @@
     "lucide-react": "^1.17.0",
     "motion": "^12.40.0",
     "next": "16.2.6",
+    "pg": "^8.21.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -31,6 +34,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
