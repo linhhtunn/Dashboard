@@ -3,8 +3,8 @@ import {
   getAlerts,
   getPatientById,
   getPatients,
-  getVitals,
 } from "@/lib/server/clinical-db";
+import { getLatestVitalsForList } from "@/lib/server/vitals-db";
 import { normalizePatientId } from "@/lib/patient-id";
 import type { Alert, Evidence, MetricSummary, Patient, VitalSignalSample } from "@/types";
 
@@ -246,7 +246,7 @@ export async function listPatientItems(params?: {
   const [patients, alerts, vitals] = await Promise.all([
     getPatients(),
     getAlerts(),
-    getVitals(),
+    getLatestVitalsForList(),
   ]);
 
   return patients
@@ -282,10 +282,10 @@ export async function getPatientVitalsDto(
   range = "15m",
 ): Promise<PatientVitalsDto | null> {
   const normalizedPatientId = normalizePatientId(patientId);
-  const allVitals = await getVitals();
-  const samples = allVitals
-    .filter((item) => normalizePatientId(item.patientId) === normalizedPatientId)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const { getVitalsByPatient } = await import("@/lib/server/clinical-db");
+  const samples = (
+    await getVitalsByPatient(normalizedPatientId, range)
+  ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   if (samples.length === 0) return null;
 

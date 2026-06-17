@@ -9,13 +9,11 @@ import {
   mapDbPatientRow,
   mapDbScheduleRow,
   mapDbStaffRow,
-  mapDbVitalRow,
   patientToDbRow,
   type DbAlertRow,
   type DbBackendAlertRow,
   type DbBackendPatientRow,
   type DbPatientRow,
-  type DbVitalRow,
 } from "@/lib/server/clinical-mappers";
 import type {
   Alert,
@@ -87,27 +85,16 @@ function mergePatientWithPortalOverlay(base: Patient, overlay: Patient): Patient
 }
 
 export async function getPatients(): Promise<Patient[]> {
-  const [backend, portal] = await Promise.all([
-    readBackendPatients(),
-    readPortalPatients(),
-  ]);
+  const backend = await readBackendPatients();
+  if (backend.length === 0) return [];
 
-  if (backend.length > 0) {
-    const portalById = new Map(portal.map((patient) => [patient.id, patient]));
-    return backend.map((patient) => {
-      const overlay = portalById.get(patient.id);
-      return overlay ? mergePatientWithPortalOverlay(patient, overlay) : patient;
-    });
-  }
+  const portal = await readPortalPatients();
+  const portalById = new Map(portal.map((patient) => [patient.id, patient]));
 
-  if (portal.length > 0) return portal;
-
-  const { data, error } = await getClient().from("v_portal_patients").select("*");
-  if (!error && data?.length) {
-    return (data as DbPatientRow[]).map(mapDbPatientRow);
-  }
-
-  return [];
+  return backend.map((patient) => {
+    const overlay = portalById.get(patient.id);
+    return overlay ? mergePatientWithPortalOverlay(patient, overlay) : patient;
+  });
 }
 
 export async function getPatientById(patientId: string): Promise<Patient | undefined> {
@@ -215,43 +202,23 @@ export async function updateAlertWorkflow(
   if (error) throw new Error(error.message);
 }
 
-async function readPortalVitals(): Promise<VitalSignalSample[]> {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from("portal_vitals")
-    .select("*")
-    .order("timestamp", { ascending: true });
-  if (error) {
-    if (isMissingTableError(error.message)) return [];
-    throw new Error(error.message);
-  }
-  return (data as DbVitalRow[]).map(mapDbVitalRow);
-}
-
-async function readCleanVitals(): Promise<VitalSignalSample[]> {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from("clean_vitals")
-    .select("patient_id,timestamp,heart_rate,systolic_bp,diastolic_bp,spo2")
-    .order("timestamp", { ascending: true });
-  if (error) {
-    if (isMissingTableError(error.message)) return [];
-    throw new Error(error.message);
-  }
-  return ((data ?? []) as DbVitalRow[]).map((row) =>
-    mapDbVitalRow({ ...row, respiratory_rate: 16 }),
-  );
-}
+import {
+  getAllVitals,
+  getVitalsForPatient,
+  parseVitalsRange,
+} from "@/lib/server/vitals-db";
 
 export async function getVitals(): Promise<VitalSignalSample[]> {
-  const clean = await readCleanVitals();
-  if (clean.length > 0) return clean;
-  return readPortalVitals();
+  return getAllVitals();
 }
 
-export async function getVitalsByPatient(patientId: string): Promise<VitalSignalSample[]> {
-  const vitals = await getVitals();
-  return vitals.filter((item) => item.patientId === patientId);
+export async function getVitalsByPatient(
+  patientId: string,
+  range?: string,
+): Promise<VitalSignalSample[]> {
+  return getVitalsForPatient(patientId, {
+    since: range ? parseVitalsRange(range) : undefined,
+  });
 }
 
 async function getCurrentShiftRow() {
