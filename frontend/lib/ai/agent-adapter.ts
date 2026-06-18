@@ -1,6 +1,7 @@
 import type { AIConfidence, Evidence, Locale, VitalMetric } from "@/types";
 import type {
   AgentChatIntent,
+  AgentAction,
   AgentComparisonPayload,
   AgentInsightPayload,
   AgentResponseType,
@@ -26,6 +27,8 @@ export function adaptBackendResponse({
   title,
   raw,
 }: AdaptBackendArgs): AgentInsightPayload {
+  const record = asRecord(raw);
+  const resolvedPatientId = asString(record?.patient_id ?? record?.patientId) ?? patientId;
   const answer = extractAnswer(raw, locale);
   const evidence = extractEvidence(raw);
   const keyFindings = extractKeyFindings(raw, answer, evidence, locale);
@@ -44,11 +47,12 @@ export function adaptBackendResponse({
   const responseType = extractResponseType(raw);
   const sourceId = extractSourceId(raw, title);
   const nextActions = extractNextActions(raw);
+  const actions = extractActions(raw);
 
   return {
     title,
     responseType,
-    patientId,
+    patientId: resolvedPatientId,
     sourceId,
     generatedAt,
     intent,
@@ -57,7 +61,7 @@ export function adaptBackendResponse({
     focusMetrics,
     nextActions,
     summary: {
-      patientId,
+      patientId: resolvedPatientId,
       locale,
       question,
       answer,
@@ -70,6 +74,7 @@ export function adaptBackendResponse({
     },
     visualization,
     comparison,
+    actions,
   };
 }
 
@@ -210,6 +215,37 @@ function extractNextActions(raw: unknown) {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 4);
+}
+
+function extractActions(raw: unknown): AgentAction[] {
+  const record = asRecord(raw);
+  const actions = Array.isArray(record?.actions) ? record.actions : [];
+
+  return actions
+    .map(mapAction)
+    .filter((item): item is AgentAction => item !== null)
+    .slice(0, 6);
+}
+
+function mapAction(value: unknown): AgentAction | null {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const type = asString(record.type);
+  const label = asString(record.label);
+  if (!type || !label) return null;
+
+  const metadata = asRecord(record.metadata);
+  return {
+    type,
+    label,
+    patientId: asString(record.patient_id ?? record.patientId),
+    hospitalPatientCode: asString(
+      record.hospital_patient_code ?? record.hospitalPatientCode,
+    ),
+    displayName: asString(record.display_name ?? record.displayName),
+    metadata: metadata ? { ...metadata } : undefined,
+  };
 }
 
 function extractEvidence(raw: unknown): Evidence[] {

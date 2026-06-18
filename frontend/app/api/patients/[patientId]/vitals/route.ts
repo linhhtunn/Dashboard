@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getPatientVitalsDto } from "@/lib/server/patient-service";
+import { requireClinicalAccess } from "@/lib/server/authz";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,9 @@ export async function GET(
   const range = request.nextUrl.searchParams.get("range") ?? "15m";
 
   try {
+    const authz = await requireClinicalAccess();
+    if (authz.response) return authz.response;
+
     const payload = await getPatientVitalsDto(patientId, range);
     if (!payload) {
       return NextResponse.json({ error: "Vitals not found." }, { status: 404 });

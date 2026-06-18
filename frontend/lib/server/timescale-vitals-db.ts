@@ -141,15 +141,22 @@ async function readContinuousBuckets(
 ): Promise<VitalSignalSample[]> {
   const rows = await timescaleQuery<ContinuousBucketRow>(
     `
-      SELECT
-        time_bucket($1::interval, time) AS bucket,
-        AVG(heart_rate)::float AS heart_rate,
-        AVG(respiratory_rate)::float AS respiratory_rate
-      FROM wearable_continuous
-      WHERE patient_id = $2
-        AND time >= $3
-      GROUP BY bucket
-      ORDER BY bucket ASC
+      SELECT DISTINCT ON (bucket)
+        bucket,
+        heart_rate::float AS heart_rate,
+        respiratory_rate::float AS respiratory_rate
+      FROM (
+        SELECT
+          time_bucket($1::interval, time) AS bucket,
+          time,
+          heart_rate,
+          respiratory_rate
+        FROM wearable_continuous
+        WHERE patient_id = $2
+          AND time >= $3
+          AND (heart_rate IS NOT NULL OR respiratory_rate IS NOT NULL)
+      ) samples
+      ORDER BY bucket ASC, time DESC
     `,
     [CHART_BUCKET, patientId, since.toISOString()],
   );
@@ -171,30 +178,43 @@ async function readMeasurementBuckets(
   const [spo2Rows, bpRows] = await Promise.all([
     timescaleQuery<Spo2BucketRow>(
       `
-        SELECT
-          time_bucket($1::interval, time) AS bucket,
-          AVG(spo2)::float AS spo2
-        FROM wearable_measurements
-        WHERE patient_id = $2
-          AND time >= $3
-          AND measurement_type = 'spo2'
-        GROUP BY bucket
-        ORDER BY bucket ASC
+        SELECT DISTINCT ON (bucket)
+          bucket,
+          spo2::float AS spo2
+        FROM (
+          SELECT
+            time_bucket($1::interval, time) AS bucket,
+            time,
+            spo2
+          FROM wearable_measurements
+          WHERE patient_id = $2
+            AND time >= $3
+            AND lower(measurement_type) = 'spo2'
+            AND spo2 IS NOT NULL
+        ) samples
+        ORDER BY bucket ASC, time DESC
       `,
       [CHART_BUCKET, patientId, since.toISOString()],
     ),
     timescaleQuery<BpBucketRow>(
       `
-        SELECT
-          time_bucket($1::interval, time) AS bucket,
-          AVG(systolic_bp)::float AS systolic_bp,
-          AVG(diastolic_bp)::float AS diastolic_bp
-        FROM wearable_measurements
-        WHERE patient_id = $2
-          AND time >= $3
-          AND measurement_type = 'blood_pressure'
-        GROUP BY bucket
-        ORDER BY bucket ASC
+        SELECT DISTINCT ON (bucket)
+          bucket,
+          systolic_bp::float AS systolic_bp,
+          diastolic_bp::float AS diastolic_bp
+        FROM (
+          SELECT
+            time_bucket($1::interval, time) AS bucket,
+            time,
+            systolic_bp,
+            diastolic_bp
+          FROM wearable_measurements
+          WHERE patient_id = $2
+            AND time >= $3
+            AND lower(measurement_type) = 'blood_pressure'
+            AND (systolic_bp IS NOT NULL OR diastolic_bp IS NOT NULL)
+        ) samples
+        ORDER BY bucket ASC, time DESC
       `,
       [CHART_BUCKET, patientId, since.toISOString()],
     ),
@@ -256,6 +276,7 @@ export async function getTimescaleLatestVitalsForList(): Promise<VitalSignalSamp
             heart_rate,
             respiratory_rate
           FROM wearable_continuous
+          WHERE heart_rate IS NOT NULL OR respiratory_rate IS NOT NULL
           ORDER BY patient_id, time DESC
         `,
       ),
@@ -266,7 +287,8 @@ export async function getTimescaleLatestVitalsForList(): Promise<VitalSignalSamp
             time,
             spo2
           FROM wearable_measurements
-          WHERE measurement_type = 'spo2'
+          WHERE lower(measurement_type) = 'spo2'
+            AND spo2 IS NOT NULL
           ORDER BY patient_id, time DESC
         `,
       ),
@@ -278,7 +300,8 @@ export async function getTimescaleLatestVitalsForList(): Promise<VitalSignalSamp
             systolic_bp,
             diastolic_bp
           FROM wearable_measurements
-          WHERE measurement_type = 'blood_pressure'
+          WHERE lower(measurement_type) = 'blood_pressure'
+            AND (systolic_bp IS NOT NULL OR diastolic_bp IS NOT NULL)
           ORDER BY patient_id, time DESC
         `,
       ),

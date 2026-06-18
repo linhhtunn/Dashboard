@@ -54,15 +54,15 @@ const subscribeToMount = () => () => undefined;
 function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
   switch (metric) {
     case "heart_rate":
-      return vital.vitals.heartRate ?? 0;
+      return vital.vitals.heartRate;
     case "respiratory_rate":
-      return vital.vitals.respiratoryRate ?? 0;
+      return vital.vitals.respiratoryRate;
     case "spo2":
-      return vital.vitals.spo2 ?? 0;
+      return vital.vitals.spo2;
     case "systolic_bp":
-      return vital.vitals.systolicBp ?? 0;
+      return vital.vitals.systolicBp;
     case "diastolic_bp":
-      return vital.vitals.diastolicBp ?? 0;
+      return vital.vitals.diastolicBp;
   }
 }
 
@@ -127,11 +127,16 @@ export function VitalChart({
   const floor = metricFloor[metric];
   const threshold = metricAlertThreshold[metric];
 
-  const chartData = data.map((sample) => ({
-    time: formatTimestamp(sample.timestamp),
-    value: getMetricValue(sample, metric),
-    abnormal: isAbnormal(metric, getMetricValue(sample, metric)),
-  }));
+  const chartData = data.flatMap((sample) => {
+    const value = getMetricValue(sample, metric);
+    if (value === undefined) return [];
+
+    return {
+      time: formatTimestamp(sample.timestamp),
+      value,
+      abnormal: isAbnormal(metric, value),
+    };
+  });
 
   const values = chartData.map((item) => item.value);
   const dataMin = values.length ? Math.min(...values) : floor;

@@ -2,6 +2,7 @@ import {
   BackendAgentError,
   agentDefaultPaths,
   callAgentEndpoint,
+  callAgentStreamEndpoint,
   getAgentBaseUrl,
   getAgentPath,
 } from "@/lib/ai/agent-backend";
@@ -41,6 +42,22 @@ export async function invokeAgentChatBody(body: AgentChatBackendRequest) {
     baseUrl,
     configuredPath: getAgentPath("chat"),
     defaultPath: agentDefaultPaths.chat,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function invokeAgentChatStream(
+  input: Omit<Parameters<typeof buildAgentChatBackendBody>[0], "message"> & {
+    message: string;
+  },
+) {
+  const baseUrl = requireAgentBaseUrl();
+  const body = buildAgentChatBackendBody(input);
+
+  return callAgentStreamEndpoint({
+    baseUrl,
+    configuredPath: getAgentPath("stream"),
+    defaultPath: agentDefaultPaths.stream,
     body: JSON.stringify(body),
   });
 }

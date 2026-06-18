@@ -21,7 +21,7 @@ export async function streamAgentChat(
   input: AgentChatProxyRequest,
   handlers: StreamHandlers,
 ): Promise<AgentChatProxyPayload> {
-  const response = await fetch("/api/agent/chat", {
+  const response = await fetch("/api/agent/chat/stream", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

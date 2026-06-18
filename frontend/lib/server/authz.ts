@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isSupabaseAuthConfigured } from "@/lib/auth/config";
 import { getSessionUserProfile } from "@/lib/server/roles-db";
 import type { ClinicalPersona } from "@/types";
 
@@ -22,6 +23,27 @@ export async function requireAdminProfile() {
     return {
       profile: result.profile,
       response: NextResponse.json({ error: "Admin access required." }, { status: 403 }),
+    };
+  }
+
+  return result;
+}
+
+export async function requireClinicalAccess() {
+  if (!isSupabaseAuthConfigured()) {
+    return { profile: null, response: null };
+  }
+
+  const result = await requireAuthenticatedProfile();
+  if (result.response) return result;
+
+  if (!hasPermission(result.profile!, "clinical_access")) {
+    return {
+      profile: result.profile,
+      response: NextResponse.json(
+        { error: "Clinical access required." },
+        { status: 403 },
+      ),
     };
   }
 

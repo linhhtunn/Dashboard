@@ -15,20 +15,12 @@ type PatientsBubbleChatProps = {
   items: PatientListItem[];
 };
 
-export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
+export function PatientsBubbleChat(_props: PatientsBubbleChatProps) {
+  void _props;
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [threadId] = useState(createThreadId);
-
-  const contextPatientId = useMemo(() => {
-    const priority =
-      items.find(
-        (item) =>
-          item.patient.status === "critical" || item.openAlertCount > 0,
-      ) ?? items[0];
-    return priority?.patient.id ?? "P001";
-  }, [items]);
 
   const {
     messages,
@@ -38,8 +30,8 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
     submitQuestion,
   } = useAgentChatStream({
     threadId,
-    patientId: contextPatientId,
     locale,
+    metadata: { source_view: "overview" },
   });
 
   const suggestions = useMemo(
@@ -111,7 +103,6 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
               <AgentErrorBanner
                 kind={classifyAgentError(error)}
                 locale={locale}
-                patientId={contextPatientId}
                 className="mb-3"
               />
             ) : null}
@@ -119,7 +110,6 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
             <AgentChatThread
               messages={messages}
               locale={locale}
-              patientId={contextPatientId}
               thinkingLabel={thinkingLabel}
               streamingMessageId={streamingMessageId}
               size="compact"

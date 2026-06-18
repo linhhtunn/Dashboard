@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       patientId,
       conversationId: `summary-${patientId}-${Date.now()}`,
       message,
+      metadata: { source_view: "patient_summary" },
     });
 
     const payload = adaptBackendResponse({

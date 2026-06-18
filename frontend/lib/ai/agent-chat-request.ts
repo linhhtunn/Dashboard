@@ -3,7 +3,7 @@ import type { Locale } from "@/types";
 
 export type AgentChatBackendRequest = {
   schema_version: "v1";
-  patient_id: string;
+  patient_id?: string | null;
   conversation_id?: string;
   doctor_id?: string;
   message: string;
@@ -36,10 +36,14 @@ export function buildAgentChatBackendBody(input: {
 }): AgentChatBackendRequest {
   const body: AgentChatBackendRequest = {
     schema_version: "v1",
-    patient_id: resolveAgentPatientId(input.patientId),
     message: input.message.trim(),
     doctor_id: resolveDoctorId(input.doctorId),
   };
+  const patientId = resolveAgentPatientId(input.patientId);
+
+  if (patientId) {
+    body.patient_id = patientId;
+  }
 
   if (input.conversationId) {
     body.conversation_id = input.conversationId;

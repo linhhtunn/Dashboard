@@ -153,6 +153,7 @@ export function buildMockExplainAlertPayload({
       headers: [],
       rows: [],
     },
+    actions: [],
   };
 }
 
@@ -203,6 +204,7 @@ export function buildMockChatPayload({
       headers: [],
       rows: [],
     },
+    actions: [],
   };
 }
 

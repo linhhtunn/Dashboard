@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as AgentChatProxyRequest;
   const normalizedPatientId = resolveAgentPatientId(body.patientId ?? "");
 
-  if (!body.message?.trim() || !body.threadId || !normalizedPatientId) {
+  if (!body.message?.trim() || !body.threadId) {
     return new Response("Thiếu dữ liệu bắt buộc cho request chatbot.", {
       status: 400,
     });

@@ -31,8 +31,68 @@ export type UserProfile = {
   roleLabelEn: string;
 };
 
+const DEFAULT_ROLE_PERMISSIONS: Record<ClinicalPersona, RolePermissions> = {
+  coordinator: {
+    clinical_access: true,
+    record_treatment: true,
+    confirm_alerts: false,
+    simulation: false,
+    manage_users: false,
+  },
+  doctor: {
+    clinical_access: true,
+    record_treatment: false,
+    confirm_alerts: true,
+    simulation: false,
+    manage_users: false,
+  },
+  admin: {
+    clinical_access: true,
+    record_treatment: false,
+    confirm_alerts: false,
+    simulation: true,
+    manage_users: true,
+  },
+};
+
 function isMissingTableError(message: string) {
   return message.includes("Could not find the table") || message.includes("PGRST205");
+}
+
+function normalizePermissions(
+  roleCode: ClinicalPersona,
+  permissions?: Partial<RolePermissions> | null,
+): RolePermissions {
+  return {
+    ...DEFAULT_ROLE_PERMISSIONS[roleCode],
+    ...(permissions ?? {}),
+  };
+}
+
+function isRoleCode(value: unknown): value is ClinicalPersona {
+  return value === "admin" || value === "coordinator" || value === "doctor";
+}
+
+function fallbackRole(code: ClinicalPersona): DbRoleRow {
+  return {
+    code,
+    label_vi:
+      code === "admin"
+        ? "Quản trị viên"
+        : code === "doctor"
+          ? "Bác sĩ trực"
+          : "Điều dưỡng điều phối",
+    label_en:
+      code === "admin"
+        ? "Administrator"
+        : code === "doctor"
+          ? "On-call physician"
+          : "Shift coordinator",
+    description_vi: null,
+    description_en: null,
+    permissions: DEFAULT_ROLE_PERMISSIONS[code],
+    sort_order: code === "coordinator" ? 10 : code === "doctor" ? 20 : 30,
+  };
 }
 
 function mapProfile(row: DbUserProfileRow, role: DbRoleRow): UserProfile {
@@ -41,7 +101,7 @@ function mapProfile(row: DbUserProfileRow, role: DbRoleRow): UserProfile {
     roleCode: row.role_code,
     displayName: row.display_name,
     email: row.email,
-    permissions: role.permissions,
+    permissions: normalizePermissions(row.role_code, role.permissions),
     roleLabelVi: role.label_vi,
     roleLabelEn: role.label_en,
   };
@@ -91,7 +151,10 @@ export async function getUserProfileById(userId: string): Promise<UserProfile | 
   if (!profile) return null;
 
   const role = await getRoleByCode((profile as DbUserProfileRow).role_code);
-  if (!role) return null;
+  if (!role) {
+    const row = profile as DbUserProfileRow;
+    return mapProfile(row, fallbackRole(row.role_code));
+  }
 
   return mapProfile(profile as DbUserProfileRow, role);
 }
@@ -197,7 +260,28 @@ export async function getSessionUserProfile(): Promise<UserProfile | null> {
     throw new Error(profileError.message);
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    const metadataRole = user.user_metadata?.clinical_role;
+    const roleCode = isRoleCode(metadataRole) ? metadataRole : "coordinator";
+    const role = (await getRoleByCode(roleCode)) ?? fallbackRole(roleCode);
+
+    return mapProfile(
+      {
+        user_id: user.id,
+        role_code: roleCode,
+        display_name:
+          typeof user.user_metadata?.display_name === "string"
+            ? user.user_metadata.display_name
+            : typeof user.user_metadata?.full_name === "string"
+              ? user.user_metadata.full_name
+              : null,
+        email: user.email ?? null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      role,
+    );
+  }
 
   const { data: role, error: roleError } = await supabase
     .from("roles")
@@ -210,6 +294,6 @@ export async function getSessionUserProfile(): Promise<UserProfile | null> {
     throw new Error(roleError.message);
   }
 
-  if (!role) return null;
+  if (!role) return mapProfile(profile as DbUserProfileRow, fallbackRole((profile as DbUserProfileRow).role_code));
   return mapProfile(profile as DbUserProfileRow, role as DbRoleRow);
 }

@@ -46,6 +46,7 @@ export function PatientAIChatPanel({
     threadId,
     patientId: patient.id,
     locale,
+    metadata: { source_view: "patient_chat" },
     onComplete: (nextPayload) => setPayload(nextPayload),
   });
 

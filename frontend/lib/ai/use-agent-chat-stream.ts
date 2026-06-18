@@ -17,7 +17,7 @@ import type { Locale } from "@/types";
 
 type UseAgentChatStreamOptions = {
   threadId: string;
-  patientId: string;
+  patientId?: string;
   locale: Locale;
   userId?: string;
   metadata?: AgentChatProxyRequest["metadata"];
@@ -47,7 +47,7 @@ export function useAgentChatStream({
 
       messageCounter.current += 1;
       const messageId = messageCounter.current;
-      const userId = `user-${messageId}`;
+      const userMessageId = `user-${messageId}`;
       const assistantId = `assistant-${messageId}`;
       const history = messages
         .filter((message) => message.content && !message.isError)
@@ -55,7 +55,7 @@ export function useAgentChatStream({
 
       setMessages((current) => [
         ...current,
-        { id: userId, role: "user", content: trimmed },
+        { id: userMessageId, role: "user", content: trimmed },
         { id: assistantId, role: "assistant", content: "" },
       ]);
       setChatting(true);
@@ -92,7 +92,7 @@ export function useAgentChatStream({
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
-                    ? { ...message, content: answer, fallbackKind }
+                    ? { ...message, content: answer, payload, fallbackKind }
                     : message,
                 ),
               );

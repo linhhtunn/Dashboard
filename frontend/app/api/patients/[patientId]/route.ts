@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getPatientDtoById } from "@/lib/server/patient-service";
+import { requireClinicalAccess } from "@/lib/server/authz";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,9 @@ export async function GET(
   const { patientId } = await context.params;
 
   try {
+    const authz = await requireClinicalAccess();
+    if (authz.response) return authz.response;
+
     const payload = await getPatientDtoById(patientId);
     if (!payload) {
       return NextResponse.json({ error: "Patient not found." }, { status: 404 });

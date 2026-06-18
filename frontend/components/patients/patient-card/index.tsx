@@ -140,6 +140,12 @@ export function PatientCard({ item }: PatientCardProps) {
           <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-[color:var(--cs-text)]">
             {annotationFor(item, locale)}
           </p>
+          {latestVital ? (
+            <p className="mt-1 text-[10px] font-semibold text-[color:var(--cs-text-soft)]">
+              {locale === "vi" ? "Moi nhat" : "Newest"}{" "}
+              {formatLatestVitalTime(latestVital.timestamp, locale)}
+            </p>
+          ) : null}
         </div>
 
         <ArrowRight className="hidden h-4 w-4 text-[color:var(--cs-primary)] transition group-hover:translate-x-0.5 xl:block" />
@@ -175,6 +181,13 @@ function PatientListAvatar({
       </span>
     </span>
   );
+}
+
+function formatLatestVitalTime(timestamp: string, locale: "vi" | "en") {
+  return new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
 }
 
 function Vital({

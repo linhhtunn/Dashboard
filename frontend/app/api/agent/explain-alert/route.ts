@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       patientId,
       conversationId: `alert-${body.alertId}`,
       message,
-      metadata: { alert_id: body.alertId },
+      metadata: { alert_id: body.alertId, source_view: "alert_detail" },
     });
 
     const payload = adaptBackendResponse({

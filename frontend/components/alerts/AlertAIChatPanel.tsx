@@ -45,7 +45,7 @@ export function AlertAIChatPanel({
     threadId,
     patientId: alert.patientId,
     locale,
-    metadata: { alert_id: alert.id },
+    metadata: { alert_id: alert.id, source_view: "alert_detail" },
   });
 
   const suggestions = useMemo(

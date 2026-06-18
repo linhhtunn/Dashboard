@@ -242,6 +242,20 @@ function average(values: number[]): number {
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 }
 
+function roundMetricValue(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function metricValues(
+  samples: VitalSignalSample[],
+  getter: (sample: VitalSignalSample) => number | undefined,
+): number[] {
+  return samples
+    .map(getter)
+    .filter((value): value is number => typeof value === "number")
+    .map(roundMetricValue);
+}
+
 function changePct(current: number, baseline: number): number {
   if (baseline === 0) return 0;
   return Math.round(((current - baseline) / baseline) * 100);
@@ -370,23 +384,34 @@ export async function getPatientVitalsDto(
 
   if (samples.length === 0) return null;
 
-  const heartRates = samples.map((item) => item.vitals.heartRate ?? 0);
-  const respiratoryRates = samples.map((item) => item.vitals.respiratoryRate ?? 0);
-  const systolicBp = samples.map((item) => item.vitals.systolicBp ?? 0);
-  const diastolicBp = samples.map((item) => item.vitals.diastolicBp ?? 0);
-  const spo2 = samples.map((item) => item.vitals.spo2 ?? 0);
+  const heartRates = metricValues(samples, (item) => item.vitals.heartRate);
+  const respiratoryRates = metricValues(samples, (item) => item.vitals.respiratoryRate);
+  const systolicBp = metricValues(samples, (item) => item.vitals.systolicBp);
+  const diastolicBp = metricValues(samples, (item) => item.vitals.diastolicBp);
+  const spo2 = metricValues(samples, (item) => item.vitals.spo2);
+  const summaries: PatientVitalsDto["metric_summaries"] = [];
+
+  if (heartRates.length) {
+    summaries.push(buildMetricSummary("heart_rate", "bpm", heartRates));
+  }
+  if (respiratoryRates.length) {
+    summaries.push(buildMetricSummary("respiratory_rate", "rpm", respiratoryRates));
+  }
+  if (spo2.length) {
+    summaries.push(buildMetricSummary("spo2", "%", spo2));
+  }
+  if (systolicBp.length) {
+    summaries.push(buildMetricSummary("systolic_bp", "mmHg", systolicBp));
+  }
+  if (diastolicBp.length) {
+    summaries.push(buildMetricSummary("diastolic_bp", "mmHg", diastolicBp));
+  }
 
   return {
     patient_id: normalizedPatientId,
     range,
     samples: samples.map(mapVitalDto),
-    metric_summaries: [
-      buildMetricSummary("heart_rate", "bpm", heartRates),
-      buildMetricSummary("respiratory_rate", "rpm", respiratoryRates),
-      buildMetricSummary("spo2", "%", spo2),
-      buildMetricSummary("systolic_bp", "mmHg", systolicBp),
-      buildMetricSummary("diastolic_bp", "mmHg", diastolicBp),
-    ],
+    metric_summaries: summaries,
   };
 }
 
