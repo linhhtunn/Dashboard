@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthField } from "@/components/auth/AuthField";
@@ -12,27 +12,39 @@ import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { dashboardPrimaryBtn } from "@/components/marketing/marketing-styles";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import { isSupabaseAuthConfigured } from "@/lib/auth/config";
+import {
+  resolveRedirectPathForRole,
+  sanitizeAuthNextPath,
+} from "@/lib/auth/role-redirect";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { ClinicalPersona } from "@/types";
+
+async function resolvePostLoginPath(nextPath: string | null) {
+  try {
+    const response = await fetch("/api/me/profile", { cache: "no-store" });
+    const payload = (await response.json()) as {
+      profile?: { role_code?: ClinicalPersona | null } | null;
+    };
+
+    return resolveRedirectPathForRole(payload.profile?.role_code, nextPath);
+  } catch {
+    return resolveRedirectPathForRole(null, nextPath);
+  }
+}
 
 export function LoginForm() {
   const ui = useClinicalUi();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/patients";
+  const nextPath = sanitizeAuthNextPath(searchParams.get("next"));
   const demoHint = searchParams.get("demo") === "1";
   const oauthError = searchParams.get("error");
 
   const [email, setEmail] = useState(demoHint ? "demo@caresignal.ai" : "");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(demoHint ? "caresignal" : "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabaseEnabled = isSupabaseAuthConfigured();
-
-  useEffect(() => {
-    if (demoHint && !password) {
-      setPassword("caresignal");
-    }
-  }, [demoHint, password]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -50,7 +62,7 @@ export function LoginForm() {
         });
         if (signInError) throw signInError;
 
-        router.replace(nextPath);
+        router.replace(await resolvePostLoginPath(nextPath));
         router.refresh();
         return;
       }
@@ -68,7 +80,7 @@ export function LoginForm() {
         throw new Error(payload?.error ?? ui.auth.invalidCredentials);
       }
 
-      router.replace(nextPath);
+      router.replace(await resolvePostLoginPath(nextPath));
       router.refresh();
     } catch (nextError: unknown) {
       setError(
@@ -92,7 +104,7 @@ export function LoginForm() {
         </p>
       }
     >
-      {supabaseEnabled ? <OAuthButtons nextPath={nextPath} /> : null}
+      {supabaseEnabled ? <OAuthButtons nextPath={nextPath ?? undefined} /> : null}
       <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
         <AuthField
           label={ui.auth.email}

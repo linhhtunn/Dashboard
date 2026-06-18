@@ -5,10 +5,7 @@ import { Globe2 } from "lucide-react";
 import { motion } from "motion/react";
 
 import { BrandLogo } from "@/components/marketing/BrandLogo";
-import {
-  dashboardPrimaryBtn,
-  dashboardSecondaryBtn,
-} from "@/components/marketing/marketing-styles";
+import { dashboardSecondaryBtn } from "@/components/marketing/marketing-styles";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import { MARKETING_COPY, t } from "@/lib/i18n/marketing";
@@ -51,11 +48,6 @@ export function MarketingNavbar() {
               className={`${dashboardSecondaryBtn} hidden h-9 px-4 text-[13px] sm:inline-flex`}
             >
               {t(copy.signIn, locale)}
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Link href="/login?demo=1" className={`${dashboardPrimaryBtn} h-9 px-4 text-[13px]`}>
-              {locale === "vi" ? "Vào demo" : "Try demo"}
             </Link>
           </motion.div>
         </div>

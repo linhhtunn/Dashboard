@@ -7,6 +7,11 @@ import {
   GOOGLE_OAUTH_COOKIE,
   isGoogleOAuthConfigured,
 } from "@/lib/auth/google-oauth";
+import {
+  resolveRedirectPathForRole,
+  sanitizeAuthNextPath,
+} from "@/lib/auth/role-redirect";
+import { getSessionUserProfile } from "@/lib/server/roles-db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function redirectToLogin(origin: string, message: string) {
@@ -30,7 +35,7 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const savedState = cookieStore.get(GOOGLE_OAUTH_COOKIE.state)?.value;
   const codeVerifier = cookieStore.get(GOOGLE_OAUTH_COOKIE.verifier)?.value;
-  const next = cookieStore.get(GOOGLE_OAUTH_COOKIE.next)?.value ?? "/patients";
+  const next = sanitizeAuthNextPath(cookieStore.get(GOOGLE_OAUTH_COOKIE.next)?.value);
 
   if (providerError) {
     return redirectToLogin(
@@ -75,7 +80,9 @@ export async function GET(request: Request) {
       return redirectToLogin(origin, signInError.message);
     }
 
-    const response = NextResponse.redirect(`${origin}${next}`);
+    const profile = await getSessionUserProfile();
+    const redirectPath = resolveRedirectPathForRole(profile?.roleCode, next);
+    const response = NextResponse.redirect(`${origin}${redirectPath}`);
     for (const name of Object.values(GOOGLE_OAUTH_COOKIE)) {
       response.cookies.set(name, "", { path: "/", maxAge: 0 });
     }

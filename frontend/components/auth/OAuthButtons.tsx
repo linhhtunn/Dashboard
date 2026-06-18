@@ -36,7 +36,7 @@ function GoogleIcon() {
   );
 }
 
-export function OAuthButtons({ nextPath = "/patients" }: OAuthButtonsProps) {
+export function OAuthButtons({ nextPath }: OAuthButtonsProps) {
   const ui = useClinicalUi();
   const [loading, setLoading] = useState(false);
 
@@ -44,8 +44,10 @@ export function OAuthButtons({ nextPath = "/patients" }: OAuthButtonsProps) {
 
   const handleGoogleSignIn = () => {
     setLoading(true);
-    const params = new URLSearchParams({ next: nextPath });
-    window.location.assign(`/api/auth/google?${params.toString()}`);
+    const params = new URLSearchParams();
+    if (nextPath) params.set("next", nextPath);
+    const query = params.toString();
+    window.location.assign(query ? `/api/auth/google?${query}` : "/api/auth/google");
   };
 
   return (

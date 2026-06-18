@@ -10,11 +10,11 @@ import {
   GOOGLE_OAUTH_COOKIE,
   isGoogleOAuthConfigured,
 } from "@/lib/auth/google-oauth";
+import { sanitizeAuthNextPath } from "@/lib/auth/role-redirect";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const next = searchParams.get("next") ?? "/patients";
-  const nextPath = next.startsWith("/") ? next : `/${next}`;
+  const nextPath = sanitizeAuthNextPath(searchParams.get("next"));
 
   if (!isGoogleOAuthConfigured()) {
     const loginUrl = new URL(`${origin}/login`);
@@ -38,7 +38,9 @@ export async function GET(request: Request) {
 
   cookieStore.set(GOOGLE_OAUTH_COOKIE.state, state, cookieOptions);
   cookieStore.set(GOOGLE_OAUTH_COOKIE.verifier, codeVerifier, cookieOptions);
-  cookieStore.set(GOOGLE_OAUTH_COOKIE.next, nextPath, cookieOptions);
+  if (nextPath) {
+    cookieStore.set(GOOGLE_OAUTH_COOKIE.next, nextPath, cookieOptions);
+  }
 
   const authUrl = buildGoogleAuthUrl({
     clientId: getGoogleClientId(),

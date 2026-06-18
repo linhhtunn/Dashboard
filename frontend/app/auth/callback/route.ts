@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 
+import { resolveRedirectPathForRole, sanitizeAuthNextPath } from "@/lib/auth/role-redirect";
+import { getSessionUserProfile } from "@/lib/server/roles-db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /** Supabase email confirmation / password recovery callback (not Google OAuth). */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/patients";
+  const next = sanitizeAuthNextPath(searchParams.get("next"));
   const type = searchParams.get("type");
 
   if (code) {
@@ -25,5 +27,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/reset-password`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  const profile = await getSessionUserProfile();
+  return NextResponse.redirect(
+    `${origin}${resolveRedirectPathForRole(profile?.roleCode, next)}`,
+  );
 }

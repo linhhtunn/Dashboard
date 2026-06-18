@@ -11,6 +11,7 @@ export function isTimescaleConfigured(): boolean {
 function resolveTimescaleDatabaseUrl(): string | null {
   const raw =
     process.env.TIMESCALE_DATABASE_URL?.trim() ||
+    resolveTimescaleDatabaseUrlFromParts() ||
     process.env.DATABASE_URL?.trim() ||
     null;
 
@@ -20,6 +21,27 @@ function resolveTimescaleDatabaseUrl(): string | null {
   return raw.replace(/^postgres:\/\//, "postgresql://");
 }
 
+function resolveTimescaleDatabaseUrlFromParts(): string | null {
+  const rawUrl = process.env.TIMESCALE_DB_URL?.trim();
+  const password = process.env.TIMESCALE_DB_PASSWORD?.trim();
+  if (!rawUrl) return null;
+
+  const parsed = new URL(rawUrl.replace(/^postgres:\/\//, "postgresql://"));
+  if (password && !parsed.password) {
+    parsed.password = password;
+  }
+  return parsed.toString();
+}
+
+function assertUsableConnectionString(connectionString: string): void {
+  const parsed = new URL(connectionString);
+  if (parsed.username && !parsed.password) {
+    throw new Error(
+      "TimescaleDB connection string is missing a password. Use postgresql://USER:PASSWORD@HOST:PORT/DB?sslmode=require.",
+    );
+  }
+}
+
 export function getTimescalePool(): Pool {
   const connectionString = resolveTimescaleDatabaseUrl();
   if (!connectionString) {
@@ -27,6 +49,7 @@ export function getTimescalePool(): Pool {
       "TimescaleDB is not configured. Set TIMESCALE_DATABASE_URL or DATABASE_URL.",
     );
   }
+  assertUsableConnectionString(connectionString);
 
   if (!pool) {
     const config: PoolConfig = {

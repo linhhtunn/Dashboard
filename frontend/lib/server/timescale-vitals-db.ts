@@ -135,6 +135,19 @@ function mergeLatestByPatient(
   );
 }
 
+function logTimescaleRead(label: string, samples: VitalSignalSample[]): void {
+  console.info(`[Timescale] ${label}: read ${samples.length} vital sample(s)`, {
+    preview: samples.slice(0, 3),
+  });
+}
+
+function logTimescaleReadError(label: string, error: unknown): void {
+  console.warn(
+    `[Timescale] ${label}: unable to read vitals`,
+    error instanceof Error ? error.message : error,
+  );
+}
+
 async function readContinuousBuckets(
   patientId: string,
   since: Date,
@@ -257,8 +270,11 @@ export async function getTimescalePatientVitals(
       readContinuousBuckets(patientId, sinceDate),
       readMeasurementBuckets(patientId, sinceDate),
     ]);
-    return mergeVitalSamples([...continuous, ...measurements]);
-  } catch {
+    const samples = mergeVitalSamples([...continuous, ...measurements]);
+    logTimescaleRead(`patient ${patientId}`, samples);
+    return samples;
+  } catch (error) {
+    logTimescaleReadError(`patient ${patientId}`, error);
     return [];
   }
 }
@@ -307,8 +323,11 @@ export async function getTimescaleLatestVitalsForList(): Promise<VitalSignalSamp
       ),
     ]);
 
-    return mergeLatestByPatient(continuous, spo2Rows, bpRows);
-  } catch {
+    const samples = mergeLatestByPatient(continuous, spo2Rows, bpRows);
+    logTimescaleRead("latest list", samples);
+    return samples;
+  } catch (error) {
+    logTimescaleReadError("latest list", error);
     return [];
   }
 }
