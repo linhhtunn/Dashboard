@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTreatmentModal } from "@/components/alerts/AlertTreatmentModal";
 import { DoctorConfirmModal } from "@/components/alerts/DoctorConfirmModal";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { useVisibilityPolling } from "@/hooks/use-visibility-polling";
 import { isAwaitingDoctor } from "@/lib/alerts-filters";
 import {
   clearAlertPopupState,
@@ -67,24 +68,10 @@ export function GlobalAlertModal() {
     setPopupTick(Date.now());
   }, []);
 
-  useEffect(() => {
-    if (isAdmin) return undefined;
-
-    let cancelled = false;
-    const load = async () => {
-      await refreshAlerts().catch(() => undefined);
-    };
-    void load();
-
-    const timer = window.setInterval(() => {
-      if (!cancelled) void refreshAlerts().catch(() => undefined);
-    }, POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [isAdmin, refreshAlerts]);
+  useVisibilityPolling(refreshAlerts, {
+    enabled: !isAdmin,
+    intervalMs: POLL_INTERVAL_MS,
+  });
 
   useEffect(() => {
     if (isAdmin) return;

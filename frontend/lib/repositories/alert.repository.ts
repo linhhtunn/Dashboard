@@ -101,21 +101,41 @@ export type AlertActionRequest =
   | { action: "mark_noise"; description: string }
   | { action: "doctor_confirm"; conclusion: string };
 
+type AlertListParams = {
+  limit?: number;
+  offset?: number;
+  patientId?: string;
+};
+
+const DEFAULT_ALERT_LIMIT = 50;
+const MAX_ALERT_LIMIT = 200;
+
+function buildAlertQuery(params?: AlertListParams) {
+  const search = new URLSearchParams();
+  const limit = Math.min(params?.limit ?? DEFAULT_ALERT_LIMIT, MAX_ALERT_LIMIT);
+  search.set("limit", String(limit));
+  search.set("offset", String(params?.offset ?? 0));
+  if (params?.patientId) search.set("patientId", normalizePatientId(params.patientId));
+  return search.toString();
+}
+
 export const alertRepository = {
-  async list(): Promise<Alert[]> {
-    const payload = await clinicalApiGet<AlertDto[]>("/api/alerts");
+  async list(params?: AlertListParams): Promise<Alert[]> {
+    const payload = await clinicalApiGet<AlertDto[]>(
+      `/api/alerts?${buildAlertQuery(params)}`,
+    );
     return payload.map(mapAlert);
   },
 
   async listOpen(): Promise<Alert[]> {
-    const alerts = await this.list();
+    const alerts = await this.list({ limit: MAX_ALERT_LIMIT });
     return alerts.filter((alert) => alert.workflowStatus !== "doctor_confirmed");
   },
 
-  async listByPatient(patientId: string): Promise<Alert[]> {
+  async listByPatient(patientId: string, params?: Omit<AlertListParams, "patientId">): Promise<Alert[]> {
     const normalizedPatientId = normalizePatientId(patientId);
     const payload = await clinicalApiGet<AlertDto[]>(
-      `/api/patients/${normalizedPatientId}/alerts`,
+      `/api/patients/${normalizedPatientId}/alerts?${buildAlertQuery(params)}`,
     );
     return payload.map(mapAlert);
   },
@@ -134,7 +154,7 @@ export const alertRepository = {
       body: JSON.stringify(body),
     });
 
-    const alerts = await this.list();
+    const alerts = await this.list({ limit: MAX_ALERT_LIMIT });
     const updated = alerts.find((alert) => alert.id === alertId);
     if (!updated) {
       throw new Error("Alert not found after action.");

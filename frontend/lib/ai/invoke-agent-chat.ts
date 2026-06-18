@@ -22,6 +22,7 @@ export function requireAgentBaseUrl() {
 export async function invokeAgentChat(
   input: Omit<Parameters<typeof buildAgentChatBackendBody>[0], "message"> & {
     message: string;
+    authorization?: string | null;
   },
 ) {
   const baseUrl = requireAgentBaseUrl();
@@ -32,10 +33,14 @@ export async function invokeAgentChat(
     configuredPath: getAgentPath("chat"),
     defaultPath: agentDefaultPaths.chat,
     body: JSON.stringify(body),
+    authorization: input.authorization,
   });
 }
 
-export async function invokeAgentChatBody(body: AgentChatBackendRequest) {
+export async function invokeAgentChatBody(
+  body: AgentChatBackendRequest,
+  authorization?: string | null,
+) {
   const baseUrl = requireAgentBaseUrl();
 
   return callAgentEndpoint({
@@ -43,12 +48,14 @@ export async function invokeAgentChatBody(body: AgentChatBackendRequest) {
     configuredPath: getAgentPath("chat"),
     defaultPath: agentDefaultPaths.chat,
     body: JSON.stringify(body),
+    authorization,
   });
 }
 
 export async function invokeAgentChatStream(
   input: Omit<Parameters<typeof buildAgentChatBackendBody>[0], "message"> & {
     message: string;
+    authorization?: string | null;
   },
 ) {
   const baseUrl = requireAgentBaseUrl();
@@ -59,6 +66,7 @@ export async function invokeAgentChatStream(
     configuredPath: getAgentPath("stream"),
     defaultPath: agentDefaultPaths.stream,
     body: JSON.stringify(body),
+    authorization: input.authorization,
   });
 }
 

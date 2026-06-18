@@ -1,13 +1,14 @@
 "use client";
 
 import { RefreshCw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { PatientsBubbleChat } from "@/components/clinical/PatientsBubbleChat";
 import { PatientListOverviewCards } from "@/components/patients/PatientListOverviewCards";
 import { PatientTable, type PatientListItem } from "@/components/patients";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { useVisibilityPolling } from "@/hooks/use-visibility-polling";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 
 const PATIENTS_REFRESH_MS = 15000;
@@ -20,13 +21,12 @@ export default function PatientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [briefingUpdatedAt, setBriefingUpdatedAt] = useState(new Date());
 
-  const loadPatients = async (manual = false) => {
-    if (manual) setRefreshing(true);
+  const loadPatients = useCallback(async () => {
     try {
       const payload = await patientRepository.list();
       setItems(payload);
       setError(null);
-      if (manual) setBriefingUpdatedAt(new Date());
+      setBriefingUpdatedAt(new Date());
     } catch (nextError: unknown) {
       setError(
         nextError instanceof Error
@@ -39,39 +39,9 @@ export default function PatientsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId: number | null = null;
-
-    const load = async () => {
-      try {
-        const payload = await patientRepository.list();
-        if (cancelled) return;
-        setItems(payload);
-        setError(null);
-      } catch (nextError: unknown) {
-        if (cancelled) return;
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : locale === "vi"
-              ? "Không thể tải danh sách bệnh nhân."
-              : "Unable to load patients.",
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-    intervalId = window.setInterval(() => void load(), PATIENTS_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-    };
   }, [locale]);
+
+  useVisibilityPolling(loadPatients, { intervalMs: PATIENTS_REFRESH_MS });
 
   const attentionItems = useMemo(
     () =>
@@ -123,7 +93,10 @@ export default function PatientsPage() {
             </div>
             <button
               type="button"
-              onClick={() => void loadPatients(true)}
+              onClick={() => {
+                setRefreshing(true);
+                void loadPatients();
+              }}
               disabled={refreshing}
               className="dashboard-input flex h-8 w-8 items-center justify-center rounded-[0.65rem] text-[color:var(--cs-primary)] disabled:opacity-50"
               aria-label={locale === "vi" ? "Cập nhật briefing" : "Refresh briefing"}

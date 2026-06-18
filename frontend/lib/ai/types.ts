@@ -30,11 +30,11 @@ export type AgentComparisonPayload = {
 };
 
 export type AgentAction = {
-  type: string;
+  type: "select_patient_for_chat" | (string & {});
   label: string;
-  patientId?: string;
-  hospitalPatientCode?: string;
-  displayName?: string;
+  patient_id?: string;
+  hospital_patient_code?: string;
+  display_name?: string;
   metadata?: Record<string, unknown>;
 };
 
@@ -49,14 +49,13 @@ export type AgentInsightPayload = {
   recommendedIssueId: DashboardIssueId | null;
   focusMetrics: string[];
   nextActions: string[];
+  actions: AgentAction[];
   summary: AskAIResponse;
   visualization: AgentVisualizationPayload;
   comparison: AgentComparisonPayload;
-  actions: AgentAction[];
 };
 
-export type AgentChatProxyRequest = Omit<AskAIRequest, "patientId"> & {
-  patientId?: string;
+export type AgentChatProxyRequest = AskAIRequest & {
   threadId: string;
   userId: string;
   message: string;
@@ -118,7 +117,6 @@ export type AgentChatThreadMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  payload?: AgentInsightPayload;
   fallbackKind?: "patient_not_found" | "safe_response" | "unavailable" | "generic" | null;
   isError?: boolean;
 };

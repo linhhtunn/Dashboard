@@ -110,6 +110,12 @@ export type AlertDto = {
   treatment: Alert["treatment"] | null;
 };
 
+export type AlertListQuery = {
+  patientId?: string | null;
+  limit?: number;
+  offset?: number;
+};
+
 function mapDbProfileDto(profile?: PatientDbProfile): PatientDbProfileDto | null {
   if (!profile) return null;
   return {
@@ -371,7 +377,7 @@ export async function listPatientItems(params?: {
   const status = params?.status?.trim().toLowerCase() ?? "";
   const [patients, alerts, vitals] = await Promise.all([
     getPatients(),
-    getAlerts(),
+    getAlerts({ limit: 200 }),
     getLatestVitalsForList(),
   ]);
 
@@ -395,6 +401,10 @@ export async function listPatientItems(params?: {
         }).length,
       };
     });
+}
+
+export async function listPatientProfiles(): Promise<PatientDto[]> {
+  return (await getPatients()).map(mapPatientDto);
 }
 
 export async function getPatientDtoById(patientId: string): Promise<PatientDto | null> {
@@ -446,8 +456,17 @@ export async function getPatientVitalsDto(
   };
 }
 
-export async function listAlerts(): Promise<AlertDto[]> {
-  return [...(await getAlerts())]
+export async function listAlerts(options?: AlertListQuery): Promise<AlertDto[]> {
+  const patientId = options?.patientId ? normalizePatientId(options.patientId) : undefined;
+  const queryOptions = {
+    limit: options?.limit,
+    offset: options?.offset,
+  };
+  const alerts = patientId
+    ? await getAlertsForPatient(patientId, queryOptions)
+    : await getAlerts(queryOptions);
+
+  return [...alerts]
     .map(mapAlertDto)
     .sort(
       (left, right) =>
@@ -455,9 +474,12 @@ export async function listAlerts(): Promise<AlertDto[]> {
     );
 }
 
-export async function listPatientAlerts(patientId: string): Promise<AlertDto[]> {
+export async function listPatientAlerts(
+  patientId: string,
+  options?: Omit<AlertListQuery, "patientId">,
+): Promise<AlertDto[]> {
   const normalizedPatientId = normalizePatientId(patientId);
-  return [...(await getAlertsForPatient(normalizedPatientId))]
+  return [...(await getAlertsForPatient(normalizedPatientId, options))]
     .map(mapAlertDto)
     .sort(
       (left, right) =>

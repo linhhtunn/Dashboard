@@ -38,43 +38,40 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const [nextAlerts, staff] = await Promise.all([
-      alertRepository.list(),
+    const [nextAlerts, staff, patientProfiles] = await Promise.all([
+      alertRepository.list({ limit: 200 }),
       shiftRepository.listStaff(),
+      patientRepository.listProfiles(),
     ]);
     setAlerts(nextAlerts);
     setFloorNurses(staff.filter((member) => member.role === "floor_nurse"));
-    const entries = await Promise.all(
-      Array.from(new Set(nextAlerts.map((alert) => alert.patientId))).map(
-        async (id) => [id, await patientRepository.findById(id)] as const,
-      ),
-    );
     setPatients(
       Object.fromEntries(
-        entries.filter(
-          (entry): entry is readonly [string, Patient] => Boolean(entry[1]),
-        ),
+        patientProfiles.map((patient) => [patient.id, patient] as const),
       ),
     );
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    void loadData()
-      .catch((nextError: unknown) => {
-        if (!cancelled) {
-          setError(
-            nextError instanceof Error
-              ? nextError.message
-              : ui.alerts.loadError,
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const timer = window.setTimeout(() => {
+      void loadData()
+        .catch((nextError: unknown) => {
+          if (!cancelled) {
+            setError(
+              nextError instanceof Error
+                ? nextError.message
+                : ui.alerts.loadError,
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [loadData, ui.alerts.loadError]);
 
@@ -86,7 +83,7 @@ export default function AlertsPage() {
   const aiPanelOpen = selectedAlert !== null;
 
   async function refreshAfterAction() {
-    const nextAlerts = await alertRepository.list();
+    const nextAlerts = await alertRepository.list({ limit: 200 });
     setAlerts(nextAlerts);
     setTreatmentAlert(null);
     setConfirmAlert(null);

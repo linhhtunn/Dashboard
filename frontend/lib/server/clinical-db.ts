@@ -35,6 +35,20 @@ const BACKEND_ALERT_COLUMNS =
 const PORTAL_ALERT_COLUMNS =
   "id,patient_id,type,severity,score,evidence,timestamp,acknowledged,workflow_status,assigned_floor_nurse_id,assigned_zone_code,noise_note,treatment";
 
+type AlertQueryOptions = {
+  limit?: number;
+  offset?: number;
+  patientId?: string;
+};
+
+function resolveAlertQuery(options?: AlertQueryOptions) {
+  return {
+    limit: options?.limit ?? ALERT_QUERY_LIMIT,
+    offset: options?.offset ?? 0,
+    patientId: options?.patientId,
+  };
+}
+
 function getClient() {
   const client = createSupabaseAdminClient();
   if (!client) {
@@ -126,13 +140,14 @@ export async function updatePatientStatus(patientId: string, status: PatientStat
   }
 }
 
-async function readPortalAlerts(patientId?: string): Promise<Alert[]> {
+async function readPortalAlerts(options?: AlertQueryOptions): Promise<Alert[]> {
+  const { limit, offset, patientId } = resolveAlertQuery(options);
   const supabase = getClient();
   let query = supabase
     .from("portal_alerts")
     .select(PORTAL_ALERT_COLUMNS)
     .order("timestamp", { ascending: false })
-    .limit(ALERT_QUERY_LIMIT);
+    .range(offset, offset + limit - 1);
   if (patientId) query = query.eq("patient_id", patientId);
 
   const { data, error } = await query;
@@ -143,13 +158,14 @@ async function readPortalAlerts(patientId?: string): Promise<Alert[]> {
   return (data as DbAlertRow[]).map(mapDbAlertRow);
 }
 
-async function readHealthAlerts(patientId?: string): Promise<Alert[]> {
+async function readHealthAlerts(options?: AlertQueryOptions): Promise<Alert[]> {
+  const { limit, offset, patientId } = resolveAlertQuery(options);
   const supabase = getClient();
   let query = supabase
     .from("health_alerts")
     .select(BACKEND_ALERT_COLUMNS)
     .order("alert_time", { ascending: false })
-    .limit(ALERT_QUERY_LIMIT);
+    .range(offset, offset + limit - 1);
   if (patientId) query = query.eq("patient_id", patientId);
 
   const { data, error } = await query;
@@ -160,13 +176,14 @@ async function readHealthAlerts(patientId?: string): Promise<Alert[]> {
   return ((data ?? []) as DbBackendAlertRow[]).map(mapBackendAlertRow);
 }
 
-async function readBackendAlerts(patientId?: string): Promise<Alert[]> {
+async function readBackendAlerts(options?: AlertQueryOptions): Promise<Alert[]> {
+  const { limit, offset, patientId } = resolveAlertQuery(options);
   const supabase = getClient();
   let query = supabase
     .from("alerts")
     .select(BACKEND_ALERT_COLUMNS)
     .order("alert_time", { ascending: false })
-    .limit(ALERT_QUERY_LIMIT);
+    .range(offset, offset + limit - 1);
   if (patientId) query = query.eq("patient_id", patientId);
 
   const { data, error } = await query;
@@ -189,10 +206,11 @@ function mergeAlertWithPortalOverlay(base: Alert, overlay: Alert): Alert {
   };
 }
 
-export async function getAlerts(): Promise<Alert[]> {
+export async function getAlerts(options?: AlertQueryOptions): Promise<Alert[]> {
+  const query = resolveAlertQuery(options);
   const [backend, portal] = await Promise.all([
-    readBackendAlerts(),
-    readPortalAlerts(),
+    readBackendAlerts(query),
+    readPortalAlerts(query),
   ]);
 
   if (backend.length > 0) {
@@ -203,16 +221,20 @@ export async function getAlerts(): Promise<Alert[]> {
     });
   }
 
-  const health = await readHealthAlerts();
+  const health = await readHealthAlerts(query);
   if (health.length > 0) return health;
 
   return portal;
 }
 
-export async function getAlertsForPatient(patientId: string): Promise<Alert[]> {
+export async function getAlertsForPatient(
+  patientId: string,
+  options?: Omit<AlertQueryOptions, "patientId">,
+): Promise<Alert[]> {
+  const query = resolveAlertQuery({ ...options, patientId });
   const [backend, portal] = await Promise.all([
-    readBackendAlerts(patientId),
-    readPortalAlerts(patientId),
+    readBackendAlerts(query),
+    readPortalAlerts(query),
   ]);
 
   if (backend.length > 0) {
@@ -223,7 +245,7 @@ export async function getAlertsForPatient(patientId: string): Promise<Alert[]> {
     });
   }
 
-  const health = await readHealthAlerts(patientId);
+  const health = await readHealthAlerts(query);
   if (health.length > 0) return health;
 
   return portal;

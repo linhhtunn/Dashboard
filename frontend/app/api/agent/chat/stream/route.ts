@@ -1,21 +1,15 @@
 import { NextRequest } from "next/server";
 
 import { adaptBackendResponse, buildThreadTitle } from "@/lib/ai/agent-adapter";
-import {
-  appendAgentDbContextToMessage,
-  buildAgentDbContext,
-  buildMockPatientContext,
-  withAgentDbMetadata,
-} from "@/lib/ai/agent-db-context";
-import { resolveAgentPatientId } from "@/lib/ai/agent-chat-request";
-import { isAgentBackendConfigured } from "@/lib/ai/agent-backend";
-import { BackendAgentError, invokeAgentChatStream } from "@/lib/ai/invoke-agent-chat";
+import { BackendAgentError, getAgentBaseUrl, isAgentBackendConfigured } from "@/lib/ai/agent-backend";
+import { buildAgentChatBackendBody, resolveAgentPatientId } from "@/lib/ai/agent-chat-request";
 import { buildMockChatPayload } from "@/lib/ai/mock-chat";
 import type {
   AgentChatProxyPayload,
   AgentChatProxyRequest,
   AgentChatStreamEvent,
 } from "@/lib/ai/types";
+import type { Locale } from "@/types";
 
 export const runtime = "nodejs";
 
@@ -24,46 +18,62 @@ export async function POST(request: NextRequest) {
   const normalizedPatientId = resolveAgentPatientId(body.patientId ?? "");
 
   if (!body.message?.trim() || !body.threadId) {
-    return new Response("Thiếu dữ liệu bắt buộc cho request chatbot.", {
-      status: 400,
-    });
+    return new Response("Thiếu dữ liệu bắt buộc cho request chatbot.", { status: 400 });
   }
 
   const title = buildThreadTitle(body.message, body.locale);
-  const dbContext = await buildAgentDbContext(normalizedPatientId);
-  const agentMessage = appendAgentDbContextToMessage(
-    body.message,
-    dbContext,
-    body.locale,
-  );
-  const agentMetadata = withAgentDbMetadata(body.metadata, dbContext);
 
   if (!isAgentBackendConfigured()) {
     const payload = buildMockChatPayload({
       locale: body.locale,
       message: body.message,
       patientId: normalizedPatientId,
-      patientContext: buildMockPatientContext(dbContext, body.locale),
+      patientContext: null,
       threadId: body.threadId,
       title,
     });
-    return createMockStreamResponse(payload, { typingDelayMs: 90 });
+    return createNdjsonStream(payload, { typingDelayMs: 90 });
   }
 
-  try {
-    const backendResponse = await invokeAgentChatStream({
-      patientId: normalizedPatientId,
-      conversationId: body.threadId,
-      doctorId: body.userId,
-      message: agentMessage,
-      metadata: agentMetadata,
-      history: body.history,
-    });
+  const baseUrl = getAgentBaseUrl()!;
+  const backendBody = buildAgentChatBackendBody({
+    patientId: normalizedPatientId,
+    conversationId: body.threadId,
+    doctorId: body.userId,
+    message: body.message,
+    metadata: body.metadata,
+    history: body.history,
+  });
 
-    return createBackendStreamResponse(backendResponse, {
+  try {
+    const streamPath = process.env.AI_AGENT_STREAM_PATH ?? "/api/agent/chat/stream";
+    const backendResponse = await fetch(
+      `${baseUrl.replace(/\/$/, "")}${streamPath}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(request.headers.get("authorization")
+            ? { Authorization: request.headers.get("authorization") as string }
+            : {}),
+        },
+        body: JSON.stringify(backendBody),
+        cache: "no-store",
+      },
+    );
+
+    if (!backendResponse.ok) {
+      const detail = await backendResponse.text();
+      throw new BackendAgentError(
+        detail || `Backend AI trả lời ${backendResponse.status}.`,
+        backendResponse.status,
+      );
+    }
+
+    return proxySseAsNdjson(backendResponse, {
       patientId: normalizedPatientId,
       locale: body.locale,
-      question: body.message,
+      message: body.message,
       threadId: body.threadId,
       title,
     });
@@ -71,121 +81,59 @@ export async function POST(request: NextRequest) {
     if (error instanceof BackendAgentError && error.status < 500) {
       return new Response(error.message, { status: error.status });
     }
-
     const message =
-      error instanceof Error
-        ? error.message
-        : "Không thể kết nối backend AI.";
+      error instanceof Error ? error.message : "Không thể kết nối backend AI.";
     return new Response(message, { status: 502 });
   }
 }
 
-function createBackendStreamResponse(
-  backendResponse: Response,
-  context: {
-    patientId: string;
-    locale: AgentChatProxyRequest["locale"];
-    question: string;
-    threadId: string;
-    title: string;
-  },
-) {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const backendBody = backendResponse.body;
+// ---------------------------------------------------------------------------
+// SSE → NDJSON proxy
+// ---------------------------------------------------------------------------
 
+type StreamCtx = {
+  patientId: string;
+  locale: Locale;
+  message: string;
+  threadId: string;
+  title: string;
+};
+
+function proxySseAsNdjson(backendResponse: Response, ctx: StreamCtx): Response {
   const stream = new ReadableStream({
     async start(controller) {
-      if (!backendBody) {
-        controller.error(new Error("Backend AI stream rỗng."));
-        return;
-      }
-
       const send = (event: AgentChatStreamEvent) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        controller.enqueue(`${JSON.stringify(event)}\n`);
       };
 
-      send({
-        type: "meta",
-        threadId: context.threadId,
-        title: context.title,
-        suggestedIssueIds: [],
-      });
+      send({ type: "meta", threadId: ctx.threadId, title: ctx.title, suggestedIssueIds: [] });
 
-      const reader = backendBody.getReader();
-      let buffer = "";
-      let streamedText = "";
-      let completedPayload: AgentChatProxyPayload | null = null;
-
-      const processBlock = (block: string) => {
-        const parsed = parseSseBlock(block);
-        if (!parsed) return;
-
-        if (parsed.event === "token") {
-          streamedText += parsed.data;
-          send({ type: "delta", text: parsed.data });
-          return;
+      try {
+        for await (const { event, data } of parseSse(backendResponse)) {
+          if (event === "token") {
+            if (data) send({ type: "delta", text: data });
+          } else if (event === "result") {
+            try {
+              const raw: unknown = JSON.parse(data);
+              const adapted = adaptBackendResponse({
+                patientId: ctx.patientId,
+                locale: ctx.locale,
+                question: ctx.message,
+                title: ctx.title,
+                raw,
+              });
+              const payload: AgentChatProxyPayload = { ...adapted, threadId: ctx.threadId };
+              send({ type: "complete", payload });
+            } catch {
+              // malformed result — skip
+            }
+          }
         }
-
-        if (parsed.event === "result") {
-          const raw = JSON.parse(parsed.data) as unknown;
-          completedPayload = {
-            ...adaptBackendResponse({
-              patientId: context.patientId,
-              locale: context.locale,
-              question: context.question,
-              title: context.title,
-              raw,
-            }),
-            threadId: context.threadId,
-          };
-          send({ type: "complete", payload: completedPayload });
-          return;
-        }
-
-        if (parsed.event === "error") {
-          throw new Error(parsed.data || "Backend AI trả về lỗi stream.");
-        }
-      };
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const blocks = buffer.split(/\n\n/);
-        buffer = blocks.pop() ?? "";
-        for (const block of blocks) {
-          processBlock(block);
-        }
+      } catch {
+        // upstream read error — close gracefully
+      } finally {
+        controller.close();
       }
-
-      if (buffer.trim()) {
-        processBlock(buffer);
-      }
-
-      if (!completedPayload && streamedText.trim()) {
-        completedPayload = {
-          ...adaptBackendResponse({
-            patientId: context.patientId,
-            locale: context.locale,
-            question: context.question,
-            title: context.title,
-            raw: {
-              schema_version: "v1",
-              response_type: "chat",
-              patient_id: context.patientId || null,
-              source_id: context.threadId,
-              generated_at: new Date().toISOString(),
-              narrative_summary: streamedText,
-            },
-          }),
-          threadId: context.threadId,
-        };
-        send({ type: "complete", payload: completedPayload });
-      }
-
-      controller.close();
     },
   });
 
@@ -197,28 +145,14 @@ function createBackendStreamResponse(
   });
 }
 
-function parseSseBlock(block: string) {
-  const lines = block.split(/\r?\n/);
-  let event = "message";
-  const data: string[] = [];
+// ---------------------------------------------------------------------------
+// Mock fallback
+// ---------------------------------------------------------------------------
 
-  for (const line of lines) {
-    if (line.startsWith("event:")) {
-      event = line.slice("event:".length).trim();
-    }
-    if (line.startsWith("data:")) {
-      data.push(line.slice("data:".length).trimStart());
-    }
-  }
-
-  if (data.length === 0) return null;
-  return { event, data: data.join("\n") };
-}
-
-function createMockStreamResponse(
+function createNdjsonStream(
   payload: AgentChatProxyPayload,
   options: { typingDelayMs: number },
-) {
+): Response {
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: AgentChatStreamEvent) => {
@@ -234,17 +168,11 @@ function createMockStreamResponse(
 
       for (const chunk of chunkText(payload.summary.answer)) {
         await sleep(options.typingDelayMs);
-        send({
-          type: "delta",
-          text: chunk,
-        });
+        send({ type: "delta", text: chunk });
       }
 
       await sleep(Math.max(40, Math.round(options.typingDelayMs / 2)));
-      send({
-        type: "complete",
-        payload,
-      });
+      send({ type: "complete", payload });
 
       controller.close();
     },
@@ -258,20 +186,65 @@ function createMockStreamResponse(
   });
 }
 
-function chunkText(text: string) {
+// ---------------------------------------------------------------------------
+// SSE parser
+// ---------------------------------------------------------------------------
+
+async function* parseSse(
+  response: Response,
+): AsyncGenerator<{ event: string; data: string }> {
+  if (!response.body) return;
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let currentEvent = "message";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trimEnd();
+        if (trimmed.startsWith("event:")) {
+          currentEvent = trimmed.slice(6).trim();
+        } else if (trimmed.startsWith("data:")) {
+          const data = trimmed.slice(5).trim();
+          if (data) {
+            yield { event: currentEvent, data };
+            currentEvent = "message";
+          }
+        } else if (trimmed === "") {
+          currentEvent = "message";
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function chunkText(text: string): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0) return [text];
 
   const chunks: string[] = [];
-  for (let index = 0; index < words.length; index += 4) {
-    const slice = words.slice(index, index + 4).join(" ");
-    const suffix = index + 4 < words.length ? " " : "";
-    chunks.push(`${slice}${suffix}`);
+  for (let i = 0; i < words.length; i += 4) {
+    const slice = words.slice(i, i + 4).join(" ");
+    chunks.push(i + 4 < words.length ? `${slice} ` : slice);
   }
-
   return chunks;
 }
 
-function sleep(ms: number) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

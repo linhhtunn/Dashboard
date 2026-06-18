@@ -151,4 +151,9 @@ export const patientRepository = {
       return null;
     }
   },
+
+  async listProfiles(): Promise<Patient[]> {
+    const payload = await clinicalApiGet<PatientDto[]>("/api/patients/profiles");
+    return payload.map(mapPatient);
+  },
 };

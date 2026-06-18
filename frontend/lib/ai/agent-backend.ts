@@ -22,11 +22,13 @@ export async function callAgentEndpoint({
   configuredPath,
   defaultPath,
   body,
+  authorization,
 }: {
   baseUrl: string;
   configuredPath: string;
   defaultPath: string;
   body: string;
+  authorization?: string | null;
 }) {
   const attemptedPaths = Array.from(
     new Set([configuredPath, defaultPath]),
@@ -41,6 +43,7 @@ export async function callAgentEndpoint({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(authorization ? { Authorization: authorization } : {}),
         },
         body,
         cache: "no-store",
@@ -81,11 +84,13 @@ export async function callAgentStreamEndpoint({
   configuredPath,
   defaultPath,
   body,
+  authorization,
 }: {
   baseUrl: string;
   configuredPath: string;
   defaultPath: string;
   body: string;
+  authorization?: string | null;
 }) {
   const attemptedPaths = Array.from(
     new Set([configuredPath, defaultPath]),
@@ -101,6 +106,7 @@ export async function callAgentStreamEndpoint({
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
+          ...(authorization ? { Authorization: authorization } : {}),
         },
         body,
         cache: "no-store",

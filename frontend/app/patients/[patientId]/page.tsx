@@ -3,7 +3,7 @@
 import { ArrowLeft, BellRing, MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { AlertItem } from "@/components/alerts";
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
@@ -16,6 +16,7 @@ import {
   MetricCard,
   TimeRangeSelector,
 } from "@/components/vitals";
+import { useVisibilityPolling } from "@/hooks/use-visibility-polling";
 import { getGenderLabel, getPatientStatusLabel, getWardLabel } from "@/lib/i18n";
 import { normalizePatientId } from "@/lib/patient-id";
 import { alertRepository } from "@/lib/repositories/alert.repository";
@@ -39,107 +40,56 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId: number | null = null;
+  const loadPatientAlerts = useCallback(async () => {
+    try {
+      const [nextPatient, alertsResult] = await Promise.all([
+        patientRepository.findById(patientId),
+        alertRepository.listByPatient(patientId),
+      ]);
 
-    const load = async () => {
-      try {
-        const nextPatient = await patientRepository.findById(patientId);
-        if (cancelled) return;
-
-        setPatient(nextPatient);
-        if (!nextPatient) {
-          setError(
-            locale === "vi"
-              ? "Không tìm thấy bệnh nhân với mã hồ sơ này."
-              : "No patient matches this record ID.",
-          );
-          return;
-        }
-
-        const alertsResult = await alertRepository.listByPatient(patientId);
-        if (cancelled) return;
-
-        setAlerts(alertsResult);
-        setError(null);
-        /*
-        const loadErrors: string[] = [];
-        if (snapshotResult.status === "fulfilled") {
-          setVitals(snapshotResult.value.samples);
-          setSummaries(snapshotResult.value.metricSummaries);
-        } else {
-          loadErrors.push(
-            locale === "vi"
-              ? "Không thể tải dữ liệu sinh tồn."
-              : "Unable to load vital signs.",
-          );
-        }
-
-        if (alertsResult.status === "fulfilled") {
-          setAlerts(alertsResult.value);
-        } else {
-          loadErrors.push(
-            locale === "vi"
-              ? "Không thể tải lịch sử cảnh báo."
-              : "Unable to load alert history.",
-          );
-        }
-
-        setError(loadErrors.length ? loadErrors.join(" ") : null);
-        */
-      } catch (nextError: unknown) {
-        if (cancelled) return;
+      setPatient(nextPatient);
+      if (!nextPatient) {
         setError(
-          nextError instanceof Error
-            ? nextError.message
-            : locale === "vi"
-              ? "Không thể tải hồ sơ bệnh nhân."
-              : "Unable to load the patient record.",
+          locale === "vi"
+            ? "Không tìm thấy bệnh nhân với mã hồ sơ này."
+            : "No patient matches this record ID.",
         );
-      } finally {
-        if (!cancelled) setLoading(false);
+        return;
       }
-    };
 
-    void load();
-    intervalId = window.setInterval(() => void load(), PATIENT_ALERT_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-    };
+      setAlerts(alertsResult);
+      setError(null);
+    } catch (nextError: unknown) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : locale === "vi"
+            ? "Không thể tải hồ sơ bệnh nhân."
+            : "Unable to load the patient record.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [locale, patientId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId: number | null = null;
-
-    const loadVitals = async () => {
-      try {
-        const snapshot = await vitalRepository.getSnapshot(patientId, range);
-        if (cancelled) return;
-
-        setVitals(snapshot.samples);
-        setSummaries(snapshot.metricSummaries);
-      } catch (nextError: unknown) {
-        if (cancelled) return;
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : locale === "vi"
-              ? "KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u sinh tá»“n."
-              : "Unable to load vital signs.",
-        );
-      }
-    };
-
-    void loadVitals();
-    intervalId = window.setInterval(() => void loadVitals(), PATIENT_VITAL_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-    };
+  const loadVitals = useCallback(async () => {
+    try {
+      const snapshot = await vitalRepository.getSnapshot(patientId, range);
+      setVitals(snapshot.samples);
+      setSummaries(snapshot.metricSummaries);
+    } catch (nextError: unknown) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : locale === "vi"
+            ? "Không thể tải dữ liệu sinh tồn."
+            : "Unable to load vital signs.",
+      );
+    }
   }, [locale, patientId, range]);
+
+  useVisibilityPolling(loadPatientAlerts, { intervalMs: PATIENT_ALERT_REFRESH_MS });
+  useVisibilityPolling(loadVitals, { intervalMs: PATIENT_VITAL_REFRESH_MS });
 
   if (loading && !patient) {
     return (

@@ -53,10 +53,6 @@ export function buildAgentChatBackendBody(input: {
     body.metadata = input.metadata;
   }
 
-  if (input.history && input.history.length > 0) {
-    body.history = input.history;
-  }
-
   return body;
 }
 

@@ -122,6 +122,7 @@ export function buildMockExplainAlertPayload({
     suggestedIssueIds: severity === "critical" ? ["blood_pressure", "spo2"] : ["heart_rate"],
     recommendedIssueId: severity === "critical" ? "blood_pressure" : "heart_rate",
     focusMetrics: ["heart_rate", "spo2", "systolic_bp"],
+    actions:[],
     nextActions:
       locale === "vi"
         ? ["Theo dõi lại chỉ số trong 15–30 phút", "Xác nhận triệu chứng lâm sàng"]
@@ -180,6 +181,7 @@ export function buildMockChatPayload({
     recommendedIssueId: scenario.recommendedIssueId,
     focusMetrics: scenario.focusMetrics,
     nextActions: scenario.nextActions,
+    actions: [],
     summary: {
       patientId,
       locale,
