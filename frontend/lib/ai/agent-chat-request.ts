@@ -49,11 +49,32 @@ export function buildAgentChatBackendBody(input: {
     body.conversation_id = input.conversationId;
   }
 
-  if (input.metadata && Object.keys(input.metadata).length > 0) {
-    body.metadata = input.metadata;
+  const metadata = buildAgentBackendMetadata(input.metadata);
+  if (Object.keys(metadata).length > 0) {
+    body.metadata = metadata;
   }
 
   return body;
+}
+
+export function buildAgentBackendMetadata(
+  metadata?: Record<string, unknown>,
+): Record<string, string> {
+  if (!metadata) return {};
+
+  const output: Record<string, string> = {};
+  const alertId = metadata.alert_id;
+  const contextType = metadata.context_type ?? metadata.source_view;
+
+  if (typeof alertId === "string" && alertId.trim()) {
+    output.alert_id = alertId.trim().slice(0, 200);
+  }
+
+  if (typeof contextType === "string" && contextType.trim()) {
+    output.context_type = contextType.trim().slice(0, 200);
+  }
+
+  return output;
 }
 
 export function buildSummaryPrompt(locale: Locale) {

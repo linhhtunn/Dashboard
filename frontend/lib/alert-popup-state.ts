@@ -1,17 +1,13 @@
 import type { Alert } from "@/types";
 
-/** Alerts newer than this are treated as realtime. */
-export const ALERT_REALTIME_WINDOW_MS = 5 * 60 * 1000;
-
-/** Re-surface dismissed/viewed alerts after this interval if still unresolved. */
-export const ALERT_STALE_REMINDER_MS = 15 * 60 * 1000;
-
 const VIEWED_KEY = "care-signal-alert-views";
 const DISMISSED_KEY = "care-signal-alert-dismissals";
+const BASELINE_KEY = "care-signal-alert-baseline-at";
 
 export type AlertPopupState = {
   viewedAt: Record<string, string>;
   dismissedAt: Record<string, string>;
+  baselineAt?: string;
 };
 
 function readMap(key: string): Record<string, string> {
@@ -25,14 +21,59 @@ function readMap(key: string): Record<string, string> {
 }
 
 function writeMap(key: string, value: Record<string, string>) {
-  window.localStorage.setItem(key, JSON.stringify(value));
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage failures; popup state is best-effort client memory.
+  }
+}
+
+function readValue(key: string): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return window.localStorage.getItem(key) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeValue(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures; popup state is best-effort client memory.
+  }
 }
 
 export function readAlertPopupState(): AlertPopupState {
   return {
     viewedAt: readMap(VIEWED_KEY),
     dismissedAt: readMap(DISMISSED_KEY),
+    baselineAt: readValue(BASELINE_KEY),
   };
+}
+
+export function markCurrentAlertsViewed(alerts: Alert[]) {
+  if (typeof window === "undefined") return;
+
+  const now = new Date().toISOString();
+  const viewedAt = readMap(VIEWED_KEY);
+  for (const alert of alerts) {
+    if (!isAlertResolved(alert)) viewedAt[alert.id] = now;
+  }
+
+  writeMap(VIEWED_KEY, viewedAt);
+  writeValue(BASELINE_KEY, now);
+}
+
+export function ensureAlertPopupBaseline(alerts: Alert[]) {
+  if (typeof window === "undefined") return false;
+  if (readValue(BASELINE_KEY)) return false;
+
+  markCurrentAlertsViewed(alerts);
+  return true;
 }
 
 export function markAlertViewed(alertId: string) {
@@ -61,34 +102,16 @@ export function isAlertResolved(alert: Alert): boolean {
   return alert.workflowStatus === "doctor_confirmed";
 }
 
-export function isRealtimeAlert(alert: Alert, now = Date.now()): boolean {
-  return now - new Date(alert.timestamp).getTime() <= ALERT_REALTIME_WINDOW_MS;
-}
-
 export function shouldShowAlertPopup(
   alert: Alert,
   state: AlertPopupState,
-  now = Date.now(),
 ): boolean {
   if (isAlertResolved(alert)) return false;
 
   const viewedAt = state.viewedAt[alert.id];
   const dismissedAt = state.dismissedAt[alert.id];
 
-  if (!viewedAt && !dismissedAt) return true;
-
-  if (isRealtimeAlert(alert, now)) {
-    const alertTs = new Date(alert.timestamp).getTime();
-    if (!viewedAt || alertTs > new Date(viewedAt).getTime()) return true;
-  }
-
-  const lastInteraction = dismissedAt ?? viewedAt;
-  if (lastInteraction) {
-    const elapsed = now - new Date(lastInteraction).getTime();
-    if (elapsed >= ALERT_STALE_REMINDER_MS) return true;
-  }
-
-  return false;
+  return !viewedAt && !dismissedAt;
 }
 
 const severityRank: Record<Alert["severity"], number> = {
@@ -100,11 +123,10 @@ const severityRank: Record<Alert["severity"], number> = {
 export function pickAlertForPopup(
   alerts: Alert[],
   state: AlertPopupState,
-  now = Date.now(),
 ): Alert | null {
   return (
     alerts
-      .filter((alert) => shouldShowAlertPopup(alert, state, now))
+      .filter((alert) => shouldShowAlertPopup(alert, state))
       .sort((left, right) => {
         const severityDiff = severityRank[left.severity] - severityRank[right.severity];
         if (severityDiff !== 0) return severityDiff;

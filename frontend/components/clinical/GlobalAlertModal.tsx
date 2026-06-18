@@ -12,6 +12,7 @@ import { isAwaitingDoctor } from "@/lib/alerts-filters";
 import {
   clearAlertPopupState,
   dismissAlertTemporarily,
+  ensureAlertPopupBaseline,
   markAlertViewed,
   pickAlertForPopup,
   readAlertPopupState,
@@ -64,6 +65,7 @@ export function GlobalAlertModal() {
 
   const refreshAlerts = useCallback(async () => {
     const items = await alertRepository.listOpen();
+    ensureAlertPopupBaseline(items);
     setAlerts(items);
     setPopupTick(Date.now());
   }, []);
@@ -86,7 +88,7 @@ export function GlobalAlertModal() {
   const alert = useMemo(() => {
     if (isAdmin) return null;
     const state = readAlertPopupState();
-    return pickAlertForPopup(alerts, state, popupTick);
+    return pickAlertForPopup(alerts, state);
   }, [alerts, isAdmin, popupTick]);
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import type {
   AgentInsightPayload,
   AgentSummaryProxyRequest,
 } from "@/lib/ai/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type StreamHandlers = {
   onMeta?: (event: Extract<AgentChatStreamEvent, { type: "meta" }>) => void;
@@ -21,10 +22,12 @@ export async function streamAgentChat(
   input: AgentChatProxyRequest,
   handlers: StreamHandlers,
 ): Promise<AgentChatProxyPayload> {
+  const authorization = await getAgentAuthorizationHeader();
   const response = await fetch("/api/agent/chat/stream", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
     },
     body: JSON.stringify(input),
   });
@@ -81,6 +84,15 @@ export async function streamAgentChat(
   }
 
   return completedPayload;
+}
+
+async function getAgentAuthorizationHeader() {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return null;
+
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? `Bearer ${token}` : null;
 }
 
 export async function fetchAgentSummary(
