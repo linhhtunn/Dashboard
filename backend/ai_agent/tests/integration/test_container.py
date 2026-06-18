@@ -2,6 +2,7 @@ from app.core.config import Settings
 from app.core.container import build_agent_service
 from app.memory.workflow import ChatMemoryWorkflow
 from app.repositories.fixtures import FixtureAlertRepository, FixturePatientRepository
+from app.repositories.supabase import SupabaseAlertRepository, SupabasePatientRepository
 from app.services.agent_service import AgentService
 from app.services.generation import GenerationService
 
@@ -9,6 +10,7 @@ from app.services.generation import GenerationService
 def test_container_builds_agent_service_with_runtime_dependencies() -> None:
     service = build_agent_service(
         settings=Settings(
+            _env_file=None,
             MEMORY_CHECKPOINTER="memory",
             OPENAI_API_KEY=None,
             MEMORY_POSTGRES_DSN="",
@@ -58,6 +60,7 @@ def test_settings_support_langfuse_observability_defaults_and_overrides() -> Non
 def test_container_falls_back_to_manual_memory_when_memory_config_fails() -> None:
     service = build_agent_service(
         settings=Settings(
+            _env_file=None,
             MEMORY_CHECKPOINTER="unsupported",
             OPENAI_API_KEY=None,
             MEMORY_POSTGRES_DSN="",
@@ -77,3 +80,22 @@ def test_container_falls_back_to_manual_memory_when_memory_config_fails() -> Non
         log_fallback=lambda **kwargs: None,
     )
     assert getattr(chat_wf, "_graph", None) is None
+
+
+def test_container_uses_supabase_rest_when_supabase_is_configured_without_db_url() -> None:
+    service = build_agent_service(
+        settings=Settings(
+            _env_file=None,
+            MEMORY_CHECKPOINTER="memory",
+            OPENAI_API_KEY=None,
+            MEMORY_POSTGRES_DSN="",
+            SUPABASE_DB_URL="",
+            SUPABASE_URL="https://example.supabase.co",
+            SUPABASE_SERVICE_KEY="service-key",
+            sqlite_db_path="",
+        ),
+        service_cls=AgentService,
+    )
+
+    assert isinstance(service.patient_repository, SupabasePatientRepository)
+    assert isinstance(service.alert_repository, SupabaseAlertRepository)

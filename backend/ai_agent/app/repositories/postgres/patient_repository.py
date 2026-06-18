@@ -42,130 +42,17 @@ class PostgresPatientRepository:
         
         try:
             with self.db_connector.connection() as conn:
-                subject_id = patient_id
-                display_name = f"MIMIC Patient {patient_id}"
-
                 if _table_exists(conn, "patients"):
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            """
-                            SELECT patient_id, mimic_subject_id, name
-                            FROM patients
-                            WHERE lower(patient_id) = lower(%s)
-                               OR mimic_subject_id::text = %s
-                            LIMIT 1
-                            """,
-                            (patient_id, patient_id),
-                        )
-                        p_row = cur.fetchone()
+                    p_row = _fetch_patients_table_row(conn, patient_id)
                     if p_row:
-                        if p_row.get("mimic_subject_id") is not None:
-                            subject_id = str(p_row["mimic_subject_id"])
-                        if p_row.get("name") is not None:
-                            display_name = p_row["name"]
+                        return _patient_profile_from_patients_row(p_row, requested_patient_id=patient_id)
 
-                # 1. Query demographics
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT gender, anchor_age, anchor_year 
-                        FROM hosp_patients 
-                        WHERE subject_id = %s
-                        """,
-                        (subject_id,),
-                    )
-                    row = cur.fetchone()
-                
-                if not row:
-                    raise RepositoryItemNotFoundError(f"Patient with ID {patient_id} not found in database")
-                
-                gender_raw = row["gender"]
-                age = int(row["anchor_age"])
-                
-                # Map gender for rules/consistency
-                gender = "Nam" if gender_raw == "M" else "Nu" if gender_raw == "F" else gender_raw
+                if _table_exists(conn, "portal_patients"):
+                    portal_row = _fetch_portal_patient_row(conn, patient_id)
+                    if portal_row:
+                        return _patient_profile_from_portal_row(portal_row, requested_patient_id=patient_id)
 
-                # 2. Query Creatinine (itemid = 50912)
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT valuenum 
-                        FROM hosp_labevents 
-                        WHERE subject_id = %s AND itemid = '50912' 
-                        ORDER BY charttime DESC 
-                        LIMIT 1
-                        """,
-                        (subject_id,),
-                    )
-                    creatinine_row = cur.fetchone()
-                serum_creatinine = float(creatinine_row["valuenum"]) if (creatinine_row and creatinine_row["valuenum"] is not None) else None
-
-                # 3. Query Weight
-                weight_kg = 70.0  # Fallback standard weight
-                
-                # Check table existence before querying to prevent aborting database transactions
-                has_icu_chartevents = False
-                has_hosp_omr = False
-                
-                try:
-                    with conn.cursor() as cur:
-                        cur.execute("SELECT to_regclass('public.icu_chartevents') as val")
-                        row_chk = cur.fetchone()
-                        has_icu_chartevents = row_chk and row_chk["val"] is not None
-                        
-                        cur.execute("SELECT to_regclass('public.hosp_omr') as val")
-                        row_chk = cur.fetchone()
-                        has_hosp_omr = row_chk and row_chk["val"] is not None
-                except Exception:
-                    # If the metadata check fails, assume tables do not exist to be safe
-                    pass
-
-                # Try ICU admission weight in kg first if table exists
-                if has_icu_chartevents:
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute(
-                                """
-                                SELECT valuenum 
-                                FROM icu_chartevents 
-                                WHERE subject_id = %s AND itemid IN ('226512', '224639') 
-                                ORDER BY charttime DESC 
-                                LIMIT 1
-                                """,
-                                (subject_id,),
-                            )
-                            icu_weight_row = cur.fetchone()
-                        if icu_weight_row and icu_weight_row["valuenum"] is not None:
-                            weight_kg = float(icu_weight_row["valuenum"])
-                        else:
-                            raise ValueError("No ICU weight found")
-                    except Exception:
-                        conn.rollback()
-                        
-                # Try OMR outpatient weight in Lbs if needed and table exists
-                if weight_kg == 70.0 and has_hosp_omr:
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute(
-                                """
-                                SELECT result_value 
-                                FROM hosp_omr 
-                                WHERE subject_id = %s AND result_name = 'Weight (Lbs)' 
-                                ORDER BY chartdate DESC 
-                                LIMIT 1
-                                """,
-                                (subject_id,),
-                            )
-                            omr_weight_row = cur.fetchone()
-                        if omr_weight_row and omr_weight_row["result_value"] is not None:
-                            try:
-                                weight_kg = float(omr_weight_row["result_value"]) * 0.45359237
-                            except ValueError:
-                                weight_kg = 70.0
-                    except Exception:
-                        conn.rollback()
-                        weight_kg = 70.0
-
+                raise RepositoryItemNotFoundError(f"Patient with ID {patient_id} not found in Supabase")
 
                 # 4. Query diagnoses (ICD codes)
                 with conn.cursor() as cur:
@@ -276,25 +163,24 @@ class PostgresPatientRepository:
                         },
                     }
 
-                if _table_exists(conn, "patient_directory"):
-                    patients = _query_directory_patients(conn, limit=limit)
+                if _table_exists(conn, "portal_patients"):
+                    patients = _query_portal_patients(conn, limit=limit)
                     return {
                         "patients": patients,
                         "data_availability": {
                             "patient_directory": True,
-                            "source": "patient_directory",
+                            "source": "portal_patients",
                             "notes": [],
                         },
                     }
 
-                patients = _query_hosp_patient_candidates(conn, query="", limit=limit)
                 return {
-                    "patients": patients,
+                    "patients": [],
                     "data_availability": {
                         "patient_directory": False,
-                        "source": "hosp_patients",
+                        "source": "supabase",
                         "notes": [
-                            "patient_directory table is unavailable; using hosp_patients subject IDs only.",
+                            "Supabase patients or portal_patients table is unavailable.",
                         ],
                     },
                 }
@@ -337,29 +223,28 @@ class PostgresPatientRepository:
                         },
                     }
 
-                if _table_exists(conn, "patient_directory"):
-                    patients = _search_directory_patients(conn, query=query, normalized_query=normalized_query, limit=limit)
+                if _table_exists(conn, "portal_patients"):
+                    patients = _search_portal_patients(conn, query=query, normalized_query=normalized_query, limit=limit)
                     return {
                         "query": query,
                         "patients": patients,
                         "match_status": _match_status(patients),
                         "data_availability": {
                             "patient_directory": True,
-                            "source": "patient_directory",
+                            "source": "portal_patients",
                             "notes": [],
                         },
                     }
 
-                patients = _query_hosp_patient_candidates(conn, query=query, limit=limit)
                 return {
                     "query": query,
-                    "patients": patients,
-                    "match_status": _match_status(patients),
+                    "patients": [],
+                    "match_status": "none",
                     "data_availability": {
                         "patient_directory": False,
-                        "source": "hosp_patients",
+                        "source": "supabase",
                         "notes": [
-                            "patient_directory table is unavailable; name and hospital-code lookup are disabled.",
+                            "Supabase patients or portal_patients table is unavailable.",
                         ],
                     },
                 }
@@ -389,6 +274,23 @@ def _table_exists(conn: Any, table_name: str) -> bool:
     return bool(row and row.get("table_ref"))
 
 
+def _column_exists(conn: Any, table_name: str, column_name: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1 AS found
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = %s
+              AND column_name = %s
+            LIMIT 1
+            """,
+            (table_name, column_name),
+        )
+        row = cur.fetchone()
+    return bool(row and row.get("found"))
+
+
 def _query_directory_patients(conn: Any, *, limit: int) -> list[dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(
@@ -410,6 +312,69 @@ def _query_directory_patients(conn: Any, *, limit: int) -> list[dict[str, Any]]:
             (limit,),
         )
         return [_candidate_from_row(row) for row in cur.fetchall()]
+
+
+def _query_portal_patients(conn: Any, *, limit: int) -> list[dict[str, Any]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id AS patient_id,
+                mrn AS hospital_patient_code,
+                id AS subject_id,
+                name AS display_name,
+                gender,
+                age
+            FROM portal_patients
+            ORDER BY id
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        return [_candidate_from_row(row) for row in cur.fetchall()]
+
+
+def _search_portal_patients(
+    conn: Any,
+    *,
+    query: str,
+    normalized_query: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    raw_pattern = f"%{query.strip()}%"
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id AS patient_id,
+                mrn AS hospital_patient_code,
+                id AS subject_id,
+                name AS display_name,
+                gender,
+                age
+            FROM portal_patients
+            WHERE id ILIKE %s
+               OR mrn ILIKE %s
+               OR name ILIKE %s
+            ORDER BY id
+            LIMIT %s
+            """,
+            (raw_pattern, raw_pattern, raw_pattern, limit),
+        )
+        rows = cur.fetchall()
+
+    if rows:
+        return [_candidate_from_row(row) for row in rows]
+
+    candidates = _query_portal_patients(conn, limit=max(limit * 20, 200))
+    matches = [
+        row
+        for row in candidates
+        if normalized_query in _normalize(str(row.get("display_name") or ""))
+        or normalized_query in _normalize(str(row.get("patient_id") or ""))
+        or normalized_query in _normalize(str(row.get("hospital_patient_code") or ""))
+    ]
+    return matches[:limit]
 
 
 def _search_directory_patients(
@@ -520,6 +485,143 @@ def _candidate_from_row(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _fetch_patients_table_row(conn: Any, patient_id: str) -> dict[str, Any] | None:
+    has_mimic_subject_id = _column_exists(conn, "patients", "mimic_subject_id")
+    lookup_sql = (
+        """
+        SELECT *
+        FROM patients
+        WHERE lower(patient_id) = lower(%s)
+           OR mimic_subject_id::text = %s
+        LIMIT 1
+        """
+        if has_mimic_subject_id
+        else """
+        SELECT *
+        FROM patients
+        WHERE lower(patient_id) = lower(%s)
+        LIMIT 1
+        """
+    )
+    params = (patient_id, patient_id) if has_mimic_subject_id else (patient_id,)
+    with conn.cursor() as cur:
+        cur.execute(lookup_sql, params)
+        return cur.fetchone()
+
+
+def _fetch_portal_patient_row(conn: Any, patient_id: str) -> dict[str, Any] | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT *
+            FROM portal_patients
+            WHERE lower(id) = lower(%s)
+               OR lower(mrn) = lower(%s)
+            LIMIT 1
+            """,
+            (patient_id, patient_id),
+        )
+        return cur.fetchone()
+
+
+def _patient_profile_from_patients_row(
+    row: dict[str, Any],
+    *,
+    requested_patient_id: str,
+) -> dict[str, Any]:
+    patient_id = str(row.get("patient_id") or requested_patient_id)
+    history = _medical_history_from_row(row)
+    return {
+        "patient_id": patient_id,
+        "name": row.get("name") or patient_id,
+        "age": row.get("age"),
+        "gender": _gender_label(row.get("gender")),
+        "medical_history": history,
+        "health_status": row.get("health_status") or row.get("status") or "UNKNOWN",
+        "recent_alerts": [],
+        "recent_vitals": [],
+        "weight_kg": _float_or_none(row.get("weight_kg")),
+        "serum_creatinine": _float_or_none(row.get("serum_creatinine")),
+        "is_af_confirmed": _contains_any(history, ["rung nhi", "atrial fibrillation", " af"]),
+        "has_hypertension": _contains_any(history, ["tang huyet ap", "hypertension"]),
+        "has_diabetes": _contains_any(history, ["dai thao duong", "diabetes"]),
+        "has_stroke_history": _contains_any(history, ["dot quy", "stroke", "tia"]),
+        "has_heart_failure": _contains_any(history, ["suy tim", "heart failure"]),
+        "has_vascular_disease": _contains_any(history, ["mach mau", "vascular", "myocardial", "mi"]),
+        "has_mechanical_valve": _contains_any(history, ["mechanical valve", "van tim co hoc"]),
+    }
+
+
+def _patient_profile_from_portal_row(
+    row: dict[str, Any],
+    *,
+    requested_patient_id: str,
+) -> dict[str, Any]:
+    patient_id = str(row.get("id") or requested_patient_id)
+    history = _medical_history_from_portal_row(row)
+    return {
+        "patient_id": patient_id,
+        "name": row.get("name") or patient_id,
+        "age": row.get("age"),
+        "gender": _gender_label(row.get("gender")),
+        "medical_history": history,
+        "health_status": row.get("status") or "UNKNOWN",
+        "recent_alerts": [],
+        "recent_vitals": [],
+        "weight_kg": None,
+        "serum_creatinine": None,
+        "is_af_confirmed": _contains_any(history, ["rung nhi", "atrial fibrillation", " af"]),
+        "has_hypertension": _contains_any(history, ["tang huyet ap", "hypertension"]),
+        "has_diabetes": _contains_any(history, ["dai thao duong", "diabetes"]),
+        "has_stroke_history": _contains_any(history, ["dot quy", "stroke", "tia"]),
+        "has_heart_failure": _contains_any(history, ["suy tim", "heart failure"]),
+        "has_vascular_disease": _contains_any(history, ["mach mau", "vascular", "myocardial", "mi"]),
+        "has_mechanical_valve": _contains_any(history, ["mechanical valve", "van tim co hoc"]),
+    }
+
+
+def _medical_history_from_row(row: dict[str, Any]) -> str:
+    raw = row.get("medical_history")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    risk_factors = row.get("risk_factors")
+    if isinstance(risk_factors, list) and risk_factors:
+        return ", ".join(str(item) for item in risk_factors if item)
+    return "No medical history recorded in Supabase."
+
+
+def _medical_history_from_portal_row(row: dict[str, Any]) -> str:
+    codes = row.get("underlying_condition_codes")
+    if isinstance(codes, list) and codes:
+        return ", ".join(str(item) for item in codes if item)
+    return "No medical history recorded in Supabase."
+
+
+def _gender_label(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip().lower()
+    if normalized in {"m", "male", "nam"}:
+        return "Nam"
+    if normalized in {"f", "female", "nu", "nữ"}:
+        return "Nu"
+    return str(value)
+
+
+def _float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _contains_any(text: str, needles: list[str]) -> bool:
+    normalized = _normalize(text)
+    return any(needle in normalized for needle in needles)
+
+
 def _match_status(matches: list[dict[str, Any]]) -> str:
     if not matches:
         return "none"
@@ -550,12 +652,9 @@ def _query_patients_table(conn: Any, *, limit: int) -> list[dict[str, Any]]:
             SELECT
                 d.patient_id,
                 d.name AS display_name,
-                p.gender,
-                p.anchor_age AS age
+                d.gender,
+                d.age
             FROM patients d
-            LEFT JOIN hosp_patients p
-              ON p.subject_id = d.mimic_subject_id
-            WHERE d.status = 'active'
             ORDER BY d.patient_id
             LIMIT %s
             """,
@@ -572,28 +671,46 @@ def _search_patients_table(
     limit: int,
 ) -> list[dict[str, Any]]:
     raw_pattern = f"%{query.strip()}%"
+    has_mimic_subject_id = _column_exists(conn, "patients", "mimic_subject_id")
+    lookup_sql = (
+        """
+        SELECT
+            d.patient_id,
+            d.name AS display_name,
+            d.gender,
+            d.age
+        FROM patients d
+        WHERE (
+            d.patient_id ILIKE %s
+            OR d.name ILIKE %s
+            OR d.mimic_subject_id::text ILIKE %s
+          )
+        ORDER BY d.patient_id
+        LIMIT %s
+        """
+        if has_mimic_subject_id
+        else """
+        SELECT
+            d.patient_id,
+            d.name AS display_name,
+            d.gender,
+            d.age
+        FROM patients d
+        WHERE (
+            d.patient_id ILIKE %s
+            OR d.name ILIKE %s
+          )
+        ORDER BY d.patient_id
+        LIMIT %s
+        """
+    )
+    params = (
+        (raw_pattern, raw_pattern, raw_pattern, limit)
+        if has_mimic_subject_id
+        else (raw_pattern, raw_pattern, limit)
+    )
     with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                d.patient_id,
-                d.name AS display_name,
-                p.gender,
-                p.anchor_age AS age
-            FROM patients d
-            LEFT JOIN hosp_patients p
-              ON p.subject_id = d.mimic_subject_id
-            WHERE d.status = 'active'
-              AND (
-                d.patient_id ILIKE %s
-                OR d.name ILIKE %s
-                OR d.mimic_subject_id::text ILIKE %s
-              )
-            ORDER BY d.patient_id
-            LIMIT %s
-            """,
-            (raw_pattern, raw_pattern, raw_pattern, limit),
-        )
+        cur.execute(lookup_sql, params)
         rows = cur.fetchall()
 
     if not rows:
@@ -619,12 +736,9 @@ def _search_patients_table_by_normalized_name(
             SELECT
                 d.patient_id,
                 d.name AS display_name,
-                p.gender,
-                p.anchor_age AS age
+                d.gender,
+                d.age
             FROM patients d
-            LEFT JOIN hosp_patients p
-              ON p.subject_id = d.mimic_subject_id
-            WHERE d.status = 'active'
             ORDER BY d.patient_id
             LIMIT %s
             """,

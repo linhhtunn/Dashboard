@@ -55,14 +55,22 @@ def build_agent_service(
         )
     else:
         db_connector = None
-        if settings.sqlite_db_path:
+        if settings.supabase_url or settings.supabase_service_key:
+            if not settings.supabase_url or not settings.supabase_service_key:
+                raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_KEY are required for Supabase repositories.")
+            logger.info("supabase_rest_detected instantiating_supabase_repositories")
+            from app.repositories.supabase import SupabaseAlertRepository, SupabasePatientRepository
+            patient_repository = SupabasePatientRepository(settings.supabase_url, settings.supabase_service_key)
+            alert_repository = SupabaseAlertRepository(settings.supabase_url, settings.supabase_service_key)
+        elif settings.sqlite_db_path:
             logger.info("sqlite_db_path_detected instantiating_sqlite_patient_repository")
             from app.repositories.sqlite.patient_repository import SQLitePatientRepository
             patient_repository = SQLitePatientRepository(settings.sqlite_db_path)
+            alert_repository = FixtureAlertRepository()
         else:
             logger.info("sqlite_db_path_absent falling_back_to_fixture_repositories")
             patient_repository = FixturePatientRepository()
-        alert_repository = FixtureAlertRepository()
+            alert_repository = FixtureAlertRepository()
 
     generation_service = GenerationService(OpenAIProvider(settings))
     checkpointer_handle = None
@@ -140,14 +148,22 @@ async def build_agent_service_async(
         )
     else:
         db_connector = None
-        if settings.sqlite_db_path:
+        if settings.supabase_url or settings.supabase_service_key:
+            if not settings.supabase_url or not settings.supabase_service_key:
+                raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_KEY are required for Supabase repositories.")
+            logger.info("supabase_rest_detected instantiating_supabase_repositories")
+            from app.repositories.supabase import SupabaseAlertRepository, SupabasePatientRepository
+            patient_repository = SupabasePatientRepository(settings.supabase_url, settings.supabase_service_key)
+            alert_repository = SupabaseAlertRepository(settings.supabase_url, settings.supabase_service_key)
+        elif settings.sqlite_db_path:
             logger.info("sqlite_db_path_detected instantiating_sqlite_patient_repository")
             from app.repositories.sqlite.patient_repository import SQLitePatientRepository
             patient_repository = SQLitePatientRepository(settings.sqlite_db_path)
+            alert_repository = FixtureAlertRepository()
         else:
             logger.info("sqlite_db_path_absent falling_back_to_fixture_repositories")
             patient_repository = FixturePatientRepository()
-        alert_repository = FixtureAlertRepository()
+            alert_repository = FixtureAlertRepository()
 
     generation_service = GenerationService(OpenAIProvider(settings))
     checkpointer_handle = None
