@@ -1,21 +1,20 @@
 const DEFAULT_CHAT_PATH = "/api/agent/chat";
-const DEFAULT_SUMMARY_PATH = "/api/agent/summary";
-const DEFAULT_EXPLAIN_ALERT_PATH = "/api/agent/explain-alert";
+const DEFAULT_CHAT_STREAM_PATH = "/api/agent/chat/stream";
 
 export function getAgentBaseUrl() {
   return process.env.AI_AGENT_BASE_URL;
 }
 
-export function getAgentPath(kind: "chat" | "summary" | "explain-alert") {
-  switch (kind) {
-    case "summary":
-      return process.env.AI_AGENT_SUMMARY_PATH ?? DEFAULT_SUMMARY_PATH;
-    case "explain-alert":
-      return process.env.AI_AGENT_EXPLAIN_ALERT_PATH ?? DEFAULT_EXPLAIN_ALERT_PATH;
-    case "chat":
-    default:
-      return process.env.AI_AGENT_CHAT_PATH ?? DEFAULT_CHAT_PATH;
+export function isAgentBackendConfigured() {
+  return Boolean(getAgentBaseUrl()?.trim());
+}
+
+/** Unified agent router — summary and explain-alert are chat intents. */
+export function getAgentPath(kind: "chat" | "stream" = "chat") {
+  if (kind === "stream") {
+    return process.env.AI_AGENT_CHAT_STREAM_PATH ?? DEFAULT_CHAT_STREAM_PATH;
   }
+  return process.env.AI_AGENT_CHAT_PATH ?? DEFAULT_CHAT_PATH;
 }
 
 export async function callAgentEndpoint({
@@ -23,11 +22,13 @@ export async function callAgentEndpoint({
   configuredPath,
   defaultPath,
   body,
+  authorization,
 }: {
   baseUrl: string;
   configuredPath: string;
   defaultPath: string;
   body: string;
+  authorization?: string | null;
 }) {
   const attemptedPaths = Array.from(
     new Set([configuredPath, defaultPath]),
@@ -42,6 +43,7 @@ export async function callAgentEndpoint({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(authorization ? { Authorization: authorization } : {}),
         },
         body,
         cache: "no-store",
@@ -77,6 +79,69 @@ export async function callAgentEndpoint({
   return parseBackendResponse(backendResponse);
 }
 
+export async function callAgentStreamEndpoint({
+  baseUrl,
+  configuredPath,
+  defaultPath,
+  body,
+  authorization,
+}: {
+  baseUrl: string;
+  configuredPath: string;
+  defaultPath: string;
+  body: string;
+  authorization?: string | null;
+}) {
+  const attemptedPaths = Array.from(
+    new Set([configuredPath, defaultPath]),
+  ).filter(Boolean);
+
+  let backendResponse: Response | null = null;
+  let lastError: unknown = null;
+
+  for (const path of attemptedPaths) {
+    try {
+      const candidate = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+          ...(authorization ? { Authorization: authorization } : {}),
+        },
+        body,
+        cache: "no-store",
+      });
+
+      if (candidate.status === 404 && path !== defaultPath) {
+        continue;
+      }
+
+      backendResponse = candidate;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!backendResponse) {
+    throw new Error(
+      lastError instanceof Error
+        ? `KhÃ´ng thá»ƒ káº¿t ná»‘i backend AI: ${lastError.message}`
+        : "KhÃ´ng thá»ƒ káº¿t ná»‘i backend AI.",
+    );
+  }
+
+  if (!backendResponse.ok || !backendResponse.body) {
+    const detail = await backendResponse.text();
+    throw new BackendAgentError(
+      detail || `Backend AI tráº£ lá»i ${backendResponse.status}.`,
+      backendResponse.status,
+    );
+  }
+
+  return backendResponse;
+}
+
 export class BackendAgentError extends Error {
   constructor(
     message: string,
@@ -99,6 +164,5 @@ async function parseBackendResponse(response: Response) {
 
 export const agentDefaultPaths = {
   chat: DEFAULT_CHAT_PATH,
-  summary: DEFAULT_SUMMARY_PATH,
-  explainAlert: DEFAULT_EXPLAIN_ALERT_PATH,
+  stream: DEFAULT_CHAT_STREAM_PATH,
 } as const;

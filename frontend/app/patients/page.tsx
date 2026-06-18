@@ -1,12 +1,14 @@
 "use client";
 
 import { RefreshCw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { PatientsBubbleChat } from "@/components/clinical/PatientsBubbleChat";
+import { PatientListOverviewCards } from "@/components/patients/PatientListOverviewCards";
 import { PatientTable, type PatientListItem } from "@/components/patients";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { useVisibilityPolling } from "@/hooks/use-visibility-polling";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 
 const PATIENTS_REFRESH_MS = 15000;
@@ -19,13 +21,12 @@ export default function PatientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [briefingUpdatedAt, setBriefingUpdatedAt] = useState(new Date());
 
-  const loadPatients = async (manual = false) => {
-    if (manual) setRefreshing(true);
+  const loadPatients = useCallback(async () => {
     try {
       const payload = await patientRepository.list();
       setItems(payload);
       setError(null);
-      if (manual) setBriefingUpdatedAt(new Date());
+      setBriefingUpdatedAt(new Date());
     } catch (nextError: unknown) {
       setError(
         nextError instanceof Error
@@ -38,39 +39,9 @@ export default function PatientsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId: number | null = null;
-
-    const load = async () => {
-      try {
-        const payload = await patientRepository.list();
-        if (cancelled) return;
-        setItems(payload);
-        setError(null);
-      } catch (nextError: unknown) {
-        if (cancelled) return;
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : locale === "vi"
-              ? "Không thể tải danh sách bệnh nhân."
-              : "Unable to load patients.",
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-    intervalId = window.setInterval(() => void load(), PATIENTS_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-    };
   }, [locale]);
+
+  useVisibilityPolling(loadPatients, { intervalMs: PATIENTS_REFRESH_MS });
 
   const attentionItems = useMemo(
     () =>
@@ -100,7 +71,9 @@ export default function PatientsPage() {
           : "Vital signs sync every 5 minutes. The list is sorted by severity by default."
       }
     >
-      <div className="grid h-full min-h-0 flex-1 gap-3 max-lg:grid-rows-[minmax(0,36%)_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-1">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PatientListOverviewCards items={items} loading={loading} />
+        <div className="grid min-h-0 flex-1 gap-3 max-lg:grid-rows-[minmax(0,36%)_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-1">
         <aside className="dashboard-surface flex min-h-0 flex-col rounded-[1.15rem] p-4">
           <div className="flex shrink-0 items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
@@ -120,7 +93,10 @@ export default function PatientsPage() {
             </div>
             <button
               type="button"
-              onClick={() => void loadPatients(true)}
+              onClick={() => {
+                setRefreshing(true);
+                void loadPatients();
+              }}
               disabled={refreshing}
               className="dashboard-input flex h-8 w-8 items-center justify-center rounded-[0.65rem] text-[color:var(--cs-primary)] disabled:opacity-50"
               aria-label={locale === "vi" ? "Cập nhật briefing" : "Refresh briefing"}
@@ -136,8 +112,8 @@ export default function PatientsPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-[color:var(--cs-danger)]">
                   {locale === "vi"
-                    ? `Cần chú ý (4)`
-                    : `Needs attention (4)`}
+                    ? `Cần chú ý (${attentionItems.length})`
+                    : `Needs attention (${attentionItems.length})`}
                 </h3>
                 <span className="h-2 w-2 rounded-full bg-[color:var(--cs-danger)]" />
               </div>
@@ -201,6 +177,7 @@ export default function PatientsPage() {
       </div>
 
       {!loading && !error ? <PatientsBubbleChat items={items} /> : null}
+      </div>
     </ClinicalShell>
   );
 }

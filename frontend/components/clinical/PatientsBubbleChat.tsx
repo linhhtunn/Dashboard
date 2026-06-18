@@ -1,46 +1,38 @@
 "use client";
 
 import { Loader2, MessageCircle, Send, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
-import {
-  AssistantTextBubble,
-  ThinkingBlock,
-  UserPromptBubble,
-} from "@/components/chat/ChatBubbles";
+import { AgentChatThread } from "@/components/chat/AgentChatThread";
+import { AgentErrorBanner } from "@/components/chat/AgentErrorBanner";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { streamAgentChat } from "@/lib/ai/chat-client";
+import { classifyAgentError } from "@/lib/ai/agent-fallback";
+import { useAgentChatStream } from "@/lib/ai/use-agent-chat-stream";
 import { createThreadId } from "@/lib/ai/thread-store";
 import type { PatientListItem } from "@/components/patients";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
 
 type PatientsBubbleChatProps = {
   items: PatientListItem[];
 };
 
-export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
+export function PatientsBubbleChat(_props: PatientsBubbleChatProps) {
+  void _props;
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [chatting, setChatting] = useState(false);
   const [threadId] = useState(createThreadId);
-  const messageCounter = useRef(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const contextPatientId = useMemo(() => {
-    const priority =
-      items.find(
-        (item) =>
-          item.patient.status === "critical" || item.openAlertCount > 0,
-      ) ?? items[0];
-    return priority?.patient.id ?? "P001";
-  }, [items]);
+  const {
+    messages,
+    chatting,
+    streamingMessageId,
+    error,
+    submitQuestion,
+  } = useAgentChatStream({
+    threadId,
+    locale,
+    metadata: { source_view: "overview" },
+  });
 
   const suggestions = useMemo(
     () =>
@@ -58,73 +50,15 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
     [locale],
   );
 
-  useEffect(() => {
-    if (!open) return;
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages, open, chatting]);
-
-  const submitQuestion = async (questionOverride?: string) => {
-    const question = (questionOverride ?? draft).trim();
-    if (!question || chatting) return;
-
-    messageCounter.current += 1;
-    const messageId = messageCounter.current;
-    const assistantId = `assistant-${messageId}`;
-    const history = messages.map(({ role, content }) => ({ role, content }));
-
-    setMessages((current) => [
-      ...current,
-      { id: `user-${messageId}`, role: "user", content: question },
-      { id: assistantId, role: "assistant", content: "" },
-    ]);
-    setDraft("");
-    setChatting(true);
-
-    try {
-      await streamAgentChat(
-        {
-          threadId,
-          patientId: contextPatientId,
-          locale,
-          question,
-          message: question,
-          userId: "clinician-local",
-          history,
-        },
-        {
-          onDelta: ({ text }) => {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? { ...message, content: `${message.content}${text}` }
-                  : message,
-              ),
-            );
-          },
-        },
-      );
-    } catch (nextError: unknown) {
-      const message =
-        nextError instanceof Error
-          ? nextError.message
-          : locale === "vi"
-            ? "Không thể kết nối với AI."
-            : "Unable to reach the AI service.";
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === assistantId ? { ...item, content: message } : item,
-        ),
-      );
-    } finally {
-      setChatting(false);
-    }
-  };
-
   const thinkingLabel =
     locale === "vi" ? "Đang tổng hợp ca trực" : "Summarizing the shift";
+
+  const handleSubmit = async (questionOverride?: string) => {
+    const question = (questionOverride ?? draft).trim();
+    if (!question || chatting) return;
+    setDraft("");
+    await submitQuestion(question);
+  };
 
   return (
     <>
@@ -156,39 +90,31 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
             </button>
           </header>
 
-          <div
-            ref={scrollRef}
-            className="dashboard-scroll-area min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
-          >
+          <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
             {!messages.length && !chatting ? (
-              <p className="text-center text-[12px] leading-5 text-[color:var(--cs-text-soft)]">
+              <p className="mb-3 text-center text-[12px] leading-5 text-[color:var(--cs-text-soft)]">
                 {locale === "vi"
                   ? "Chọn gợi ý bên dưới hoặc nhập câu hỏi về ca trực."
                   : "Pick a suggestion below or ask about the shift."}
               </p>
             ) : null}
 
-            {messages.map((message) =>
-              message.role === "user" ? (
-                <UserPromptBubble
-                  key={message.id}
-                  prompt={message.content}
-                  size="compact"
-                />
-              ) : message.content ? (
-                <AssistantTextBubble
-                  key={message.id}
-                  content={message.content}
-                  size="compact"
-                />
-              ) : (
-                <ThinkingBlock
-                  key={message.id}
-                  label={thinkingLabel}
-                  size="compact"
-                />
-              ),
-            )}
+            {error && !messages.some((m) => m.isError) ? (
+              <AgentErrorBanner
+                kind={classifyAgentError(error)}
+                locale={locale}
+                className="mb-3"
+              />
+            ) : null}
+
+            <AgentChatThread
+              messages={messages}
+              locale={locale}
+              thinkingLabel={thinkingLabel}
+              streamingMessageId={streamingMessageId}
+              size="compact"
+              className="min-h-0 flex-1 pr-1"
+            />
           </div>
 
           <footer className="shrink-0 border-t border-white/50 px-4 py-3">
@@ -198,7 +124,7 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
                   key={suggestion}
                   type="button"
                   disabled={chatting}
-                  onClick={() => void submitQuestion(suggestion)}
+                  onClick={() => void handleSubmit(suggestion)}
                   className="rounded-full border border-[color:rgba(13,71,161,0.16)] bg-white/72 px-2.5 py-1 text-[10px] font-medium text-[color:var(--cs-primary)] disabled:opacity-45"
                 >
                   {suggestion}
@@ -209,7 +135,7 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
             <form
               onSubmit={(event: FormEvent) => {
                 event.preventDefault();
-                void submitQuestion();
+                void handleSubmit();
               }}
               className="flex gap-2"
             >
@@ -241,13 +167,7 @@ export function PatientsBubbleChat({ items }: PatientsBubbleChatProps) {
 
       <button
         type="button"
-        onClick={() => {
-          if (open) {
-            setOpen(false);
-          } else {
-            setOpen(true);
-          }
-        }}
+        onClick={() => setOpen(!open)}
         className={[
           "fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--cs-primary),var(--cs-teal))] text-white shadow-[0_18px_40px_rgba(13,71,161,0.28)] transition hover:scale-105",
           open ? "pointer-events-none opacity-0" : "opacity-100",

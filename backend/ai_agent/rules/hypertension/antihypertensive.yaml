@@ -1,0 +1,68 @@
+metadata:
+  rule_id: "HTN_MED_001"
+  title: "Hypertension Medication Class Recommendation"
+  version: "1.0.0"
+  last_updated: "2026-06-15"
+  clinical_source: "2024 ESC Guidelines for elevated blood pressure and hypertension; 2023 ESH Hypertension Guidelines"
+
+condition:
+  any:
+    - field: "has_hypertension"
+      operator: "eq"
+      value: true
+    - field: "hypertension_stage"
+      operator: "in"
+      value: ["stage_1", "stage_2", "severe_range", "diagnosed_hypertension"]
+
+outcomes:
+  - when:
+      field: "has_heart_failure"
+      operator: "eq"
+      value: true
+    recommend:
+      - "ace_inhibitor"
+      - "arb"
+      - "beta_blocker"
+      - "mineralocorticoid_receptor_antagonist"
+    class: "compelling-indication"
+    level: "guideline-consistent"
+
+  - when:
+      any:
+        - field: "has_diabetes"
+          operator: "eq"
+          value: true
+        - field: "cr_cl"
+          operator: "lt"
+          value: 60
+    recommend:
+      - "ace_inhibitor"
+      - "arb"
+      - "dihydropyridine_calcium_channel_blocker"
+      - "thiazide_like_diuretic"
+    class: "first-line-with-renal-metabolic-review"
+    level: "guideline-consistent"
+
+  - when:
+      field: "age"
+      operator: "gte"
+      value: 65
+    recommend:
+      - "dihydropyridine_calcium_channel_blocker"
+      - "thiazide_like_diuretic"
+      - "ace_inhibitor"
+      - "arb"
+    class: "first-line-older-adult"
+    level: "guideline-consistent"
+
+  - when:
+      field: "has_hypertension"
+      operator: "eq"
+      value: true
+    recommend:
+      - "ace_inhibitor"
+      - "arb"
+      - "dihydropyridine_calcium_channel_blocker"
+      - "thiazide_like_diuretic"
+    class: "first-line"
+    level: "guideline-consistent"

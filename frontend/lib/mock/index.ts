@@ -1,3 +1,3 @@
-export { mockAlerts } from "./alerts";
-export { mockVitals } from "./vitals";
-export { mockPatients } from "./patients";
+export { loadAlerts } from "./alerts";
+export { loadVitals } from "./vitals";
+export { loadPatients } from "./patients";

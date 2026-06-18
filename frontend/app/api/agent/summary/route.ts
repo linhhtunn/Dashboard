@@ -2,50 +2,73 @@ import { NextRequest } from "next/server";
 
 import { adaptBackendResponse } from "@/lib/ai/agent-adapter";
 import {
-  BackendAgentError,
-  agentDefaultPaths,
-  callAgentEndpoint,
-  getAgentBaseUrl,
-  getAgentPath,
-} from "@/lib/ai/agent-backend";
+  appendAgentDbContextToMessage,
+  buildAgentDbContext,
+  buildMockPatientContext,
+  withAgentDbMetadata,
+} from "@/lib/ai/agent-db-context";
+import {
+  buildSummaryPrompt,
+  resolveAgentPatientId,
+} from "@/lib/ai/agent-chat-request";
+import { isAgentBackendConfigured } from "@/lib/ai/agent-backend";
+import { BackendAgentError, invokeAgentChat } from "@/lib/ai/invoke-agent-chat";
+import { buildMockChatPayload } from "@/lib/ai/mock-chat";
 import type { AgentSummaryProxyRequest } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as AgentSummaryProxyRequest;
-  const baseUrl = getAgentBaseUrl();
-  const configuredPath = getAgentPath("summary");
+  const patientId = resolveAgentPatientId(body.patientId ?? "");
 
-  if (!baseUrl) {
-    return Response.json(
-      { error: "AI_AGENT_BASE_URL chưa được cấu hình." },
-      { status: 500 },
-    );
-  }
-
-  if (!body.patientId?.trim()) {
+  if (!patientId) {
     return Response.json(
       { error: "Thiếu patientId để tạo tóm tắt." },
       { status: 400 },
     );
   }
 
+  const message = buildSummaryPrompt(body.locale);
+  const title =
+    body.locale === "vi" ? "Tóm tắt bệnh nhân" : "Patient summary";
+
+  const dbContext = await buildAgentDbContext(patientId);
+  const agentMessage = appendAgentDbContextToMessage(
+    message,
+    dbContext,
+    body.locale,
+  );
+  const agentMetadata = withAgentDbMetadata(
+    { source_view: "patient_summary" },
+    dbContext,
+  );
+
+  if (!isAgentBackendConfigured()) {
+    const mock = buildMockChatPayload({
+      locale: body.locale,
+      message,
+      patientId,
+      patientContext: buildMockPatientContext(dbContext, body.locale),
+      threadId: `summary-${patientId}`,
+      title,
+    });
+    return Response.json(mock);
+  }
+
   try {
-    const raw = await callAgentEndpoint({
-      baseUrl,
-      configuredPath,
-      defaultPath: agentDefaultPaths.summary,
-      body: JSON.stringify({
-        patient_id: body.patientId,
-      }),
+    const raw = await invokeAgentChat({
+      patientId,
+      conversationId: `summary-${patientId}-${Date.now()}`,
+      message: agentMessage,
+      metadata: agentMetadata,
     });
 
     const payload = adaptBackendResponse({
-      patientId: body.patientId,
+      patientId,
       locale: body.locale,
-      question: body.locale === "vi" ? "Tóm tắt tình trạng bệnh nhân" : "Summarize patient status",
-      title: body.locale === "vi" ? "Tóm tắt bệnh nhân" : "Patient summary",
+      question: message,
+      title,
       raw,
     });
 
@@ -58,7 +81,9 @@ export async function POST(request: NextRequest) {
     return Response.json(
       {
         error:
-          error instanceof Error ? error.message : "Không thể kết nối backend AI.",
+          error instanceof Error
+            ? error.message
+            : "Không thể kết nối backend AI.",
       },
       { status: 502 },
     );

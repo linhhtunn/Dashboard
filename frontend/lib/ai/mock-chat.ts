@@ -50,18 +50,6 @@ type MockScenario = {
   confidence: "low" | "medium" | "high";
 };
 
-const demoPromptMatchers = [
-  /t[oó]m t[aắ]t|summary|current status/i,
-  /1 gi[oờ]|last hour|changed|thay đ[oổ]i/i,
-  /r[ủu]i ro|deterioration|risk/i,
-  /ưu tiên|priority|prioritized|theo dõi/i,
-];
-
-export function shouldUseMockChatResponse(message: string, baseUrl?: string | null) {
-  if (!baseUrl) return true;
-  return demoPromptMatchers.some((matcher) => matcher.test(message));
-}
-
 type BuildMockExplainAlertPayloadArgs = {
   locale: Locale;
   alertId: string;
@@ -134,6 +122,7 @@ export function buildMockExplainAlertPayload({
     suggestedIssueIds: severity === "critical" ? ["blood_pressure", "spo2"] : ["heart_rate"],
     recommendedIssueId: severity === "critical" ? "blood_pressure" : "heart_rate",
     focusMetrics: ["heart_rate", "spo2", "systolic_bp"],
+    actions:[],
     nextActions:
       locale === "vi"
         ? ["Theo dõi lại chỉ số trong 15–30 phút", "Xác nhận triệu chứng lâm sàng"]
@@ -165,6 +154,7 @@ export function buildMockExplainAlertPayload({
       headers: [],
       rows: [],
     },
+    actions: [],
   };
 }
 
@@ -191,6 +181,7 @@ export function buildMockChatPayload({
     recommendedIssueId: scenario.recommendedIssueId,
     focusMetrics: scenario.focusMetrics,
     nextActions: scenario.nextActions,
+    actions: [],
     summary: {
       patientId,
       locale,
@@ -215,6 +206,7 @@ export function buildMockChatPayload({
       headers: [],
       rows: [],
     },
+    actions: [],
   };
 }
 

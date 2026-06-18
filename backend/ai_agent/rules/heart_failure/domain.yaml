@@ -1,0 +1,30 @@
+domain_id: heart_failure
+name: "Heart Failure Medication Recommendation"
+rule_dir: "rules/heart_failure"
+keywords:
+  - "suy tim"
+  - "suy tim sung huyet"
+  - "heart failure"
+  - "hf"
+  - "hfref"
+  - "hfpef"
+  - "bệnh cơ tim"
+  - "sglt2_inhibitor"
+  - "arni"
+  - "sacubitril"
+  - "spironolactone"
+fallback_drugs: []
+emergency_warning: >
+  No heart failure medication is currently allowed by the available rule context.
+  Clinician review is required before choosing therapy.
+clinician_review_checklist:
+  - "Confirm heart failure diagnosis and ejection fraction phenotype (HFrEF, HFmrEF, HFpEF)."
+  - "Review blood pressure, heart rate, volume status (congestion vs. euvolemia)."
+  - "Assess renal function (eGFR/CrCl) and potassium levels prior to starting ARNI/ACEI/ARB/MRA."
+  - "Review current medications for potential drug-drug interactions (e.g., NSAIDs, potassium supplements)."
+  - "Treat this as clinical decision support, not a final prescription."
+required_inputs:
+  - "has_heart_failure"
+  - "heart_failure_stage"
+  - "crcl"
+  - "serum_creatinine"

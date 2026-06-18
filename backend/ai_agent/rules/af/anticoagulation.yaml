@@ -1,0 +1,47 @@
+# rules/af/anticoagulation.yaml
+metadata:
+  rule_id: "AF_OAC_001"
+  title: "Atrial Fibrillation Oral Anticoagulation Recommendation"
+  version: "1.0.0"
+  last_updated: "2026-06-10"
+  clinical_source: "ESC 2020 Guidelines Section 10.1"
+
+# TODO: Define evaluation logic trigger
+# If patient has confirmed AF, evaluate CHA2DS2-VASc score.
+condition:
+  # TODO: Write condition logic (all/any) matching calculated features
+  all:
+    - field: "is_af_confirmed"
+      operator: "eq"
+      value: true
+    - field: "has_mechanical_valve"
+      operator: "eq"
+      value: false
+
+# TODO: Define recommendation outcomes based on gender-specific CHA2DS2-VASc thresholds
+# Males: score >= 2 -> DOAC (Class I)
+# Females: score >= 3 -> DOAC (Class I)
+outcomes:
+  - when:
+      all:
+        - field: "gender"
+          operator: "eq"
+          value: "Nam"
+        - field: "cha2ds2_vasc"
+          operator: "gte"
+          value: 2
+    recommend: ["apixaban", "rivaroxaban", "dabigatran"]
+    class: "I"
+    level: "A"
+    
+  - when:
+      all:
+        - field: "gender"
+          operator: "eq"
+          value: "Nu"
+        - field: "cha2ds2_vasc"
+          operator: "gte"
+          value: 3
+    recommend: ["apixaban", "rivaroxaban", "dabigatran"]
+    class: "I"
+    level: "A"

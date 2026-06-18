@@ -1,27 +1,20 @@
 "use client";
 
 import { Loader2, Send, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-import {
-  AssistantTextBubble,
-  ThinkingBlock,
-  UserPromptBubble,
-} from "@/components/chat/ChatBubbles";
+import { AgentChatThread } from "@/components/chat/AgentChatThread";
+import { AgentErrorBanner } from "@/components/chat/AgentErrorBanner";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import {
-  fetchAgentAlertExplanation,
-  streamAgentChat,
-} from "@/lib/ai/chat-client";
+  classifyAgentAnswer,
+  classifyAgentError,
+} from "@/lib/ai/agent-fallback";
+import { fetchAgentAlertExplanation } from "@/lib/ai/chat-client";
+import { useAgentChatStream } from "@/lib/ai/use-agent-chat-stream";
 import { createThreadId } from "@/lib/ai/thread-store";
 import { getAlertTypeLabel } from "@/lib/i18n";
 import type { Alert, Patient } from "@/types";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
 
 type AlertAIChatPanelProps = {
   alert: Alert;
@@ -35,14 +28,25 @@ export function AlertAIChatPanel({
   onClose,
 }: AlertAIChatPanelProps) {
   const { locale } = useLocale();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
-  const [chatting, setChatting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [threadId] = useState(createThreadId);
-  const messageCounter = useRef(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const {
+    messages,
+    chatting,
+    streamingMessageId,
+    error,
+    submitQuestion,
+    setAssistantMessage,
+    clearMessages,
+  } = useAgentChatStream({
+    threadId,
+    patientId: alert.patientId,
+    locale,
+    metadata: { alert_id: alert.id, source_view: "alert_detail" },
+  });
 
   const suggestions = useMemo(
     () =>
@@ -65,8 +69,8 @@ export function AlertAIChatPanel({
 
     const loadExplanation = async () => {
       setLoading(true);
-      setError(null);
-      setMessages([]);
+      setLoadError(null);
+      clearMessages();
       try {
         const payload = await fetchAgentAlertExplanation({
           alertId: alert.id,
@@ -74,16 +78,14 @@ export function AlertAIChatPanel({
           locale,
         });
         if (cancelled) return;
-        setMessages([
-          {
-            id: "initial-explanation",
-            role: "assistant",
-            content: payload.summary.answer,
-          },
-        ]);
+        setAssistantMessage(
+          "initial-explanation",
+          payload.summary.answer,
+          classifyAgentAnswer(payload.summary.answer),
+        );
       } catch (nextError: unknown) {
         if (cancelled) return;
-        setError(
+        setLoadError(
           nextError instanceof Error
             ? nextError.message
             : locale === "vi"
@@ -99,75 +101,23 @@ export function AlertAIChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [alert.id, alert.patientId, locale]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages, loading, chatting]);
-
-  const submitQuestion = async (questionOverride?: string) => {
-    const question = (questionOverride ?? draft).trim();
-    if (!question || chatting || loading) return;
-
-    messageCounter.current += 1;
-    const messageId = messageCounter.current;
-    const assistantId = `assistant-${messageId}`;
-    const history = messages.map(({ role, content }) => ({ role, content }));
-
-    setMessages((current) => [
-      ...current,
-      { id: `user-${messageId}`, role: "user", content: question },
-      { id: assistantId, role: "assistant", content: "" },
-    ]);
-    setDraft("");
-    setChatting(true);
-    setError(null);
-
-    try {
-      await streamAgentChat(
-        {
-          threadId,
-          patientId: alert.patientId,
-          locale,
-          question,
-          message: question,
-          userId: "clinician-local",
-          history,
-        },
-        {
-          onDelta: ({ text }) => {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? { ...message, content: `${message.content}${text}` }
-                  : message,
-              ),
-            );
-          },
-        },
-      );
-    } catch (nextError: unknown) {
-      const message =
-        nextError instanceof Error
-          ? nextError.message
-          : locale === "vi"
-            ? "Không thể kết nối với AI."
-            : "Unable to reach the AI service.";
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === assistantId ? { ...item, content: message } : item,
-        ),
-      );
-    } finally {
-      setChatting(false);
-    }
-  };
+  }, [
+    alert.id,
+    alert.patientId,
+    clearMessages,
+    locale,
+    setAssistantMessage,
+  ]);
 
   const thinkingLabel =
     locale === "vi" ? "Đang phân tích cảnh báo" : "Analyzing alert";
+
+  const handleSubmit = async (questionOverride?: string) => {
+    const question = (questionOverride ?? draft).trim();
+    if (!question || chatting || loading) return;
+    setDraft("");
+    await submitQuestion(question);
+  };
 
   return (
     <aside className="dashboard-surface flex h-full min-h-0 flex-col overflow-hidden rounded-[1.15rem]">
@@ -198,37 +148,43 @@ export function AlertAIChatPanel({
         </button>
       </header>
 
-      <div
-        ref={scrollRef}
-        className="dashboard-scroll-area min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
-      >
-        {loading ? <ThinkingBlock label={thinkingLabel} size="compact" /> : null}
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center text-[12px] text-[color:var(--cs-text-soft)]">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin text-[color:var(--cs-primary)]" />
+            {thinkingLabel}...
+          </div>
+        ) : (
+          <>
+            {loadError ? (
+              <AgentErrorBanner
+                kind={classifyAgentError(loadError)}
+                locale={locale}
+                patientId={alert.patientId}
+                className="mb-3"
+              />
+            ) : null}
 
-        {error && !loading ? (
-          <p className="text-[12px] text-[color:var(--cs-danger)]">{error}</p>
-        ) : null}
+            {error && !messages.some((m) => m.isError) ? (
+              <AgentErrorBanner
+                kind={classifyAgentError(error)}
+                locale={locale}
+                patientId={alert.patientId}
+                className="mb-3"
+              />
+            ) : null}
 
-        {messages.map((message) =>
-          message.role === "user" ? (
-            <UserPromptBubble
-              key={message.id}
-              prompt={message.content}
+            <AgentChatThread
+              messages={messages}
+              locale={locale}
+              patientId={alert.patientId}
+              thinkingLabel={thinkingLabel}
+              streamingMessageId={streamingMessageId}
               size="compact"
+              className="min-h-0 flex-1 pr-1"
             />
-          ) : message.content ? (
-            <AssistantTextBubble
-              key={message.id}
-              content={message.content}
-              size="compact"
-            />
-          ) : (
-            <ThinkingBlock key={message.id} label={thinkingLabel} size="compact" />
-          ),
+          </>
         )}
-
-        {chatting &&
-        messages[messages.length - 1]?.role === "assistant" &&
-        !messages[messages.length - 1]?.content ? null : null}
       </div>
 
       <footer className="shrink-0 border-t border-white/45 px-4 py-3">
@@ -238,7 +194,7 @@ export function AlertAIChatPanel({
               key={suggestion}
               type="button"
               disabled={loading || chatting}
-              onClick={() => void submitQuestion(suggestion)}
+              onClick={() => void handleSubmit(suggestion)}
               className="rounded-full border border-[color:rgba(13,71,161,0.16)] bg-white/72 px-2.5 py-1 text-[10px] font-medium text-[color:var(--cs-primary)] disabled:opacity-45"
             >
               {suggestion}
@@ -249,7 +205,7 @@ export function AlertAIChatPanel({
         <form
           onSubmit={(event: FormEvent) => {
             event.preventDefault();
-            void submitQuestion();
+            void handleSubmit();
           }}
           className="flex gap-2"
         >

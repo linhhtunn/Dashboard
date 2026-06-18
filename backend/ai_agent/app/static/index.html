@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical CDSS Chat Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Chart.js for clinical data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --navy: #121358;
+            --navy-2: #232F72;
+            --clinical-blue: #2F578A;
+            --sky: #38bdf8;
+            --turquoise: #36ADA3;
+            --smoke: #f5f7fa;
+            --line: #dbe4ef;
+            --muted: #64748b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--smoke);
+            color: #172033;
+        }
+        .workspace-panel {
+            background: #ffffff;
+            border-right: 1px solid var(--line);
+        }
+        .workspace-input {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
+            border-radius: 4px;
+            transition: border-color 0.16s ease, box-shadow 0.16s ease;
+        }
+        .workspace-input:focus {
+            border-color: var(--turquoise);
+            box-shadow: 0 0 0 2px rgba(54, 173, 163, 0.16);
+            outline: none;
+        }
+        .topbar {
+            background: var(--navy);
+            color: #eaf6ff;
+        }
+        .activity-tab {
+            border-bottom: 2px solid transparent;
+            color: #64748b;
+        }
+        .activity-tab.active {
+            border-bottom-color: var(--navy);
+            color: var(--navy);
+        }
+        .topbar .activity-tab {
+            color: rgba(255, 255, 255, 0.72);
+        }
+        .topbar .activity-tab.active {
+            border-bottom-color: #ffffff;
+            color: #ffffff;
+        }
+        .section-label {
+            color: var(--clinical-blue);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .nav-row {
+            border-left: 3px solid transparent;
+            color: #334155;
+        }
+        .nav-row.active {
+            background: var(--turquoise);
+            border-left-color: var(--turquoise);
+            color: #072f2b;
+            font-weight: 700;
+        }
+        .flat-button {
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #1e293b;
+            border-radius: 999px;
+        }
+        .flat-button:hover {
+            background: #f1f5f9;
+        }
+        .accent-button {
+            background: var(--turquoise);
+            color: #ffffff;
+            border-radius: 999px;
+        }
+        .accent-button:hover {
+            background: #0d9488;
+        }
+        .assistant-shell {
+            background: #f8f8fb;
+            border-left: 1px solid var(--line);
+        }
+        .assistant-message {
+            border-top: 1px solid #e5edf5;
+            padding: 1rem 0;
+        }
+        .assistant-message:first-child {
+            border-top: 0;
+        }
+        .user-message-text {
+            background: var(--clinical-blue);
+            border: 1px solid rgba(47, 87, 138, 0.22);
+            color: #ffffff;
+            border-radius: 24px;
+        }
+        .assistant-composer {
+            border: 1px solid #e2e8f0;
+            border-radius: 28px;
+            background: #ffffff;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+        }
+        .clinical-empty {
+            background: #f8fafc;
+        }
+        .clinical-section-title {
+            color: var(--navy-2);
+            font-weight: 800;
+        }
+        .assistant-label {
+            color: var(--navy-2);
+            font-weight: 700;
+        }
+        .assistant-body {
+            color: #43516b;
+            line-height: 1.72;
+        }
+        .citation-ref,
+        .markdown-content a {
+            color: var(--turquoise);
+            font-weight: 650;
+            text-decoration: none;
+        }
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.03);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(15, 23, 42, 0.15);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            color: var(--navy);
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-content h3 {
+            font-size: 1.1rem;
+        }
+        .markdown-content p {
+            margin-bottom: 0.75rem;
+            line-height: 1.72;
+        }
+        .markdown-content ul, .markdown-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.85rem;
+            list-style-type: disc;
+        }
+        .markdown-content li {
+            margin-bottom: 0.55rem;
+            line-height: 1.65;
+        }
+        .markdown-content strong {
+            color: #25324a;
+            font-weight: 650;
+        }
+        .markdown-content code {
+            background: #edf2f7;
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #0f766e;
+        }
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.75rem 0;
+            font-size: 0.8rem;
+        }
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #dbe4ef;
+            padding: 0.45rem 0.55rem;
+            text-align: left;
+        }
+        .markdown-content th {
+            background: #f1f5f9;
+            color: var(--navy);
+        }
+        .bg-gray-800\/40, .bg-gray-800\/30 {
+            background-color: #ffffff !important;
+            border-color: transparent !important;
+            color: #334155 !important;
+        }
+        .bg-cyan-950\/40 {
+            background-color: #eef7ff !important;
+            border-color: #d7eafe !important;
+            color: #0b1f3a !important;
+        }
+        .text-cyan-50 {
+            color: #0f766e !important;
+        }
+        /* Custom panels/visualizations */
+        .bg-gray-900\/50, .bg-gray-900\/35 {
+            background-color: #f8fafc !important;
+            border-color: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .bg-gray-900\/20, .bg-gray-900\/10 {
+            background-color: #f1f5f9 !important;
+            border-color: #e2e8f0 !important;
+        }
+        .bg-white\/5 {
+            background-color: #f1f5f9 !important;
+            border-color: #e2e8f0 !important;
+        }
+        .bg-white\/2 {
+            background-color: #f8fafc !important;
+        }
+        /* Table borders and text */
+        .divide-white\/5 > * + * {
+            border-color: #e2e8f0 !important;
+        }
+        .divide-y > * + * {
+            border-color: #e2e8f0 !important;
+        }
+        th, td {
+            border-color: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        th.text-cyan-400 {
+            color: var(--turquoise) !important;
+        }
+    </style>
+</head>
+<body class="text-slate-700 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="topbar h-10 px-4 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+            <i class="fa-solid fa-laptop-medical text-sky-300 text-sm"></i>
+            <h1 class="text-sm font-semibold tracking-wide truncate">Health CDSS</h1>
+            <span id="mode-label" class="text-[11px] text-sky-200 border-l border-white/20 pl-3">Overview Mode</span>
+        </div>
+        <div class="flex items-center gap-4 text-[11px] text-slate-200">
+            <span id="chat-metadata" class="hidden md:inline truncate max-w-[480px]">Bệnh nhân: <span class="text-sky-200 font-semibold">Toàn danh sách</span> • Phiên: <span class="text-sky-200 font-semibold">CONV_WEB_TEST</span></span>
+            <span id="api-status" class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Online
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-[280px_minmax(360px,1fr)_430px] overflow-hidden min-h-0">
+        
+        <!-- Left Panel: Overview and Patient Context -->
+        <section class="workspace-panel flex flex-col min-h-0 bg-slate-50">
+            <div class="topbar h-11 px-3 flex items-end gap-6 border-b border-slate-200">
+                <button class="activity-tab active h-full text-xs font-medium px-1">OVERVIEW</button>
+                <button class="activity-tab h-full text-xs font-medium px-1">PATIENTS</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto">
+                <button onclick="setDoctorOverview()" class="nav-row active w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left">
+                    <i class="fa-solid fa-table-columns text-xs"></i>
+                    <span>Overview</span>
+                </button>
+
+                <div class="px-4 pt-4 pb-3 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="section-label">Tìm bệnh nhân</h2>
+                        <button onclick="sendOverviewPrompt()" class="text-[11px] font-semibold text-[#2F578A] hover:text-[#232F72]">BN nguy hiểm?</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="patient-id-input" class="workspace-input px-2.5 py-2 text-sm flex-1" value="" placeholder="Patient ID, P001 hoặc tên">
+                        <button onclick="applyPatientInput()" class="accent-button w-9 text-sm transition" title="Áp dụng Patient ID">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-2">Để trống để hỏi toàn bộ bệnh nhân hoặc tìm bệnh nhân qua chat.</p>
+                </div>
+                
+                <div class="px-4 py-3 border-t border-slate-200">
+                    <h2 class="section-label mb-2">Phiên làm việc</h2>
+                    <label class="text-[11px] text-slate-500 font-medium">Conversation ID</label>
+                    <div class="flex gap-2 mt-1.5">
+                        <input type="text" id="conv-id-input" class="workspace-input px-2.5 py-2 text-xs flex-1" value="CONV_WEB_TEST">
+                        <button onclick="generateNewConvId()" class="flat-button w-9 text-sm transition" title="Tạo phiên mới">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+
+                    <label class="block text-[11px] text-slate-500 font-medium mt-3">Bác sĩ điều trị</label>
+                    <select id="doctor-id-select" class="workspace-input px-2.5 py-2 text-xs w-full mt-1.5">
+                        <option value="D1">Dr. Nguyễn Văn A (D1)</option>
+                        <option value="D2">Dr. Trần Thị B (D2)</option>
+                        <option value="D3">Dr. Lê Hoàng C (D3)</option>
+                    </select>
+                </div>
+
+                <div class="px-4 py-3 border-t border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="section-label">Thông tin chọn</h2>
+                        <button onclick="fetchPatientSummary()" class="text-[11px] font-semibold text-[#2F578A] hover:text-[#232F72] flex items-center gap-1">
+                            <i class="fa-solid fa-download"></i> Tải
+                        </button>
+                    </div>
+                    <div id="patient-summary-content" class="text-xs text-slate-600 space-y-3 pr-1">
+                        <div class="border border-slate-200 bg-white p-3 rounded">
+                            <div class="section-label mb-1">Overview Mode</div>
+                            <p class="text-slate-500 leading-relaxed">Chưa chọn bệnh nhân. Hãy hỏi CDSS để xem toàn bộ danh sách hoặc tìm bệnh nhân theo tên, mã nội viện, subject_id.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Center Panel: Clinical Workspace -->
+        <section class="hidden lg:flex flex-col min-h-0 bg-white">
+            <div class="h-11 border-b border-slate-200 px-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-800">Clinical Workspace</h2>
+                </div>
+                <div class="flex items-center gap-2 text-slate-400">
+                    <i class="fa-solid fa-chart-line text-xs"></i>
+                    <i class="fa-solid fa-table-list text-xs"></i>
+                    <i class="fa-solid fa-ellipsis text-xs"></i>
+                </div>
+            </div>
+            <div class="flex-1 bg-white overflow-hidden">
+                <div class="h-full grid grid-rows-3 divide-y divide-slate-200">
+                    <div class="relative flex flex-col h-full overflow-hidden">
+                        <div class="clinical-section-title absolute top-4 left-4 text-xs uppercase tracking-wider z-10">Vitals</div>
+                        <div id="vitals-workspace-container" class="h-full w-full p-4 pt-10 flex items-center justify-center text-slate-300 text-sm relative">
+                            <span>Chưa có biểu đồ sinh hiệu</span>
+                        </div>
+                    </div>
+                    <div class="relative flex flex-col h-full overflow-hidden">
+                        <div class="clinical-section-title absolute top-4 left-4 text-xs uppercase tracking-wider z-10">Alerts</div>
+                        <div id="alerts-workspace-container" class="h-full w-full p-4 pt-12 overflow-y-auto space-y-2 text-slate-300 text-sm flex items-center justify-center">
+                            Cảnh báo sẽ hiển thị tại đây
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div class="clinical-section-title absolute top-4 left-4 text-xs uppercase tracking-wider">Timeline</div>
+                        <div class="h-full flex items-center justify-center text-slate-300 text-sm">Dòng thời gian lâm sàng</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Codex-style Assistant -->
+        <section class="assistant-shell flex flex-col overflow-hidden min-h-0">
+            <div class="topbar h-11 border-b border-slate-200 px-4 flex items-center justify-between">
+                <div class="flex items-end gap-6 h-full">
+                    <button class="activity-tab h-full text-xs font-medium px-1">CHAT</button>
+                    <button class="activity-tab active h-full text-xs font-medium px-1">CDSS</button>
+                </div>
+                <div class="flex items-center gap-3 text-white/75">
+                    <button onclick="clearChatHistory()" class="hover:text-white" title="Tạo hội thoại mới"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                    <button class="hover:text-white" title="Cài đặt"><i class="fa-solid fa-gear"></i></button>
+                </div>
+            </div>
+            <div class="h-12 px-4 border-b border-slate-100 flex items-center gap-2 bg-[#f8f8fb]">
+                <button onclick="setDoctorOverview()" class="text-slate-500 hover:text-slate-800"><i class="fa-solid fa-arrow-left"></i></button>
+                <h3 class="text-base font-medium text-slate-800">CDSS Assistant</h3>
+            </div>
+            <!-- Message Area -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-2 bg-[#f8f8fb]">
+                <!-- AI Welcome message -->
+                <div class="assistant-message">
+                    <div class="assistant-label text-[11px] uppercase tracking-wider mb-2">CDSS Assistant</div>
+                    <div class="assistant-body text-sm">
+                        <div class="markdown-content">
+                            Đang ở Overview Mode. Bác sĩ có thể hỏi: bệnh nhân nào cần theo dõi hôm nay, tìm bệnh nhân theo tên/mã, hoặc chọn một bệnh nhân để bắt đầu phân tích lâm sàng.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loader Indicator -->
+            <div id="chat-loader" class="hidden px-4 py-2 flex items-center space-x-3 text-[#2F578A] text-xs font-medium border-t border-slate-100">
+                <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                <span>CDSS đang phân tích bệnh án và luật điều trị...</span>
+            </div>
+
+            <!-- Prompt Assist Panel -->
+            <div class="px-4 py-2 border-t border-slate-100 flex gap-2 overflow-x-auto whitespace-nowrap bg-[#f8f8fb]">
+                <button onclick="sendOverviewPrompt()" class="flat-button px-2.5 py-1 text-xs transition">
+                    Overview
+                </button>
+                <button onclick="sendQuickPrompt('Bác sĩ khuyên tôi nên dùng thuốc đông máu nào cho tình trạng Rung Nhĩ của tôi? Hãy giải thích và nêu rõ trích dẫn y văn.')" class="flat-button px-2.5 py-1 text-xs transition">
+                    Đề xuất thuốc kháng đông?
+                </button>
+                <button onclick="sendQuickPrompt('Kiểm tra xem bệnh nhân này có chống chỉ định gì với các thuốc kháng đông đường uống không?')" class="flat-button px-2.5 py-1 text-xs transition">
+                    Kiểm tra chống chỉ định?
+                </button>
+                <button onclick="sendQuickPrompt('Giải thích chi tiết điểm CHA2DS2-VASc của bệnh nhân này và liều lượng sử dụng Apixaban an toàn.')" class="flat-button px-2.5 py-1 text-xs transition">
+                    Tính điểm CHA2DS2-VASc & liều Apixaban?
+                </button>
+            </div>
+
+            <!-- Input Bar -->
+            <div class="px-4 pt-3 pb-4 border-t border-slate-200 bg-[#f8f8fb]">
+                <form id="chat-form" onsubmit="handleChatSubmit(event)" class="assistant-composer overflow-hidden">
+                    <input type="text" id="chat-input" class="w-full px-6 pt-5 pb-4 text-sm outline-none bg-transparent" placeholder="Ask CDSS about overview, patient lookup, alerts, vitals, medication..." required autocomplete="off">
+                    <div class="px-5 pb-4 flex justify-between items-center">
+                        <div class="flex items-center gap-2 text-slate-400 text-xs">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Clinical context</span>
+                        </div>
+                        <button type="submit" class="accent-button w-10 h-10 text-sm transition flex items-center justify-center shadow-sm" title="Gửi">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript Functions -->
+    <script>
+        // Set configuration variables
+        function setPatient(id) {
+            document.getElementById('patient-id-input').value = id;
+            applyPatientInput();
+        }
+
+        function setDoctorOverview() {
+            document.getElementById('patient-id-input').value = '';
+            generateNewConvId({ clearChat: true });
+            updateChatMetadata();
+            const summaryBox = document.getElementById('patient-summary-content');
+            summaryBox.innerHTML = `
+                <div class="border border-slate-200 bg-white p-3 rounded">
+                    <div class="section-label mb-1">Overview Mode</div>
+                    <p class="text-slate-500 leading-relaxed">Đang ở chế độ toàn danh sách. Hãy hỏi chat để tìm bệnh nhân hoặc xem bệnh nhân cần theo dõi.</p>
+                </div>
+            `;
+            loadPatientVitals('');
+            loadPatientAlerts('');
+        }
+
+        function sendOverviewPrompt() {
+            setDoctorOverview();
+            document.getElementById('chat-input').value = 'Hôm nay có những bệnh nhân nào nguy hiểm cần theo dõi?';
+            handleChatSubmit();
+        }
+
+        function applyPatientInput() {
+            const patientInput = document.getElementById('patient-id-input');
+            const patientId = patientInput.value.trim();
+            if (!patientId) {
+                setDoctorOverview();
+                return;
+            }
+            if (!/^\d+$/.test(patientId)) {
+                patientInput.value = '';
+                generateNewConvId({ clearChat: true });
+                updateChatMetadata();
+                document.getElementById('chat-input').value = `Tôi muốn tìm bệnh nhân ${patientId}`;
+                handleChatSubmit();
+                return;
+            }
+            patientInput.value = patientId;
+            generateNewConvId({ clearChat: true });
+            fetchPatientSummary();
+        }
+
+        function generateNewConvId(options = {}) {
+            const timestamp = new Date().getTime();
+            const random = Math.floor(Math.random() * 1000);
+            document.getElementById('conv-id-input').value = `CONV_WEB_${timestamp}_${random}`;
+            updateChatMetadata();
+            if (options.clearChat !== false) {
+                clearChatHistoryOnlyUI();
+            }
+        }
+
+        function updateChatMetadata() {
+            const patientId = document.getElementById('patient-id-input').value.trim();
+            const convId = document.getElementById('conv-id-input').value;
+            const patientLabel = patientId || 'Toàn danh sách';
+            document.getElementById('mode-label').textContent = patientId ? `Patient ${patientId}` : 'Overview Mode';
+            document.getElementById('chat-metadata').innerHTML = `Bệnh nhân: <span class="text-sky-200 font-semibold">${patientLabel}</span> • Phiên: <span class="text-sky-200 font-semibold">${convId}</span>`;
+        }
+
+        function isDoctorScopedPrompt(message) {
+            const text = message.toLowerCase();
+            
+            // If the query is specifically about explaining an alert, it's patient-scoped
+            const alertMatch = message.match(/(?:alert|canh bao|cảnh báo)[\s:_#-]*([A-Za-z0-9_:\+\-]{3,})/i);
+            if (alertMatch) {
+                return false;
+            }
+
+            const overviewTerms = ['bệnh nhân nào', 'benh nhan nao', 'nguy hiểm', 'nguy hiem', 'cần theo dõi', 'can theo doi', 'toàn bộ bệnh nhân', 'toan bo benh nhan'];
+            const lookupTerms = ['tìm bệnh nhân', 'tim benh nhan', 'mở bệnh nhân', 'mo benh nhan'];
+            
+            // Only match standalone patient codes like P001-P999 or "patient p..." to avoid matching substrings in alert IDs
+            const hasStandalonePatientCode = /\b(p\d{3}|patient\s+p\d*)\b/i.test(text);
+            
+            return overviewTerms.some(term => text.includes(term)) || 
+                   lookupTerms.some(term => text.includes(term)) || 
+                   hasStandalonePatientCode;
+        }
+
+        function buildChatPayload(message) {
+            const patientId = document.getElementById('patient-id-input').value.trim();
+            const convId = document.getElementById('conv-id-input').value.trim();
+            const doctorId = document.getElementById('doctor-id-select').value;
+            const doctorScoped = isDoctorScopedPrompt(message);
+            const payload = {
+                schema_version: 'v1',
+                conversation_id: convId,
+                doctor_id: doctorId,
+                message: message,
+                metadata: { source_view: 'chat-ui', doctor_scoped: doctorScoped }
+            };
+            if (!doctorScoped && patientId) {
+                payload.patient_id = patientId;
+            }
+            
+            // Extract alert_id from message text to attach in metadata, supporting colons, dashes, pluses
+            const alertMatch = message.match(/(?:alert|canh bao|cảnh báo)[\s:_#-]*([A-Za-z0-9_:\+\-]{3,})/i);
+            if (alertMatch) {
+                payload.metadata.alert_id = alertMatch[1];
+            }
+            
+            return payload;
+        }
+
+        function renderActions(actions) {
+            if (!Array.isArray(actions) || actions.length === 0) return '';
+            const buttons = actions
+                .filter(action => action && action.type === 'select_patient_for_chat' && action.patient_id)
+                .map(action => {
+                    const label = action.display_name
+                        ? `${action.label || 'Mở bệnh nhân này'} · ${action.display_name}`
+                        : (action.label || 'Mở bệnh nhân này');
+                    const meta = [action.hospital_patient_code, action.patient_id].filter(Boolean).join(' · ');
+                    const encoded = encodeURIComponent(JSON.stringify(action));
+                    return `
+                        <button onclick="applySelectPatientAction('${encoded}')" class="w-full text-left px-4 py-3 border border-[#36ADA3]/30 bg-[#36ADA3]/10 hover:bg-[#36ADA3]/15 rounded-2xl transition">
+                            <div class="text-xs font-semibold text-[#232F72]">${label}</div>
+                            <div class="text-[11px] text-slate-500 mt-0.5">${meta}</div>
+                        </button>
+                    `;
+                })
+                .join('');
+            if (!buttons) return '';
+            return `<div class="mt-4 grid gap-2">${buttons}</div>`;
+        }
+
+        function renderClinicalMarkdown(text) {
+            return marked
+                .parse(text || '')
+                .replace(/\[(\d+(?:[,\s-]*\d+)*(?:\]\[\d+(?:[,\s-]*\d+)*)*)\]/g, (match) => {
+                    return `<span class="citation-ref">${match}</span>`;
+                });
+        }
+
+        function applySelectPatientAction(encodedAction) {
+            const action = JSON.parse(decodeURIComponent(encodedAction));
+            if (!action.patient_id) return;
+            document.getElementById('patient-id-input').value = action.patient_id;
+            generateNewConvId({ clearChat: true });
+            updateChatMetadata();
+            fetchPatientSummary();
+        }
+
+        // Fetch patient profile details
+        async function fetchPatientSummary() {
+            const patientId = document.getElementById('patient-id-input').value.trim();
+            const summaryBox = document.getElementById('patient-summary-content');
+            if (!patientId) {
+                summaryBox.innerHTML = `
+                    <div class="border border-slate-200 bg-white p-3 rounded">
+                        <div class="section-label mb-1">Overview Mode</div>
+                        <p class="text-slate-500 leading-relaxed">Đang ở chế độ toàn danh sách. Hãy hỏi chat để tìm bệnh nhân hoặc xem bệnh nhân cần theo dõi.</p>
+                    </div>
+                `;
+                loadPatientVitals('');
+                loadPatientAlerts('');
+                return;
+            }
+            loadPatientVitals(patientId);
+            loadPatientAlerts(patientId);
+            summaryBox.innerHTML = '<div class="border border-slate-200 bg-white p-3 text-[#2F578A]"><i class="fa-solid fa-circle-notch animate-spin mr-2"></i> Đang tải dữ liệu bệnh nhân...</div>';
+
+            try {
+                // Summary now routes through the unified chat endpoint
+                const res = await fetch('/api/agent/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patient_id: patientId,
+                        conversation_id: patientId,
+                        message: 'Tóm tắt tình trạng bệnh nhân này.',
+                        metadata: { source_view: 'patient-summary-panel' }
+                    })
+                });
+                
+                if (!res.ok) throw new Error("Không thể tải thông tin bệnh án.");
+                const data = await res.json();
+                
+                // Formulate HTML presentation of summary
+                const parsedMarkdown = renderClinicalMarkdown(data.narrative_summary);
+                summaryBox.innerHTML = `
+                    <div class="bg-white border border-slate-200 rounded p-3 text-xs leading-relaxed markdown-content">
+                        ${parsedMarkdown}
+                    </div>
+                `;
+            } catch (err) {
+                summaryBox.innerHTML = `<div class="text-center py-8 text-red-400 italic"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ${err.message}</div>`;
+            }
+        }
+
+        // Add message bubble to chat window
+        function appendMessage(sender, text, isAi = false, vizData = null, compData = null, actions = []) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `assistant-message ${isAi ? '' : 'flex justify-end'}`;
+
+            const senderName = isAi ? 'CDSS Assistant' : 'Bác sĩ';
+            const formattedText = isAi ? renderClinicalMarkdown(text) : text;
+
+            // Extra visualization or comparison rendering
+            let extraHtml = '';
+            
+            // 1. Rendering visual charts
+            if (vizData && vizData.has_chart && vizData.data_points && vizData.data_points.length > 0) {
+                const chartId = `chart-${new Date().getTime()}-${Math.floor(Math.random()*100)}`;
+                extraHtml += `
+                    <div class="mt-4 bg-slate-50 p-4 border border-slate-200 rounded-2xl">
+                        <div class="text-xs font-semibold text-[#232F72] mb-2">${vizData.chart_title || 'Biểu đồ theo dõi chỉ số'}</div>
+                        <div class="h-48 relative">
+                            <canvas id="${chartId}"></canvas>
+                        </div>
+                    </div>
+                `;
+                // Schedule chart creation after DOM update
+                setTimeout(() => createChart(chartId, vizData), 100);
+            }
+
+            // 2. Rendering comparison tables
+            if (compData && compData.has_comparison && compData.headers && compData.headers.length > 0) {
+                let headersHtml = compData.headers.map(h => `<th class="px-3 py-2 text-left text-2xs font-bold text-[#232F72] uppercase tracking-wider border-b border-slate-200">${h}</th>`).join('');
+                let rowsHtml = compData.rows.map(row => {
+                    let cols = row.map(c => `<td class="px-3 py-2 text-xs border-b border-slate-200">${c}</td>`).join('');
+                    return `<tr>${cols}</tr>`;
+                }).join('');
+                
+                extraHtml += `
+                    <div class="mt-4 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                        <div class="text-xs font-semibold text-[#232F72] p-3 bg-slate-100 border-b border-slate-200 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-table-list mr-2"></i> Bảng So Sánh Chỉ Số Sinh Hiệu
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-200">
+                                <thead>
+                                    <tr class="bg-slate-50">${headersHtml}</tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">${rowsHtml}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            extraHtml += renderActions(actions);
+
+            messageDiv.innerHTML = `
+                <div class="${isAi ? 'w-full' : 'max-w-[88%]'}">
+                    <div class="${isAi ? 'assistant-label' : 'text-slate-400'} text-[11px] uppercase tracking-wider mb-2">${senderName}</div>
+                    <div class="${isAi ? 'assistant-body text-sm' : 'user-message-text px-5 py-4 text-sm leading-relaxed'}">
+                        <div class="markdown-content">${formattedText}</div>
+                    </div>
+                    ${extraHtml}
+                </div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Draw Line Chart using Chart.js
+        function createChart(canvasId, vizData) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // Sort data points chronologically
+            const sortedPoints = [...vizData.data_points].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            const labels = sortedPoints.map(p => {
+                const date = new Date(p.timestamp);
+                return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+            });
+            const values = sortedPoints.map(p => p.value);
+            const statusColors = sortedPoints.map(p => {
+                if (p.status === 'ABNORMAL' || p.status === 'CRITICAL') return '#ef4444';
+                if (p.status === 'WARNING') return '#f59e0b';
+                return '#10b981';
+            });
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: vizData.data_points[0]?.metric || 'Chỉ số',
+                        data: values,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.05)',
+                        borderWidth: 2,
+                        pointBackgroundColor: statusColors,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        tension: 0.2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(15, 23, 42, 0.05)' },
+                            ticks: { color: '#64748b', font: { size: 9 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(15, 23, 42, 0.05)' },
+                            ticks: { color: '#64748b', font: { size: 9 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Handle chat input submission
+        async function handleChatSubmit(event, alertId = null) {
+            if (event) event.preventDefault();
+            
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Clear input field
+            input.value = '';
+
+            // Add Doctor message to Chat
+            appendMessage('doctor', message, false);
+
+            // Show Loader
+            const loader = document.getElementById('chat-loader');
+            const loaderText = loader.querySelector('span');
+            loaderText.textContent = "CDSS đang kết nối...";
+            loader.classList.remove('hidden');
+
+            // Add a placeholder message bubble for AI response
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `assistant-message`;
+            
+            // Inner content placeholder
+            const msgContentId = `ai-msg-${new Date().getTime()}`;
+            messageDiv.innerHTML = `
+                <div class="w-full">
+                    <div class="assistant-label text-[11px] uppercase tracking-wider mb-2">CDSS Assistant</div>
+                    <div id="${msgContentId}" class="markdown-content italic text-slate-400 text-sm leading-relaxed">Đang khởi tạo kết nối...</div>
+                    <div id="${msgContentId}-extra"></div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            const textContainer = document.getElementById(msgContentId);
+            const extraContainer = document.getElementById(`${msgContentId}-extra`);
+
+            try {
+                const payload = buildChatPayload(message);
+                if (alertId) {
+                    payload.metadata.alert_id = alertId;
+                    payload.metadata.doctor_scoped = false;
+                    const patientId = document.getElementById('patient-id-input').value.trim();
+                    if (patientId) {
+                        payload.patient_id = patientId;
+                    }
+                }
+                
+                const res = await fetch('/api/agent/chat/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("Lỗi khi gửi yêu cầu lên máy chủ CDSS.");
+                
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+                let streamedText = "";
+                
+                textContainer.className = "markdown-content assistant-body text-sm";
+                textContainer.innerHTML = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const blocks = buffer.split("\n\n");
+                    buffer = blocks.pop(); // keep partial block
+                    
+                    for (const block of blocks) {
+                        if (!block.trim()) continue;
+                        
+                        const lines = block.split("\n");
+                        let eventType = "";
+                        let eventData = "";
+                        
+                        for (const line of lines) {
+                            if (line.startsWith("event: ")) {
+                                eventType = line.substring(7).trim();
+                            } else if (line.startsWith("event:")) {
+                                eventType = line.substring(6).trim();
+                            } else if (line.startsWith("data: ")) {
+                                eventData = line.substring(6);
+                            } else if (line.startsWith("data:")) {
+                                eventData = line.substring(5);
+                            }
+                        }
+                        
+                        if (eventType === "status") {
+                            const statusVal = eventData.trim();
+                            // Translate status values to friendly Vietnamese text
+                            let statusMsg = "CDSS đang suy nghĩ...";
+                            if (statusVal === "loading_context") statusMsg = "CDSS đang tải ngữ cảnh bệnh án...";
+                            else if (statusVal === "classifying_intent") statusMsg = "CDSS đang phân loại ý định bác sĩ...";
+                            else if (statusVal.startsWith("running_tool")) {
+                                const toolName = statusVal.split(":")[1] || "";
+                                statusMsg = `CDSS đang chạy công cụ tra cứu: ${toolName}...`;
+                            } else if (statusVal === "generating") statusMsg = "CDSS đang soạn thảo phản hồi lâm sàng...";
+                            
+                            loaderText.textContent = statusMsg;
+                        } else if (eventType === "token") {
+                            streamedText += eventData;
+                            textContainer.className = "markdown-content assistant-body text-sm";
+                            textContainer.innerHTML = renderClinicalMarkdown(streamedText);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        } else if (eventType === "result") {
+                            const fullResponse = JSON.parse(eventData.trim());
+                            
+                            // Render final summary just to be safe
+                            textContainer.className = "markdown-content assistant-body text-sm";
+                            textContainer.innerHTML = renderClinicalMarkdown(fullResponse.narrative_summary || streamedText);
+                            
+                            // Clear extra container in case we rerender
+                            extraContainer.innerHTML = "";
+                            
+                            // Render Chart
+                            if (fullResponse.visualizations && fullResponse.visualizations.has_chart && fullResponse.visualizations.data_points && fullResponse.visualizations.data_points.length > 0) {
+                                const chartId = `chart-${new Date().getTime()}-${Math.floor(Math.random()*100)}`;
+                                extraContainer.innerHTML += `
+                                    <div class="mt-4 bg-slate-50 p-4 border border-slate-200 rounded-2xl">
+                                        <div class="text-xs font-semibold text-[#232F72] mb-2">${fullResponse.visualizations.chart_title || 'Biểu đồ theo dõi chỉ số'}</div>
+                                        <div class="h-48 relative">
+                                            <canvas id="${chartId}"></canvas>
+                                        </div>
+                                    </div>
+                                `;
+                                setTimeout(() => createChart(chartId, fullResponse.visualizations), 100);
+                            }
+                            
+                            // Render Comparison Table
+                            if (fullResponse.comparisons && fullResponse.comparisons.has_comparison && fullResponse.comparisons.headers && fullResponse.comparisons.headers.length > 0) {
+                                let headersHtml = fullResponse.comparisons.headers.map(h => `<th class="px-3 py-2 text-left text-2xs font-bold text-[#232F72] uppercase tracking-wider border-b border-slate-200">${h}</th>`).join('');
+                                let rowsHtml = fullResponse.comparisons.rows.map(row => {
+                                    let cols = row.map(c => `<td class="px-3 py-2 text-xs border-b border-slate-200">${c}</td>`).join('');
+                                    return `<tr>${cols}</tr>`;
+                                }).join('');
+                                
+                                extraContainer.innerHTML += `
+                                    <div class="mt-4 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                                        <div class="text-xs font-semibold text-[#232F72] p-3 bg-slate-100 border-b border-slate-200 uppercase tracking-wider flex items-center">
+                                            <i class="fa-solid fa-table-list mr-2"></i> Bảng So Sánh Chỉ Số Sinh Hiệu
+                                        </div>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-slate-200">
+                                                <thead>
+                                                    <tr class="bg-slate-50">${headersHtml}</tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-200">${rowsHtml}</tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+
+                            extraContainer.innerHTML += renderActions(fullResponse.actions);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        } else if (eventType === "error") {
+                            throw new Error(eventData);
+                        }
+                    }
+                }
+            } catch (err) {
+                textContainer.className = "markdown-content text-sm text-red-500";
+                textContainer.innerHTML = `⚠️ **Lỗi hệ thống CDSS:** ${err.message}`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        // Send a quick prompt assist
+        function sendQuickPrompt(promptText) {
+            document.getElementById('chat-input').value = promptText;
+            handleChatSubmit();
+        }
+
+        // Clear chat UI
+        function clearChatHistoryOnlyUI() {
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.innerHTML = `
+                <div class="assistant-message">
+                    <div class="assistant-label text-[11px] uppercase tracking-wider mb-2">CDSS Assistant</div>
+                    <div class="assistant-body text-sm">
+                        <div class="markdown-content">
+                            Phiên hội thoại mới đã được thiết lập. Mặc định đang ở Overview Mode; bác sĩ có thể hỏi toàn danh sách hoặc tìm bệnh nhân để mở hồ sơ.
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function clearChatHistory() {
+            generateNewConvId();
+        }
+
+        let vitalsChartInstance = null;
+
+        async function loadPatientVitals(patientId) {
+            const container = document.getElementById('vitals-workspace-container');
+            if (!patientId) {
+                container.innerHTML = '<span>Chưa có biểu đồ sinh hiệu</span>';
+                if (vitalsChartInstance) {
+                    vitalsChartInstance.destroy();
+                    vitalsChartInstance = null;
+                }
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/agent/patients/${patientId}/vitals-summary?time_window_minutes=60`);
+                if (!response.ok) throw new Error("Lỗi tải sinh hiệu");
+                const data = await response.json();
+                
+                if (!data.summary || data.summary.length === 0) {
+                    container.innerHTML = '<span class="text-slate-400">Không có dữ liệu sinh hiệu</span>';
+                    if (vitalsChartInstance) {
+                        vitalsChartInstance.destroy();
+                        vitalsChartInstance = null;
+                    }
+                    return;
+                }
+                
+                container.innerHTML = '<canvas id="vitals-workspace-chart" class="w-full h-full"></canvas>';
+                const ctx = document.getElementById('vitals-workspace-chart').getContext('2d');
+                
+                const sortedSummary = [...data.summary].sort((a, b) => new Date(a.time_bucket) - new Date(b.time_bucket));
+                
+                const labels = sortedSummary.map(s => {
+                    const date = new Date(s.time_bucket);
+                    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                });
+                const heartRates = sortedSummary.map(s => s.avg_heart_rate);
+                
+                if (vitalsChartInstance) {
+                    vitalsChartInstance.destroy();
+                }
+                
+                vitalsChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Heart Rate (Nhịp tim)',
+                            data: heartRates,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#ef4444',
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: { boxWidth: 12, font: { size: 10 } }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(15, 23, 42, 0.05)' },
+                                ticks: { color: '#64748b', font: { size: 9 } }
+                            },
+                            y: {
+                                grid: { color: 'rgba(15, 23, 42, 0.05)' },
+                                ticks: { color: '#64748b', font: { size: 9 } }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<span class="text-red-400">⚠️ Lỗi: ${err.message}</span>`;
+            }
+        }
+
+        async function loadPatientAlerts(patientId) {
+            const container = document.getElementById('alerts-workspace-container');
+            if (!patientId) {
+                container.innerHTML = '<span>Cảnh báo sẽ hiển thị tại đây</span>';
+                container.className = "h-full w-full p-4 pt-12 overflow-y-auto space-y-2 text-slate-300 text-sm flex items-center justify-center";
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/agent/patients/${patientId}/alerts`);
+                if (!response.ok) throw new Error("Lỗi tải danh sách cảnh báo");
+                const alerts = await response.json();
+                
+                if (!alerts || alerts.length === 0) {
+                    container.innerHTML = '<span class="text-slate-400">Không có cảnh báo hoạt động</span>';
+                    container.className = "h-full w-full p-4 pt-12 overflow-y-auto space-y-2 text-slate-300 text-sm flex items-center justify-center";
+                    return;
+                }
+                
+                container.className = "h-full w-full p-4 pt-12 overflow-y-auto space-y-2 text-sm flex flex-col justify-start items-stretch";
+                container.innerHTML = '';
+                
+                alerts.forEach(alert => {
+                    const card = document.createElement('div');
+                    
+                    let bgClass = "bg-slate-50 border-slate-200";
+                    let badgeClass = "bg-slate-100 text-slate-700";
+                    const severity = (alert.severity || "NORMAL").toUpperCase();
+                    if (severity === "HIGH" || severity === "CRITICAL") {
+                        bgClass = "bg-red-50 border-red-200";
+                        badgeClass = "bg-red-100 text-red-700";
+                    } else if (severity === "WARNING" || severity === "MEDIUM") {
+                        bgClass = "bg-amber-50 border-amber-200";
+                        badgeClass = "bg-amber-100 text-amber-700";
+                    } else if (severity === "LOW") {
+                        bgClass = "bg-blue-50 border-blue-200";
+                        badgeClass = "bg-blue-100 text-blue-700";
+                    }
+                    
+                    card.className = `p-3 border rounded-xl ${bgClass} flex justify-between items-start transition hover:shadow-sm`;
+                    const tsStr = alert.timestamp ? new Date(alert.timestamp).toLocaleString('vi-VN') : 'N/A';
+                    
+                    card.innerHTML = `
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded ${badgeClass}">${severity}</span>
+                                <span class="text-xs font-semibold text-slate-800 truncate" title="${alert.alert_type || 'Cảnh báo'}">${alert.alert_type || 'Cảnh báo'}</span>
+                            </div>
+                            <div class="text-xs text-slate-600 mt-1 break-words">${alert.message || 'Không có mô tả chi tiết.'}</div>
+                            <div class="text-[10px] text-slate-400 mt-1.5"><i class="fa-regular fa-clock mr-1"></i>${tsStr}</div>
+                        </div>
+                        <button onclick="explainAlert('${alert.alert_id}')" class="px-2.5 py-1 text-xs bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition font-medium shrink-0 ml-3 flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-brain"></i> Giải thích
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<span class="text-red-400">⚠️ Lỗi: ${err.message}</span>`;
+                container.className = "h-full w-full p-4 pt-12 overflow-y-auto space-y-2 text-slate-300 text-sm flex items-center justify-center";
+            }
+        }
+
+        function explainAlert(alertId) {
+            if (!alertId) return;
+            const input = document.getElementById('chat-input');
+            input.value = `Giải thích cảnh báo ${alertId}`;
+            handleChatSubmit(null, alertId);
+        }
+
+        // Page Init
+        window.onload = function() {
+            document.getElementById('patient-id-input').addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    applyPatientInput();
+                }
+            });
+            document.getElementById('patient-id-input').addEventListener('blur', updateChatMetadata);
+            document.getElementById('conv-id-input').addEventListener('input', updateChatMetadata);
+            generateNewConvId();
+            updateChatMetadata();
+            fetchPatientSummary();
+        };
+    </script>
+</body>
+</html>

@@ -115,7 +115,7 @@ export function MetricCard({
   return (
     <article
       className={[
-        "dashboard-surface flex h-full min-h-0 flex-col rounded-[1.15rem]",
+        "dashboard-surface flex h-full min-h-0 flex-col overflow-hidden rounded-[1.15rem]",
         compact ? "px-2 py-1.5" : "px-3.5 py-3.5",
         className,
       ].join(" ")}
@@ -144,7 +144,7 @@ export function MetricCard({
         </span>
       </div>
 
-      <div className="min-h-0 shrink-0">
+      <div className={compact ? "min-h-0 shrink-0" : "min-h-0 shrink-0"}>
         <VitalChart
           data={vitals}
           metric={summary.metric}

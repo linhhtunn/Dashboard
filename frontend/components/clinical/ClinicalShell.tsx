@@ -2,17 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Activity,
   Bell,
   ChevronDown,
   FlaskConical,
   Globe2,
+  LayoutDashboard,
+  LogOut,
+  Shield,
+  UserCog,
   UsersRound,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
+import { useClinicalPersona } from "@/lib/clinical-persona";
+import { useOperatorRole } from "@/lib/operator-role";
+import { clinicalSummaryRepository } from "@/lib/repositories/clinical-summary.repository";
 
 type ClinicalShellProps = {
   children: ReactNode;
@@ -94,42 +104,104 @@ export function ClinicalShell({
 
 function ClinicalNavbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { locale, setLocale } = useLocale();
-  const copy =
-    locale === "vi"
-      ? {
-          patients: "Bệnh nhân",
-          alerts: "Cảnh báo",
-          metrics: "Mô phỏng",
-          doctor: "BS. Minh",
-          duty: "Đang trực",
-          switchLanguage: "Đổi ngôn ngữ",
-        }
-      : {
-          patients: "Patients",
-          alerts: "Alerts",
-          metrics: "Simulation",
-          doctor: "Dr. Minh",
-          duty: "On duty",
-          switchLanguage: "Switch language",
-        };
+  const ui = useClinicalUi();
+  const { persona, setPersona, isAdmin, roleLocked, profile } = useClinicalPersona();
+  const { sessionName } = useOperatorRole();
+  const [openAlertCount, setOpenAlertCount] = useState<number | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
-  const navItems = [
-    { href: "/patients", label: copy.patients, icon: UsersRound },
-    { href: "/alerts", label: copy.alerts, icon: Bell, badge: "3" },
-    { href: "/metrics", label: copy.metrics, icon: FlaskConical, internal: true },
+  useEffect(() => {
+    let cancelled = false;
+    void clinicalSummaryRepository
+      .get()
+      .then((summary) => {
+        if (!cancelled) setOpenAlertCount(summary.open_alert_count);
+      })
+      .catch(() => {
+        if (!cancelled) setOpenAlertCount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const clinicalNavItems: Array<{
+    href: string;
+    label: string;
+    icon: typeof UsersRound;
+    badge?: string;
+    internal?: boolean;
+  }> = [
+    { href: "/overview", label: ui.nav.overview, icon: LayoutDashboard },
+    { href: "/patients", label: ui.nav.patients, icon: UsersRound },
+    {
+      href: "/alerts",
+      label: ui.nav.alerts,
+      icon: Bell,
+      badge: openAlertCount !== null ? String(openAlertCount) : undefined,
+    },
+    { href: "/staff", label: ui.nav.staff, icon: UserCog },
   ];
+
+  const adminNavItems: Array<{
+    href: string;
+    label: string;
+    icon: typeof UsersRound;
+    badge?: string;
+    internal?: boolean;
+  }> = [
+    { href: "/metrics", label: ui.nav.metrics, icon: FlaskConical, internal: true },
+    { href: "/admin/users", label: ui.nav.users, icon: Shield, internal: true },
+  ];
+
+  const navItems = isAdmin ? adminNavItems : clinicalNavItems;
+
+  const displayName =
+    profile?.displayName ??
+    sessionName ??
+    (isAdmin
+      ? ui.roles.admin
+      : persona === "doctor"
+        ? ui.roles.doctor
+        : ui.roles.coordinator);
+  const dutyLabel = isAdmin
+    ? ui.roles.dutyAdmin
+    : persona === "doctor"
+      ? ui.roles.dutyDoctor
+      : ui.roles.dutyCoordinator;
+  const initials = displayName
+    .replace(/^(ĐD\.|YT\.|BS\.)\s*/, "")
+    .split(/\s+/)
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
     <header className="dashboard-glass relative z-40 mx-3 mt-3 shrink-0 rounded-[1.15rem] border border-white/45 px-3 shadow-[0_22px_48px_rgba(15,23,42,0.08)] sm:mx-5 sm:px-5 xl:mx-6">
       <div className="mx-auto flex h-[60px] max-w-[1600px] items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-5">
-          <Link href="/patients" className="flex shrink-0 items-center gap-2.5">
+          <Link href={isAdmin ? "/metrics" : "/overview"} className="flex shrink-0 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-[0.8rem] bg-[linear-gradient(135deg,var(--cs-primary),var(--cs-teal))] text-white shadow-[0_12px_26px_rgba(13,71,161,0.22)]">
               <Activity className="h-[18px] w-[18px]" strokeWidth={2} />
             </span>
             <span className="hidden text-[1rem] font-semibold tracking-[-0.025em] text-[color:var(--cs-heading)] sm:block">
-              CareSignal<span className="text-[color:var(--cs-teal)]"> AI</span>
+              {ui.appName}
+              <span className="text-[color:var(--cs-teal)]"> {ui.appSuffix}</span>
             </span>
           </Link>
 
@@ -151,7 +223,7 @@ function ClinicalNavbar() {
                   <span className="hidden min-[520px]:inline">{label}</span>
                   {internal ? (
                     <span className="hidden rounded-full bg-[color:rgba(245,179,0,0.14)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[color:#8a6100] lg:inline">
-                      {locale === "vi" ? "nội bộ" : "internal"}
+                      {ui.nav.internal}
                     </span>
                   ) : null}
                   {badge ? (
@@ -166,29 +238,56 @@ function ClinicalNavbar() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          <select
+            value={persona}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "admin" || value === "doctor" || value === "coordinator") {
+                setPersona(value);
+              }
+            }}
+            disabled={roleLocked}
+            className="dashboard-input hidden h-9 max-w-[190px] rounded-[0.7rem] px-2 text-[11px] font-semibold text-[color:var(--cs-text)] disabled:cursor-not-allowed disabled:opacity-70 sm:block"
+            aria-label={ui.roles.demoRoleLabel}
+            title={roleLocked ? ui.roles.lockedRoleLabel : ui.roles.demoRoleLabel}
+          >
+            <option value="coordinator">{ui.roles.coordinator}</option>
+            <option value="doctor">{ui.roles.doctor}</option>
+            <option value="admin">{ui.roles.admin}</option>
+          </select>
           <button
             type="button"
             onClick={() => setLocale(locale === "vi" ? "en" : "vi")}
             className="dashboard-input flex h-9 items-center gap-1.5 rounded-[0.7rem] px-2 text-[12px] font-semibold text-[color:var(--cs-text)] transition hover:border-white/80 hover:bg-white/70"
-            aria-label={copy.switchLanguage}
+            aria-label={ui.common.switchLanguage}
           >
             <Globe2 className="h-4 w-4 text-[color:var(--cs-teal)]" />
             {locale.toUpperCase()}
           </button>
           <div className="dashboard-input hidden items-center gap-2 rounded-[0.8rem] px-2 py-1.5 md:flex">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(13,71,161,0.14),rgba(0,150,136,0.12))] text-[10px] font-bold text-[color:var(--cs-primary)]">
-              BM
+              {initials}
             </span>
             <span className="leading-tight">
               <span className="block text-[12px] font-semibold text-[color:var(--cs-heading)]">
-                {copy.doctor}
+                {displayName}
               </span>
               <span className="block text-[10px] text-[color:var(--cs-teal)]">
-                {copy.duty}
+                {dutyLabel}
               </span>
             </span>
             <ChevronDown className="h-3.5 w-3.5 text-[color:var(--cs-text-soft)]" />
           </div>
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={signingOut}
+            className="dashboard-input flex h-9 w-9 items-center justify-center rounded-[0.7rem] text-[color:var(--cs-text-soft)] transition hover:text-[color:var(--cs-danger)] disabled:opacity-50"
+            aria-label={ui.auth.signOut}
+            title={ui.auth.signOut}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </header>

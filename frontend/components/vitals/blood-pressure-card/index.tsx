@@ -45,8 +45,8 @@ const subscribeToMount = () => () => undefined;
 
 function formatTimestamp(iso: string) {
   const date = new Date(iso);
-  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
-    date.getUTCMinutes(),
+  return `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
   ).padStart(2, "0")}`;
 }
 
@@ -108,7 +108,7 @@ function BloodPressureChart({
 
   return (
     <div
-      className="w-full overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm"
+      className="min-w-0 w-full overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm"
       style={{ height }}
     >
       {!isMounted ? (
@@ -238,19 +238,24 @@ export function BloodPressureCard({
   compact = false,
 }: BloodPressureCardProps) {
   const { locale } = useLocale();
-  const chartData: BloodPressurePoint[] = vitals.flatMap((sample) => {
-    const systolic = sample.vitals.systolicBp;
-    const diastolic = sample.vitals.diastolicBp;
-    if (systolic === undefined || diastolic === undefined) return [];
+  const chartData: BloodPressurePoint[] = [...vitals]
+    .sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+    )
+    .flatMap((sample) => {
+      const systolic = sample.vitals.systolicBp;
+      const diastolic = sample.vitals.diastolicBp;
+      if (systolic === undefined || diastolic === undefined) return [];
 
-    return [{
-      time: formatTimestamp(sample.timestamp),
-      systolic,
-      diastolic,
-      systolicAbnormal: isSystolicAbnormal(systolic),
-      diastolicAbnormal: isDiastolicAbnormal(diastolic),
-    }];
-  });
+      return [{
+        time: formatTimestamp(sample.timestamp),
+        systolic,
+        diastolic,
+        systolicAbnormal: isSystolicAbnormal(systolic),
+        diastolicAbnormal: isDiastolicAbnormal(diastolic),
+      }];
+    });
   const abnormalPoints = chartData.filter(
     (point) => point.systolicAbnormal || point.diastolicAbnormal,
   );

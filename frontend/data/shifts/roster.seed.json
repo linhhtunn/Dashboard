@@ -1,0 +1,107 @@
+[
+  {
+    "id": "staff-coord-1",
+    "name": "ĐD. Lan Nguyễn",
+    "role": "coordinator",
+    "zone_code": "coordination",
+    "status": "active"
+  },
+  {
+    "id": "staff-coord-2",
+    "name": "ĐD. Hoa Phạm",
+    "role": "coordinator",
+    "zone_code": "coordination",
+    "status": "break"
+  },
+  {
+    "id": "staff-doc-1",
+    "name": "BS. Minh Phạm",
+    "role": "doctor",
+    "zone_code": "ward_wide",
+    "status": "active"
+  },
+  {
+    "id": "staff-doc-2",
+    "name": "BS. An Vũ",
+    "role": "doctor",
+    "zone_code": "ward_wide",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-1",
+    "name": "YT. Hương Trần",
+    "role": "floor_nurse",
+    "zone_code": "zone_a",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-2",
+    "name": "YT. Mai Lê",
+    "role": "floor_nurse",
+    "zone_code": "zone_a",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-3",
+    "name": "YT. Thảo Nguyễn",
+    "role": "floor_nurse",
+    "zone_code": "zone_a",
+    "status": "break"
+  },
+  {
+    "id": "staff-nurse-4",
+    "name": "YT. Linh Đặng",
+    "role": "floor_nurse",
+    "zone_code": "zone_b",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-5",
+    "name": "YT. Vy Phan",
+    "role": "floor_nurse",
+    "zone_code": "zone_b",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-6",
+    "name": "YT. Hà Lý",
+    "role": "floor_nurse",
+    "zone_code": "zone_b",
+    "status": "off"
+  },
+  {
+    "id": "staff-nurse-7",
+    "name": "YT. Chi Bùi",
+    "role": "floor_nurse",
+    "zone_code": "zone_c",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-8",
+    "name": "YT. Nga Võ",
+    "role": "floor_nurse",
+    "zone_code": "zone_c",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-9",
+    "name": "YT. Trang Đinh",
+    "role": "floor_nurse",
+    "zone_code": "zone_c",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-10",
+    "name": "YT. Loan Hoàng",
+    "role": "floor_nurse",
+    "zone_code": "zone_d",
+    "status": "active"
+  },
+  {
+    "id": "staff-nurse-11",
+    "name": "YT. Phương Cao",
+    "role": "floor_nurse",
+    "zone_code": "zone_d",
+    "status": "break"
+  }
+]

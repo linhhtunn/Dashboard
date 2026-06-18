@@ -1,0 +1,32 @@
+domain_id: af_anticoagulation
+name: "Atrial Fibrillation Anticoagulation"
+rule_dir: "rules/af"
+keywords:
+  - "rung nhĩ"
+  - "rung nhi"
+  - "af"
+  - "anticoagulation"
+  - "chống đông"
+  - "warfarin"
+  - "apixaban"
+  - "rivaroxaban"
+  - "dabigatran"
+  - "edoxaban"
+  - "kháng đông"
+fallback_drugs:
+  - "warfarin"
+emergency_warning: >
+  Cảnh báo nguy hiểm: Không có thuốc kháng đông nào an toàn cho bệnh nhân này.
+  Khuyến nghị bác sĩ xem xét phương án can thiệp cơ học: Bít tiểu nhĩ (LAAO) theo khuyến cáo ESC 2020.
+clinician_review_checklist:
+  - "Verify AF diagnosis and indication before clinical use."
+  - "Review renal function, hepatic function, bleeding risk, and recent labs."
+  - "Review active medications for drug-drug interactions."
+  - "Confirm contraindications and guideline fit for this specific patient."
+  - "Treat this as clinical decision support, not a final prescription."
+required_inputs:
+  - "is_af_confirmed"
+  - "cha2ds2_vasc"
+  - "crcl"
+  - "serum_creatinine"
+  - "weight_kg"

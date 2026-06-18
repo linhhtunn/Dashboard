@@ -1,0 +1,632 @@
+[
+  {
+    "patient_id": "P001",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 74,
+    "respiratory_rate": 16,
+    "systolic_bp": 118,
+    "diastolic_bp": 76,
+    "spo2": 98
+  },
+  {
+    "patient_id": "P001",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 89,
+    "respiratory_rate": 18,
+    "systolic_bp": 124,
+    "diastolic_bp": 80,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P001",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 116,
+    "respiratory_rate": 21,
+    "systolic_bp": 132,
+    "diastolic_bp": 86,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P001",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 128,
+    "respiratory_rate": 24,
+    "systolic_bp": 138,
+    "diastolic_bp": 90,
+    "spo2": 93
+  },
+  {
+    "patient_id": "P001",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 108,
+    "respiratory_rate": 20,
+    "systolic_bp": 130,
+    "diastolic_bp": 84,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P002",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 68,
+    "respiratory_rate": 14,
+    "systolic_bp": 112,
+    "diastolic_bp": 70,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P002",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 70,
+    "respiratory_rate": 14,
+    "systolic_bp": 114,
+    "diastolic_bp": 72,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P002",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 69,
+    "respiratory_rate": 15,
+    "systolic_bp": 113,
+    "diastolic_bp": 71,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P002",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 71,
+    "respiratory_rate": 14,
+    "systolic_bp": 114,
+    "diastolic_bp": 72,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P002",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 68,
+    "respiratory_rate": 14,
+    "systolic_bp": 112,
+    "diastolic_bp": 70,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P003",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 116,
+    "respiratory_rate": 22,
+    "systolic_bp": 158,
+    "diastolic_bp": 96,
+    "spo2": 91
+  },
+  {
+    "patient_id": "P003",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 122,
+    "respiratory_rate": 24,
+    "systolic_bp": 166,
+    "diastolic_bp": 100,
+    "spo2": 90
+  },
+  {
+    "patient_id": "P003",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 130,
+    "respiratory_rate": 27,
+    "systolic_bp": 174,
+    "diastolic_bp": 104,
+    "spo2": 88
+  },
+  {
+    "patient_id": "P003",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 138,
+    "respiratory_rate": 30,
+    "systolic_bp": 182,
+    "diastolic_bp": 108,
+    "spo2": 86
+  },
+  {
+    "patient_id": "P003",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 142,
+    "respiratory_rate": 32,
+    "systolic_bp": 186,
+    "diastolic_bp": 110,
+    "spo2": 85
+  },
+  {
+    "patient_id": "P004",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 112,
+    "respiratory_rate": 26,
+    "systolic_bp": 152,
+    "diastolic_bp": 96,
+    "spo2": 92
+  },
+  {
+    "patient_id": "P004",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 102,
+    "respiratory_rate": 23,
+    "systolic_bp": 146,
+    "diastolic_bp": 92,
+    "spo2": 94
+  },
+  {
+    "patient_id": "P004",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 90,
+    "respiratory_rate": 20,
+    "systolic_bp": 138,
+    "diastolic_bp": 86,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P004",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 80,
+    "respiratory_rate": 18,
+    "systolic_bp": 128,
+    "diastolic_bp": 80,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P004",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 74,
+    "respiratory_rate": 16,
+    "systolic_bp": 122,
+    "diastolic_bp": 76,
+    "spo2": 98
+  },
+  {
+    "patient_id": "P005",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 66,
+    "respiratory_rate": 14,
+    "systolic_bp": 116,
+    "diastolic_bp": 74,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P005",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 84,
+    "respiratory_rate": 17,
+    "systolic_bp": 122,
+    "diastolic_bp": 78,
+    "spo2": 98
+  },
+  {
+    "patient_id": "P005",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 90,
+    "respiratory_rate": 18,
+    "systolic_bp": 126,
+    "diastolic_bp": 80,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P005",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 76,
+    "respiratory_rate": 16,
+    "systolic_bp": 118,
+    "diastolic_bp": 75,
+    "spo2": 98
+  },
+  {
+    "patient_id": "P005",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 67,
+    "respiratory_rate": 14,
+    "systolic_bp": 115,
+    "diastolic_bp": 73,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P006",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 86,
+    "respiratory_rate": 17,
+    "systolic_bp": 136,
+    "diastolic_bp": 86,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P006",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 90,
+    "respiratory_rate": 18,
+    "systolic_bp": 144,
+    "diastolic_bp": 90,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P006",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 94,
+    "respiratory_rate": 20,
+    "systolic_bp": 152,
+    "diastolic_bp": 96,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P006",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 98,
+    "respiratory_rate": 22,
+    "systolic_bp": 160,
+    "diastolic_bp": 100,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P006",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 96,
+    "respiratory_rate": 21,
+    "systolic_bp": 158,
+    "diastolic_bp": 98,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P007",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 102,
+    "respiratory_rate": 20,
+    "systolic_bp": 142,
+    "diastolic_bp": 88,
+    "spo2": 94
+  },
+  {
+    "patient_id": "P007",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 112,
+    "respiratory_rate": 22,
+    "systolic_bp": 150,
+    "diastolic_bp": 94,
+    "spo2": 92
+  },
+  {
+    "patient_id": "P007",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 124,
+    "respiratory_rate": 25,
+    "systolic_bp": 158,
+    "diastolic_bp": 100,
+    "spo2": 89
+  },
+  {
+    "patient_id": "P007",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 136,
+    "respiratory_rate": 29,
+    "systolic_bp": 166,
+    "diastolic_bp": 106,
+    "spo2": 86
+  },
+  {
+    "patient_id": "P007",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 144,
+    "respiratory_rate": 33,
+    "systolic_bp": 172,
+    "diastolic_bp": 110,
+    "spo2": 83
+  },
+  {
+    "patient_id": "P008",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 88,
+    "respiratory_rate": 18,
+    "systolic_bp": 128,
+    "diastolic_bp": 82,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P008",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 106,
+    "respiratory_rate": 21,
+    "systolic_bp": 132,
+    "diastolic_bp": 84,
+    "spo2": 94
+  },
+  {
+    "patient_id": "P008",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 78,
+    "respiratory_rate": 16,
+    "systolic_bp": 126,
+    "diastolic_bp": 80,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P008",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 118,
+    "respiratory_rate": 23,
+    "systolic_bp": 134,
+    "diastolic_bp": 86,
+    "spo2": 93
+  },
+  {
+    "patient_id": "P008",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 82,
+    "respiratory_rate": 17,
+    "systolic_bp": 128,
+    "diastolic_bp": 82,
+    "spo2": 94
+  },
+  {
+    "patient_id": "P009",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 98,
+    "respiratory_rate": 18,
+    "systolic_bp": 134,
+    "diastolic_bp": 84,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P009",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 102,
+    "respiratory_rate": 20,
+    "systolic_bp": 138,
+    "diastolic_bp": 88,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P009",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 96,
+    "respiratory_rate": 18,
+    "systolic_bp": 132,
+    "diastolic_bp": 84,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P009",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 104,
+    "respiratory_rate": 21,
+    "systolic_bp": 140,
+    "diastolic_bp": 88,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P009",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 99,
+    "respiratory_rate": 19,
+    "systolic_bp": 136,
+    "diastolic_bp": 86,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P010",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 64,
+    "respiratory_rate": 15,
+    "systolic_bp": 138,
+    "diastolic_bp": 84,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P010",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 65,
+    "respiratory_rate": 15,
+    "systolic_bp": 136,
+    "diastolic_bp": 82,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P010",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 64,
+    "respiratory_rate": 14,
+    "systolic_bp": 137,
+    "diastolic_bp": 83,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P010",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 66,
+    "respiratory_rate": 15,
+    "systolic_bp": 135,
+    "diastolic_bp": 82,
+    "spo2": 98
+  },
+  {
+    "patient_id": "P010",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 64,
+    "respiratory_rate": 14,
+    "systolic_bp": 136,
+    "diastolic_bp": 82,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P011",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 52,
+    "respiratory_rate": 12,
+    "systolic_bp": 106,
+    "diastolic_bp": 66,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P011",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 54,
+    "respiratory_rate": 13,
+    "systolic_bp": 108,
+    "diastolic_bp": 68,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P011",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 53,
+    "respiratory_rate": 12,
+    "systolic_bp": 107,
+    "diastolic_bp": 67,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P011",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 55,
+    "respiratory_rate": 13,
+    "systolic_bp": 108,
+    "diastolic_bp": 68,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P011",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 52,
+    "respiratory_rate": 12,
+    "systolic_bp": 106,
+    "diastolic_bp": 66,
+    "spo2": 99
+  },
+  {
+    "patient_id": "P012",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 80,
+    "respiratory_rate": 16,
+    "systolic_bp": 122,
+    "diastolic_bp": 78,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P012",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 104,
+    "respiratory_rate": 21,
+    "systolic_bp": 140,
+    "diastolic_bp": 90,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P012",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 118,
+    "respiratory_rate": 24,
+    "systolic_bp": 152,
+    "diastolic_bp": 96,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P012",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 114,
+    "respiratory_rate": 23,
+    "systolic_bp": 150,
+    "diastolic_bp": 94,
+    "spo2": 95
+  },
+  {
+    "patient_id": "P012",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 110,
+    "respiratory_rate": 22,
+    "systolic_bp": 148,
+    "diastolic_bp": 92,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P013",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 80,
+    "respiratory_rate": 16,
+    "systolic_bp": 128,
+    "diastolic_bp": 80,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P013",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 83,
+    "respiratory_rate": 17,
+    "systolic_bp": 132,
+    "diastolic_bp": 82,
+    "spo2": 97
+  },
+  {
+    "patient_id": "P013",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 86,
+    "respiratory_rate": 18,
+    "systolic_bp": 136,
+    "diastolic_bp": 85,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P013",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 88,
+    "respiratory_rate": 19,
+    "systolic_bp": 140,
+    "diastolic_bp": 88,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P013",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 90,
+    "respiratory_rate": 20,
+    "systolic_bp": 142,
+    "diastolic_bp": 90,
+    "spo2": 96
+  },
+  {
+    "patient_id": "P014",
+    "timestamp": "2026-06-02T08:00:00Z",
+    "heart_rate": 126,
+    "respiratory_rate": 24,
+    "systolic_bp": 164,
+    "diastolic_bp": 102,
+    "spo2": 88
+  },
+  {
+    "patient_id": "P014",
+    "timestamp": "2026-06-02T08:03:00Z",
+    "heart_rate": 134,
+    "respiratory_rate": 27,
+    "systolic_bp": 172,
+    "diastolic_bp": 106,
+    "spo2": 86
+  },
+  {
+    "patient_id": "P014",
+    "timestamp": "2026-06-02T08:06:00Z",
+    "heart_rate": 140,
+    "respiratory_rate": 30,
+    "systolic_bp": 180,
+    "diastolic_bp": 110,
+    "spo2": 84
+  },
+  {
+    "patient_id": "P014",
+    "timestamp": "2026-06-02T08:09:00Z",
+    "heart_rate": 148,
+    "respiratory_rate": 34,
+    "systolic_bp": 188,
+    "diastolic_bp": 114,
+    "spo2": 82
+  },
+  {
+    "patient_id": "P014",
+    "timestamp": "2026-06-02T08:12:00Z",
+    "heart_rate": 152,
+    "respiratory_rate": 38,
+    "systolic_bp": 192,
+    "diastolic_bp": 116,
+    "spo2": 80
+  }
+]

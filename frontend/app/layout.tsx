@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Manrope } from "next/font/google";
 
-import { GlobalAlertModal } from "@/components/clinical/GlobalAlertModal";
+import { AppShell, ClinicalChrome } from "@/components/AppShell";
+import { MotionProvider } from "@/components/motion/MotionProvider";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 
 import "./globals.css";
@@ -18,8 +19,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CareSignal AI Dashboard",
-  description: "AI-first clinical monitoring dashboard for CareSignal AI.",
+  title: "CareSignal AI — Theo dõi rõ hơn. Phản ứng nhanh hơn.",
+  description:
+    "Nền tảng theo dõi bệnh nhân realtime tích hợp AI lâm sàng cho bác sĩ và đội ngũ y tế.",
 };
 
 export default function RootLayout({
@@ -32,12 +34,12 @@ export default function RootLayout({
       lang="vi"
       className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden">
+      <body className="min-h-dvh">
         <LocaleProvider>
-          <div className="dashboard-canvas relative h-dvh overflow-hidden">
-            {children}
-            <GlobalAlertModal />
-          </div>
+          <MotionProvider>
+            <AppShell>{children}</AppShell>
+            <ClinicalChrome />
+          </MotionProvider>
         </LocaleProvider>
       </body>
     </html>

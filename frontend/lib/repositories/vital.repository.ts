@@ -1,15 +1,15 @@
-import type { MetricSummary, VitalSignalSample } from "@/types";
-import { getApiErrorMessage } from "@/lib/api-response";
+import type { MetricSummary, TimeRange, VitalSignalSample } from "@/types";
+import { clinicalApiGet } from "@/lib/api/client";
 import { normalizePatientId } from "@/lib/patient-id";
 
 type VitalDto = {
   patient_id: string;
   timestamp: string;
-  heart_rate: number;
-  respiratory_rate: number;
-  systolic_bp: number;
-  diastolic_bp: number;
-  spo2: number;
+  heart_rate: number | null;
+  respiratory_rate: number | null;
+  systolic_bp: number | null;
+  diastolic_bp: number | null;
+  spo2: number | null;
 };
 
 type MetricSummaryDto = {
@@ -24,7 +24,7 @@ type MetricSummaryDto = {
 
 type PatientVitalsDto = {
   patient_id: string;
-  range: string;
+  range: TimeRange;
   samples: VitalDto[];
   metric_summaries: MetricSummaryDto[];
 };
@@ -34,11 +34,11 @@ function mapVital(dto: VitalDto): VitalSignalSample {
     patientId: dto.patient_id,
     timestamp: dto.timestamp,
     vitals: {
-      heartRate: dto.heart_rate,
-      respiratoryRate: dto.respiratory_rate,
-      systolicBp: dto.systolic_bp,
-      diastolicBp: dto.diastolic_bp,
-      spo2: dto.spo2,
+      heartRate: dto.heart_rate ?? undefined,
+      respiratoryRate: dto.respiratory_rate ?? undefined,
+      systolicBp: dto.systolic_bp ?? undefined,
+      diastolicBp: dto.diastolic_bp ?? undefined,
+      spo2: dto.spo2 ?? undefined,
     },
   };
 }
@@ -55,19 +55,15 @@ function mapSummary(dto: MetricSummaryDto): MetricSummary {
   };
 }
 
-async function fetchVitalsPayload(patientId: string, range = "15m") {
+async function fetchVitalsPayload(patientId: string, range: TimeRange = "15m") {
   const normalizedPatientId = normalizePatientId(patientId);
-  const response = await fetch(`/api/patients/${normalizedPatientId}/vitals?range=${range}`, {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(await getApiErrorMessage(response, "Unable to load patient vitals"));
-  }
-  return (await response.json()) as PatientVitalsDto;
+  return clinicalApiGet<PatientVitalsDto>(
+    `/api/patients/${normalizedPatientId}/vitals?range=${range}`,
+  );
 }
 
 export const vitalRepository = {
-  async getSnapshot(patientId: string, range = "15m"): Promise<{
+  async getSnapshot(patientId: string, range: TimeRange = "15m"): Promise<{
     samples: VitalSignalSample[];
     metricSummaries: MetricSummary[];
   }> {
@@ -78,12 +74,12 @@ export const vitalRepository = {
     };
   },
 
-  async listByPatient(patientId: string, range = "15m"): Promise<VitalSignalSample[]> {
+  async listByPatient(patientId: string, range: TimeRange = "15m"): Promise<VitalSignalSample[]> {
     const payload = await fetchVitalsPayload(patientId, range);
     return payload.samples.map(mapVital);
   },
 
-  async listMetricSummaries(patientId: string, range = "15m"): Promise<MetricSummary[]> {
+  async listMetricSummaries(patientId: string, range: TimeRange = "15m"): Promise<MetricSummary[]> {
     const payload = await fetchVitalsPayload(patientId, range);
     return payload.metric_summaries.map(mapSummary);
   },

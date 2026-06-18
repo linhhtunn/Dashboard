@@ -1,5 +1,6 @@
 import type { AIConfidence, Evidence, Locale, VitalMetric } from "@/types";
 import type {
+  AgentAction,
   AgentChatIntent,
   AgentComparisonPayload,
   AgentInsightPayload,
@@ -44,6 +45,7 @@ export function adaptBackendResponse({
   const responseType = extractResponseType(raw);
   const sourceId = extractSourceId(raw, title);
   const nextActions = extractNextActions(raw);
+  const actions = extractActions(raw);
 
   return {
     title,
@@ -56,6 +58,7 @@ export function adaptBackendResponse({
     recommendedIssueId,
     focusMetrics,
     nextActions,
+    actions,
     summary: {
       patientId,
       locale,
@@ -125,19 +128,28 @@ function extractKeyFindings(
     return evidence.slice(0, 4).map((item) => buildEvidenceFinding(item, locale));
   }
 
+  if (/^#{1,3}\s/m.test(answer) || /\n[-*]\s+/m.test(answer)) {
+    const bullets = answer
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => /^[-*]\s+/.test(line))
+      .map((line) => line.replace(/^[-*]\s+/, "").trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+    if (bullets.length > 0) return bullets;
+    return [];
+  }
+
   const fallback = answer
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
-    .filter(Boolean)
+    .filter((item) => item && !/^#{1,3}\s/.test(item))
     .slice(0, 4);
 
   return fallback.length > 0
     ? fallback
-    : [
-        locale === "vi"
-          ? "Cần rà soát thêm phản hồi gốc từ AI."
-          : "Further review of the raw AI response is needed.",
-      ];
+    : [];
 }
 
 function extractIntent(raw: unknown): AgentChatIntent {
@@ -201,6 +213,28 @@ function extractNextActions(raw: unknown) {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 4);
+}
+
+function extractActions(raw: unknown): AgentAction[] {
+  const record = asRecord(raw);
+  const candidate = record?.actions;
+  if (!Array.isArray(candidate)) return [];
+
+  return candidate
+    .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    .map((item) => ({
+      type: String(item.type ?? ""),
+      label: String(item.label ?? ""),
+      patient_id: typeof item.patient_id === "string" ? item.patient_id : undefined,
+      hospital_patient_code:
+        typeof item.hospital_patient_code === "string" ? item.hospital_patient_code : undefined,
+      display_name: typeof item.display_name === "string" ? item.display_name : undefined,
+      metadata:
+        typeof item.metadata === "object" && item.metadata !== null
+          ? (item.metadata as Record<string, unknown>)
+          : undefined,
+    }))
+    .filter((item) => item.type.length > 0);
 }
 
 function extractEvidence(raw: unknown): Evidence[] {

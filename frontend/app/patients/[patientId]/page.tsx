@@ -3,25 +3,29 @@
 import { ArrowLeft, BellRing, MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { AlertItem } from "@/components/alerts";
 import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { PatientAIChatPanel } from "@/components/clinical/PatientAIChatPanel";
+import { PatientClinicalProfilePanel } from "@/components/patients/PatientClinicalProfilePanel";
+import { PatientDbProfilePanel } from "@/components/patients/PatientDbProfilePanel";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   BloodPressureCard,
   MetricCard,
   TimeRangeSelector,
 } from "@/components/vitals";
+import { useVisibilityPolling } from "@/hooks/use-visibility-polling";
 import { getGenderLabel, getPatientStatusLabel, getWardLabel } from "@/lib/i18n";
 import { normalizePatientId } from "@/lib/patient-id";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
-import type { Alert, MetricSummary, Patient, VitalSignalSample } from "@/types";
+import type { Alert, MetricSummary, Patient, TimeRange, VitalSignalSample } from "@/types";
 
-const PATIENT_RECORD_REFRESH_MS = 15000;
+const PATIENT_ALERT_REFRESH_MS = 60000;
+const PATIENT_VITAL_REFRESH_MS = 15000;
 const PATIENT_CHART_HEIGHT = 210;
 
 export default function PatientDetailPage() {
@@ -32,79 +36,60 @@ export default function PatientDetailPage() {
   const [vitals, setVitals] = useState<VitalSignalSample[]>([]);
   const [summaries, setSummaries] = useState<MetricSummary[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [range, setRange] = useState("24h");
+  const [range, setRange] = useState<TimeRange>("15m");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId: number | null = null;
+  const loadPatientAlerts = useCallback(async () => {
+    try {
+      const [nextPatient, alertsResult] = await Promise.all([
+        patientRepository.findById(patientId),
+        alertRepository.listByPatient(patientId),
+      ]);
 
-    const load = async () => {
-      try {
-        const nextPatient = await patientRepository.findById(patientId);
-        if (cancelled) return;
-
-        setPatient(nextPatient);
-        if (!nextPatient) {
-          setError(
-            locale === "vi"
-              ? "Không tìm thấy bệnh nhân với mã hồ sơ này."
-              : "No patient matches this record ID.",
-          );
-          return;
-        }
-
-        const [snapshotResult, alertsResult] = await Promise.allSettled([
-          vitalRepository.getSnapshot(patientId, range),
-          alertRepository.listByPatient(patientId),
-        ]);
-        if (cancelled) return;
-
-        const loadErrors: string[] = [];
-        if (snapshotResult.status === "fulfilled") {
-          setVitals(snapshotResult.value.samples);
-          setSummaries(snapshotResult.value.metricSummaries);
-        } else {
-          loadErrors.push(
-            locale === "vi"
-              ? "Không thể tải dữ liệu sinh tồn."
-              : "Unable to load vital signs.",
-          );
-        }
-
-        if (alertsResult.status === "fulfilled") {
-          setAlerts(alertsResult.value);
-        } else {
-          loadErrors.push(
-            locale === "vi"
-              ? "Không thể tải lịch sử cảnh báo."
-              : "Unable to load alert history.",
-          );
-        }
-
-        setError(loadErrors.length ? loadErrors.join(" ") : null);
-      } catch (nextError: unknown) {
-        if (cancelled) return;
+      setPatient(nextPatient);
+      if (!nextPatient) {
         setError(
-          nextError instanceof Error
-            ? nextError.message
-            : locale === "vi"
-              ? "Không thể tải hồ sơ bệnh nhân."
-              : "Unable to load the patient record.",
+          locale === "vi"
+            ? "Không tìm thấy bệnh nhân với mã hồ sơ này."
+            : "No patient matches this record ID.",
         );
-      } finally {
-        if (!cancelled) setLoading(false);
+        return;
       }
-    };
 
-    void load();
-    intervalId = window.setInterval(() => void load(), PATIENT_RECORD_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-    };
+      setAlerts(alertsResult);
+      setError(null);
+    } catch (nextError: unknown) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : locale === "vi"
+            ? "Không thể tải hồ sơ bệnh nhân."
+            : "Unable to load the patient record.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [locale, patientId]);
+
+  const loadVitals = useCallback(async () => {
+    try {
+      const snapshot = await vitalRepository.getSnapshot(patientId, range);
+      setVitals(snapshot.samples);
+      setSummaries(snapshot.metricSummaries);
+    } catch (nextError: unknown) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : locale === "vi"
+            ? "Không thể tải dữ liệu sinh tồn."
+            : "Unable to load vital signs.",
+      );
+    }
   }, [locale, patientId, range]);
+
+  useVisibilityPolling(loadPatientAlerts, { intervalMs: PATIENT_ALERT_REFRESH_MS });
+  useVisibilityPolling(loadVitals, { intervalMs: PATIENT_VITAL_REFRESH_MS });
 
   if (loading && !patient) {
     return (
@@ -177,7 +162,12 @@ export default function PatientDetailPage() {
                     {locale === "vi" ? "Diễn biến chỉ số sinh tồn" : "Vital-sign trends"}
                   </h2>
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
                 <TimeRangeSelector value={range} onChange={setRange} />
+                <span className="text-[10px] text-[color:var(--cs-text-soft)]">
+                  {locale === "vi" ? "Biểu đồ: 5 phút/lần" : "Charts: 5-min buckets"}
+                </span>
+              </div>
               </div>
 
               {error ? (
@@ -223,32 +213,39 @@ export default function PatientDetailPage() {
               </div>
             </section>
 
-            <section className="dashboard-surface flex min-h-0 flex-col rounded-[1.15rem] p-2">
-              <div className="flex shrink-0 items-center justify-between gap-2">
-                <div>
-                  <p className="text-[7px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
-                    {locale === "vi" ? "Lịch sử cảnh báo" : "Alert history"}
-                  </p>
-                  <h2 className="text-[9px] font-semibold text-[color:var(--cs-heading)]">
-                    {locale === "vi" ? "Cảnh báo gần đây" : "Recent alerts"}
-                  </h2>
+            <div className="dashboard-scroll-area flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
+              <PatientDbProfilePanel patient={patient} />
+              <PatientClinicalProfilePanel patient={patient} />
+
+              <section className="dashboard-surface flex min-h-0 flex-1 flex-col rounded-[1.15rem] p-2">
+                <div className="flex shrink-0 items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[7px] font-semibold uppercase tracking-[0.14em] text-[color:var(--cs-teal)]">
+                      {locale === "vi" ? "Lịch sử cảnh báo" : "Alert history"}
+                    </p>
+                    <h2 className="text-[9px] font-semibold text-[color:var(--cs-heading)]">
+                      {locale === "vi" ? "Cảnh báo gần đây" : "Recent alerts"}
+                    </h2>
+                  </div>
+                  <span className="rounded-full bg-[color:rgba(229,72,77,0.08)] px-2 py-0.5 text-[8px] font-semibold text-[color:var(--cs-danger)]">
+                    {openAlerts.length} {locale === "vi" ? "chưa xử lý" : "unresolved"}
+                  </span>
                 </div>
-                <span className="rounded-full bg-[color:rgba(229,72,77,0.08)] px-2 py-0.5 text-[8px] font-semibold text-[color:var(--cs-danger)]">
-                  {openAlerts.length} {locale === "vi" ? "chưa xử lý" : "unresolved"}
-                </span>
-              </div>
-              <div className="dashboard-scroll-area mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-                {alerts.length ? (
-                  alerts.map((alert) => (
-                    <AlertItem key={alert.id} alert={alert} compact />
-                  ))
-                ) : (
-                  <p className="rounded-[0.8rem] bg-white/64 px-2 py-3 text-[9px] text-[color:var(--cs-text-soft)]">
-                    {locale === "vi" ? "Chưa có cảnh báo cho bệnh nhân này." : "No alerts for this patient."}
-                  </p>
-                )}
-              </div>
-            </section>
+                <div className="dashboard-scroll-area mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                  {alerts.length ? (
+                    alerts.map((alert) => (
+                      <AlertItem key={alert.id} alert={alert} compact />
+                    ))
+                  ) : (
+                    <p className="rounded-[0.8rem] bg-white/64 px-2 py-3 text-[9px] text-[color:var(--cs-text-soft)]">
+                      {locale === "vi"
+                        ? "Chưa có cảnh báo cho bệnh nhân này."
+                        : "No alerts for this patient."}
+                    </p>
+                  )}
+                </div>
+              </section>
+            </div>
           </div>
 
           <PatientAIChatPanel patient={patient} compact />
@@ -292,6 +289,9 @@ function PatientHeader({ patient, alertCount }: { patient: Patient; alertCount: 
               <span>{locale === "vi" ? "Mã hồ sơ" : "MRN"} {patient.mrn}</span>
               <span>{patient.age} {locale === "vi" ? "tuổi" : "years"}</span>
               <span>{getGenderLabel(patient.gender, locale)}</span>
+              {patient.dbProfile?.ageGroup ? (
+                <span>{patient.dbProfile.ageGroup.replace(/_/g, " ")}</span>
+              ) : null}
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
                 {getWardLabel(patient, locale)} {patient.bed ? `· ${patient.bed}` : ""}

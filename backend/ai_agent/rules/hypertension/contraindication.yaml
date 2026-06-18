@@ -1,0 +1,67 @@
+metadata:
+  rule_id: "HTN_CONTRA_001"
+  title: "Hypertension Medication Safety Overrides"
+  version: "1.0.0"
+  last_updated: "2026-06-15"
+  clinical_source: "2024 ESC Guidelines for elevated blood pressure and hypertension; 2023 ESH Hypertension Guidelines"
+
+rules:
+  - id: "ACEI_ARB_PREGNANCY_CONTRAINDICATION"
+    condition:
+      field: "is_pregnant"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["ace_inhibitor", "arb"]
+      reason: "ACE inhibitors and ARBs should not be used in pregnancy; clinician must choose pregnancy-compatible therapy."
+
+  - id: "ACEI_ARB_HYPERKALEMIA_CAUTION"
+    condition:
+      field: "has_hyperkalemia"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["ace_inhibitor", "arb", "mineralocorticoid_receptor_antagonist"]
+      reason: "Hyperkalemia increases risk with ACE inhibitors, ARBs, and MRAs; potassium and renal function require clinician review."
+
+  - id: "THIAZIDE_GOUT_CAUTION"
+    condition:
+      field: "has_gout"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["thiazide_like_diuretic"]
+      reason: "Thiazide-like diuretics can worsen hyperuricemia/gout."
+
+  - id: "THIAZIDE_LOW_RENAL_FUNCTION_CAUTION"
+    condition:
+      field: "cr_cl"
+      operator: "lt"
+      value: 30
+    action:
+      type: "override"
+      block_drugs: ["thiazide_like_diuretic"]
+      reason: "Reduced kidney function may limit thiazide-like diuretic effectiveness; renal-adjusted strategy is needed."
+
+  - id: "BETA_BLOCKER_BRADYCARDIA_CAUTION"
+    condition:
+      field: "has_bradycardia"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["beta_blocker"]
+      reason: "Bradycardia is a safety concern for beta blockers."
+
+  - id: "NON_DHP_CCB_HEART_FAILURE_CONTRAINDICATION"
+    condition:
+      field: "has_heart_failure"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["non_dihydropyridine_calcium_channel_blocker"]
+      reason: "Non-dihydropyridine calcium channel blockers can worsen heart failure with reduced ejection fraction."

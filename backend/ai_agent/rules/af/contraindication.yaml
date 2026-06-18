@@ -1,0 +1,72 @@
+# rules/af/contraindication.yaml
+metadata:
+  rule_id: "AF_CONTRA_001"
+  title: "Atrial Fibrillation Contraindications to DOACs"
+  version: "1.0.0"
+  last_updated: "2026-06-10"
+  clinical_source: "ESC 2020 Guidelines Section 10.2"
+
+# TODO: Define strict contraindications to DOAC therapy
+# E.g., Mechanical prosthetic heart valve or moderate-to-severe mitral stenosis.
+# These patients MUST be prescribed Warfarin (VKA) instead of DOACs.
+rules:
+  - id: "MECHANICAL_VALVE_CONTRAINDICATION"
+    condition:
+      field: "has_mechanical_valve"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["apixaban", "rivaroxaban", "dabigatran"]
+      force_recommend: ["warfarin"]
+      reason: "DOACs are contraindicated in patients with mechanical prosthetic valves."
+
+  - id: "SEVERE_RENAL_FAILURE_CONTRAINDICATION"
+    condition:
+      field: "cr_cl"
+      operator: "lt"
+      value: 15
+    action:
+      type: "override"
+      block_drugs: ["apixaban", "rivaroxaban", "dabigatran"]
+      reason: "DOACs are contraindicated in patients with end-stage renal disease (CrCl < 15 mL/min)."
+
+  - id: "APIXABAN_KETOCONAZOLE_DDI"
+    condition:
+      field: "current_medications"
+      operator: "contains"
+      value: "ketoconazole"
+    action:
+      type: "override"
+      block_drugs: ["apixaban"]
+      reason: "Strong combined CYP3A4 and P-gp inhibitor increases apixaban exposure and bleeding risk."
+
+  - id: "APIXABAN_RIFAMPIN_DDI"
+    condition:
+      field: "current_medications"
+      operator: "contains"
+      value: "rifampin"
+    action:
+      type: "override"
+      block_drugs: ["apixaban"]
+      reason: "Strong combined CYP3A4 and P-gp inducer decreases apixaban efficacy."
+
+  - id: "RIVAROXABAN_KETOCONAZOLE_DDI"
+    condition:
+      field: "current_medications"
+      operator: "contains"
+      value: "ketoconazole"
+    action:
+      type: "override"
+      block_drugs: ["rivaroxaban"]
+      reason: "Strong combined CYP3A4 and P-gp inhibitor increases rivaroxaban exposure."
+
+  - id: "ACTIVE_BLEEDING_CONTRAINDICATION"
+    condition:
+      field: "has_active_bleeding"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["apixaban", "rivaroxaban", "dabigatran", "warfarin"]
+      reason: "Active major bleeding is an absolute contraindication to all oral anticoagulants."

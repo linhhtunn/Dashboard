@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { listMockPatientItems } from "@/lib/mock/patient-api";
+import { listPatientItems } from "@/lib/server/patient-service";
+import { requireClinicalAccess } from "@/lib/server/authz";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const payload = listMockPatientItems({
+    const authz = await requireClinicalAccess();
+    if (authz.response) return authz.response;
+
+    const payload = await listPatientItems({
       query: request.nextUrl.searchParams.get("query"),
       status: request.nextUrl.searchParams.get("status"),
     });

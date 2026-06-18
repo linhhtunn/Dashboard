@@ -2,21 +2,25 @@ import { NextRequest } from "next/server";
 
 import { adaptBackendResponse } from "@/lib/ai/agent-adapter";
 import {
-  BackendAgentError,
-  agentDefaultPaths,
-  callAgentEndpoint,
-  getAgentBaseUrl,
-  getAgentPath,
-} from "@/lib/ai/agent-backend";
+  appendAgentDbContextToMessage,
+  buildAgentDbContext,
+  withAgentDbMetadata,
+} from "@/lib/ai/agent-db-context";
+import {
+  buildExplainAlertPrompt,
+  resolveAgentPatientId,
+} from "@/lib/ai/agent-chat-request";
+import { isAgentBackendConfigured } from "@/lib/ai/agent-backend";
+import { BackendAgentError, invokeAgentChat } from "@/lib/ai/invoke-agent-chat";
 import { buildMockExplainAlertPayload } from "@/lib/ai/mock-chat";
 import type { AgentExplainAlertProxyRequest } from "@/lib/ai/types";
-import { mockAlerts } from "@/lib/mock/alerts";
+import { getAlertById } from "@/lib/server/clinical-store";
 import { getMetricLabel } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
-function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
-  const alert = mockAlerts.find((item) => item.id === body.alertId);
+async function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
+  const alert = await getAlertById(body.alertId);
   const evidence = alert?.evidence.find((item) => item.value !== undefined);
 
   return buildMockExplainAlertPayload({
@@ -35,48 +39,64 @@ function buildMockFromAlert(body: AgentExplainAlertProxyRequest) {
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as AgentExplainAlertProxyRequest;
-  const baseUrl = getAgentBaseUrl();
-  const configuredPath = getAgentPath("explain-alert");
+  const patientId = resolveAgentPatientId(body.patientId ?? "");
 
-  if (!body.alertId?.trim() || !body.patientId?.trim()) {
+  if (!body.alertId?.trim() || !patientId) {
     return Response.json(
       { error: "Thiếu alertId hoặc patientId để giải thích cảnh báo." },
       { status: 400 },
     );
   }
 
-  if (!baseUrl) {
-    return Response.json(buildMockFromAlert(body));
+  const message = buildExplainAlertPrompt(body.locale);
+  const title =
+    body.locale === "vi" ? "Giải thích cảnh báo" : "Alert explanation";
+
+  const dbContext = await buildAgentDbContext(patientId);
+  const agentMessage = appendAgentDbContextToMessage(
+    message,
+    dbContext,
+    body.locale,
+  );
+  const agentMetadata = withAgentDbMetadata(
+    { alert_id: body.alertId, source_view: "alert_detail" },
+    dbContext,
+  );
+
+  if (!isAgentBackendConfigured()) {
+    return Response.json(await buildMockFromAlert(body));
   }
 
   try {
-    const raw = await callAgentEndpoint({
-      baseUrl,
-      configuredPath,
-      defaultPath: agentDefaultPaths.explainAlert,
-      body: JSON.stringify({
-        alert_id: body.alertId,
-      }),
+    const raw = await invokeAgentChat({
+      patientId,
+      conversationId: `alert-${body.alertId}`,
+      message: agentMessage,
+      metadata: agentMetadata,
     });
 
     const payload = adaptBackendResponse({
-      patientId: body.patientId,
+      patientId,
       locale: body.locale,
-      question:
-        body.locale === "vi"
-          ? `Giải thích cảnh báo ${body.alertId}`
-          : `Explain alert ${body.alertId}`,
-      title:
-        body.locale === "vi" ? "Giải thích cảnh báo" : "Alert explanation",
+      question: message,
+      title,
       raw,
     });
 
     return Response.json(payload);
   } catch (error) {
     if (error instanceof BackendAgentError) {
-      return Response.json(buildMockFromAlert(body));
+      return Response.json({ error: error.message }, { status: error.status });
     }
 
-    return Response.json(buildMockFromAlert(body));
+    return Response.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Không thể kết nối backend AI.",
+      },
+      { status: 502 },
+    );
   }
 }

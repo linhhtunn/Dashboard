@@ -1,6 +1,6 @@
-import type { Patient, VitalSignalSample } from "@/types";
+import type { Patient, PatientDbProfile, VitalSignalSample } from "@/types";
 import type { PatientListItem } from "@/components/patients/patient-card";
-import { getApiErrorMessage } from "@/lib/api-response";
+import { clinicalApiGet } from "@/lib/api/client";
 import { normalizePatientId } from "@/lib/patient-id";
 
 type PatientDto = {
@@ -25,16 +25,31 @@ type PatientDto = {
   }>;
   recent_symptom_codes: string[];
   last_updated: string;
+  db_profile?: {
+    mimic_subject_id?: number | null;
+    age_group?: string | null;
+    pregnancy_status?: string | null;
+    lifestyle?: string | null;
+    activity_level?: string | null;
+    medical_history?: string | null;
+    health_status?: string | null;
+    record_status?: string | null;
+    weight_kg?: number | null;
+    height_cm?: number | null;
+    risk_factors: string[];
+    baseline_signals?: PatientDbProfile["baselineSignals"];
+    created_at?: string | null;
+  } | null;
 };
 
 type VitalDto = {
   patient_id: string;
   timestamp: string;
-  heart_rate: number;
-  respiratory_rate: number;
-  systolic_bp: number;
-  diastolic_bp: number;
-  spo2: number;
+  heart_rate: number | null;
+  respiratory_rate: number | null;
+  systolic_bp: number | null;
+  diastolic_bp: number | null;
+  spo2: number | null;
 };
 
 type PatientListItemDto = {
@@ -42,6 +57,27 @@ type PatientListItemDto = {
   latest_vital: VitalDto | null;
   open_alert_count: number;
 };
+
+function mapDbProfile(
+  dto: PatientDto["db_profile"],
+): PatientDbProfile | undefined {
+  if (!dto) return undefined;
+  return {
+    mimicSubjectId: dto.mimic_subject_id ?? null,
+    ageGroup: dto.age_group ?? null,
+    pregnancyStatus: dto.pregnancy_status ?? null,
+    lifestyle: dto.lifestyle ?? null,
+    activityLevel: dto.activity_level ?? null,
+    medicalHistory: dto.medical_history ?? null,
+    healthStatus: dto.health_status ?? null,
+    recordStatus: dto.record_status ?? null,
+    weightKg: dto.weight_kg ?? null,
+    heightCm: dto.height_cm ?? null,
+    riskFactors: dto.risk_factors ?? [],
+    baselineSignals: dto.baseline_signals,
+    createdAt: dto.created_at ?? null,
+  };
+}
 
 function mapPatient(dto: PatientDto): Patient {
   return {
@@ -66,6 +102,7 @@ function mapPatient(dto: PatientDto): Patient {
     })),
     recentSymptomCodes: dto.recent_symptom_codes,
     lastUpdated: dto.last_updated,
+    dbProfile: mapDbProfile(dto.db_profile),
   };
 }
 
@@ -75,11 +112,11 @@ function mapVital(dto: VitalDto | null): VitalSignalSample | null {
     patientId: dto.patient_id,
     timestamp: dto.timestamp,
     vitals: {
-      heartRate: dto.heart_rate,
-      respiratoryRate: dto.respiratory_rate,
-      systolicBp: dto.systolic_bp,
-      diastolicBp: dto.diastolic_bp,
-      spo2: dto.spo2,
+      heartRate: dto.heart_rate ?? undefined,
+      respiratoryRate: dto.respiratory_rate ?? undefined,
+      systolicBp: dto.systolic_bp ?? undefined,
+      diastolicBp: dto.diastolic_bp ?? undefined,
+      spo2: dto.spo2 ?? undefined,
     },
   };
 }
@@ -93,14 +130,9 @@ export const patientRepository = {
     if (params?.query) search.set("query", params.query);
     if (params?.status && params.status !== "all") search.set("status", params.status);
 
-    const response = await fetch(
+    const payload = await clinicalApiGet<PatientListItemDto[]>(
       `/api/patients${search.toString() ? `?${search.toString()}` : ""}`,
-      { cache: "no-store" },
     );
-    if (!response.ok) {
-      throw new Error(await getApiErrorMessage(response, "Unable to load patients"));
-    }
-    const payload = (await response.json()) as PatientListItemDto[];
     return payload.map((item) => ({
       patient: mapPatient(item.patient),
       latestVital: mapVital(item.latest_vital),
@@ -110,12 +142,18 @@ export const patientRepository = {
 
   async findById(patientId: string): Promise<Patient | null> {
     const normalizedPatientId = normalizePatientId(patientId);
-    const response = await fetch(`/api/patients/${normalizedPatientId}`, { cache: "no-store" });
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      throw new Error(await getApiErrorMessage(response, "Unable to load patient"));
+    try {
+      const payload = await clinicalApiGet<PatientDto>(
+        `/api/patients/${normalizedPatientId}`,
+      );
+      return mapPatient(payload);
+    } catch {
+      return null;
     }
-    const payload = (await response.json()) as PatientDto;
-    return mapPatient(payload);
+  },
+
+  async listProfiles(): Promise<Patient[]> {
+    const payload = await clinicalApiGet<PatientDto[]>("/api/patients/profiles");
+    return payload.map(mapPatient);
   },
 };

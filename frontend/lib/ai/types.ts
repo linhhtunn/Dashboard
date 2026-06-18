@@ -29,6 +29,15 @@ export type AgentComparisonPayload = {
   rows: string[][];
 };
 
+export type AgentAction = {
+  type: "select_patient_for_chat" | (string & {});
+  label: string;
+  patient_id?: string;
+  hospital_patient_code?: string;
+  display_name?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export type AgentInsightPayload = {
   title: string;
   responseType: AgentResponseType;
@@ -40,6 +49,7 @@ export type AgentInsightPayload = {
   recommendedIssueId: DashboardIssueId | null;
   focusMetrics: string[];
   nextActions: string[];
+  actions: AgentAction[];
   summary: AskAIResponse;
   visualization: AgentVisualizationPayload;
   comparison: AgentComparisonPayload;
@@ -49,6 +59,10 @@ export type AgentChatProxyRequest = AskAIRequest & {
   threadId: string;
   userId: string;
   message: string;
+  metadata?: {
+    alert_id?: string;
+    [key: string]: unknown;
+  };
   history?: Array<{
     role: "user" | "assistant";
     content: string;
@@ -97,6 +111,14 @@ export type ThreadMeta = {
 export type ThreadMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+export type AgentChatThreadMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  fallbackKind?: "patient_not_found" | "safe_response" | "unavailable" | "generic" | null;
+  isError?: boolean;
 };
 
 export type ThreadDetail = {

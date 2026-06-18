@@ -1,0 +1,37 @@
+metadata:
+  rule_id: "HF_CONTRA_001"
+  title: "Heart Failure Medication Safety Overrides"
+  version: "1.0.0"
+  last_updated: "2026-06-15"
+  clinical_source: "2022 AHA/ACC/HFSA Heart Failure Guidelines"
+
+rules:
+  - id: "MRA_HYPERKALEMIA_CONTRAINDICATION"
+    condition:
+      field: "has_hyperkalemia"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["mineralocorticoid_receptor_antagonist"]
+      reason: "MRA is contraindicated in patients with severe hyperkalemia."
+
+  - id: "ARNI_ACEI_ARB_PREGNANCY_CONTRAINDICATION"
+    condition:
+      field: "is_pregnant"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["arni", "ace_inhibitor", "arb"]
+      reason: "ARNI, ACE inhibitors, and ARBs are contraindicated during pregnancy due to fetal toxicity."
+
+  - id: "BETA_BLOCKER_BRADYCARDIA_CAUTION"
+    condition:
+      field: "has_bradycardia"
+      operator: "eq"
+      value: true
+    action:
+      type: "override"
+      block_drugs: ["beta_blocker"]
+      reason: "Beta-blockers can worsen bradycardia; review heart rate."

@@ -1,0 +1,40 @@
+metadata:
+  rule_id: "HF_MED_001"
+  title: "Heart Failure Medication Class Recommendation"
+  version: "1.0.0"
+  last_updated: "2026-06-15"
+  clinical_source: "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure; 2021 ESC Heart Failure Guidelines"
+
+condition:
+  any:
+    - field: "has_heart_failure"
+      operator: "eq"
+      value: true
+    - field: "heart_failure_stage"
+      operator: "in"
+      value: ["stage_c", "stage_d"]
+
+outcomes:
+  - when:
+      field: "heart_failure_stage"
+      operator: "eq"
+      value: "stage_c"
+    recommend:
+      - "ace_inhibitor"
+      - "arb"
+      - "arni"
+      - "beta_blocker"
+      - "mineralocorticoid_receptor_antagonist"
+      - "sglt2_inhibitor"
+    class: "four-pillar-therapy"
+    level: "guideline-consistent"
+
+  - when:
+      field: "heart_failure_stage"
+      operator: "eq"
+      value: "stage_a"
+    recommend:
+      - "ace_inhibitor"
+      - "arb"
+    class: "preventative-therapy"
+    level: "guideline-consistent"

@@ -36,9 +36,11 @@ export function UserPromptBubble({
 export function AssistantTextBubble({
   content,
   size = "default",
+  isStreaming = false,
 }: {
   content: string;
   size?: BubbleSize;
+  isStreaming?: boolean;
 }) {
   return (
     <div className="dashboard-fade-up flex gap-2.5">
@@ -56,8 +58,15 @@ export function AssistantTextBubble({
       >
         <MarkdownLite
           content={content}
-          className={["space-y-2", bubbleTextClass(size)].join(" ")}
+          density={size === "compact" ? "compact" : "default"}
+          className={["space-y-1.5", bubbleTextClass(size)].join(" ")}
         />
+        {isStreaming ? (
+          <span
+            className="ml-0.5 inline-block h-3 w-0.5 animate-pulse rounded-full bg-[color:var(--cs-primary)]"
+            aria-hidden
+          />
+        ) : null}
       </div>
     </div>
   );

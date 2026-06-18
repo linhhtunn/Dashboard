@@ -21,6 +21,7 @@ type VitalChartProps = {
   data: VitalSignalSample[];
   metric: VitalMetric;
   height?: number;
+  fill?: boolean;
   className?: string;
   baseline?: number;
 };
@@ -53,15 +54,15 @@ const subscribeToMount = () => () => undefined;
 function getMetricValue(vital: VitalSignalSample, metric: VitalMetric) {
   switch (metric) {
     case "heart_rate":
-      return vital.vitals.heartRate ?? 0;
+      return vital.vitals.heartRate;
     case "respiratory_rate":
-      return vital.vitals.respiratoryRate ?? 0;
+      return vital.vitals.respiratoryRate;
     case "spo2":
-      return vital.vitals.spo2 ?? 0;
+      return vital.vitals.spo2;
     case "systolic_bp":
-      return vital.vitals.systolicBp ?? 0;
+      return vital.vitals.systolicBp;
     case "diastolic_bp":
-      return vital.vitals.diastolicBp ?? 0;
+      return vital.vitals.diastolicBp;
   }
 }
 
@@ -103,15 +104,17 @@ function AbnormalDot({ cx, cy, payload }: DotItemDotProps) {
 
 function formatTimestamp(iso: string) {
   const date = new Date(iso);
-  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
-    date.getUTCMinutes(),
+  const time = `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
   ).padStart(2, "0")}`;
+  return time;
 }
 
 export function VitalChart({
   data,
   metric,
   height = 300,
+  fill = false,
   className = "",
   baseline,
 }: VitalChartProps) {
@@ -125,11 +128,21 @@ export function VitalChart({
   const floor = metricFloor[metric];
   const threshold = metricAlertThreshold[metric];
 
-  const chartData = data.map((sample) => ({
-    time: formatTimestamp(sample.timestamp),
-    value: getMetricValue(sample, metric),
-    abnormal: isAbnormal(metric, getMetricValue(sample, metric)),
-  }));
+  const chartData = [...data]
+    .sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+    )
+    .flatMap((sample) => {
+      const value = getMetricValue(sample, metric);
+      if (value === undefined) return [];
+
+      return {
+        time: formatTimestamp(sample.timestamp),
+        value,
+        abnormal: isAbnormal(metric, value),
+      };
+    });
 
   const values = chartData.map((item) => item.value);
   const dataMin = values.length ? Math.min(...values) : floor;
@@ -141,10 +154,11 @@ export function VitalChart({
   return (
     <div
       className={[
-        "w-full overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm",
+        "min-w-0 overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm",
+        fill ? "h-full min-h-[120px] w-full" : "w-full",
         className,
       ].join(" ")}
-      style={{ height }}
+      style={fill ? undefined : { height }}
     >
       {!isMounted ? (
         <div className="h-full w-full" />

@@ -1,5 +1,14 @@
-import type { Alert, AlertSeverity, Evidence } from "@/types";
-import { getApiErrorMessage } from "@/lib/api-response";
+import type {
+  Alert,
+  AlertActionLogEntry,
+  AlertSeverity,
+  AlertTreatmentRecord,
+  AlertWorkflowStatus,
+  Evidence,
+  OperatorRole,
+} from "@/types";
+import { clinicalApiGet, clinicalApiSend } from "@/lib/api/client";
+import { operatorRoleHeaders } from "@/lib/operator-role";
 import { normalizePatientId } from "@/lib/patient-id";
 
 type AlertDto = {
@@ -12,6 +21,11 @@ type AlertDto = {
   timestamp: string;
   acknowledged: boolean;
   message: string;
+  workflow_status?: AlertWorkflowStatus;
+  assigned_floor_nurse_id?: string | null;
+  assigned_zone_code?: string | null;
+  noise_note?: string | null;
+  treatment?: AlertTreatmentRecord | null;
 };
 
 function mapEvidence(input: Record<string, unknown>): Evidence {
@@ -42,6 +56,11 @@ function mapAlert(dto: AlertDto): Alert {
     evidence: dto.evidence.map(mapEvidence),
     timestamp: dto.timestamp,
     acknowledged: dto.acknowledged,
+    workflowStatus: dto.workflow_status ?? "open",
+    assignedFloorNurseId: dto.assigned_floor_nurse_id ?? undefined,
+    assignedZoneCode: dto.assigned_zone_code ?? undefined,
+    noiseNote: dto.noise_note ?? undefined,
+    treatment: dto.treatment ?? undefined,
   };
 }
 
@@ -60,28 +79,90 @@ function normalizeAlertSeverity(severity: string): AlertSeverity {
   }
 }
 
-export const alertRepository = {
-  async list(): Promise<Alert[]> {
-    const response = await fetch("/api/alerts", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(await getApiErrorMessage(response, "Unable to load alerts"));
+export type AlertActionRequest =
+  | {
+      action: "nurse_treat";
+      symptomsBefore: string;
+      actionTaken: string;
+      symptomsAfter: string;
+      outcome?: "completed" | "needs_follow_up";
+      floorNurseId: string;
+      zone?: string;
     }
-    const payload = (await response.json()) as AlertDto[];
+  | {
+      action: "needs_follow_up";
+      symptomsBefore: string;
+      actionTaken: string;
+      symptomsAfter: string;
+      floorNurseId: string;
+      zone?: string;
+      followUpNote?: string;
+    }
+  | { action: "mark_noise"; description: string }
+  | { action: "doctor_confirm"; conclusion: string };
+
+type AlertListParams = {
+  limit?: number;
+  offset?: number;
+  patientId?: string;
+};
+
+const DEFAULT_ALERT_LIMIT = 50;
+const MAX_ALERT_LIMIT = 200;
+
+function buildAlertQuery(params?: AlertListParams) {
+  const search = new URLSearchParams();
+  const limit = Math.min(params?.limit ?? DEFAULT_ALERT_LIMIT, MAX_ALERT_LIMIT);
+  search.set("limit", String(limit));
+  search.set("offset", String(params?.offset ?? 0));
+  if (params?.patientId) search.set("patientId", normalizePatientId(params.patientId));
+  return search.toString();
+}
+
+export const alertRepository = {
+  async list(params?: AlertListParams): Promise<Alert[]> {
+    const payload = await clinicalApiGet<AlertDto[]>(
+      `/api/alerts?${buildAlertQuery(params)}`,
+    );
     return payload.map(mapAlert);
   },
 
   async listOpen(): Promise<Alert[]> {
-    const alerts = await this.list();
-    return alerts.filter((alert) => !alert.acknowledged);
+    const alerts = await this.list({ limit: MAX_ALERT_LIMIT });
+    return alerts.filter((alert) => alert.workflowStatus !== "doctor_confirmed");
   },
 
-  async listByPatient(patientId: string): Promise<Alert[]> {
+  async listByPatient(patientId: string, params?: Omit<AlertListParams, "patientId">): Promise<Alert[]> {
     const normalizedPatientId = normalizePatientId(patientId);
-    const response = await fetch(`/api/patients/${normalizedPatientId}/alerts`, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(await getApiErrorMessage(response, "Unable to load patient alerts"));
-    }
-    const payload = (await response.json()) as AlertDto[];
+    const payload = await clinicalApiGet<AlertDto[]>(
+      `/api/patients/${normalizedPatientId}/alerts?${buildAlertQuery(params)}`,
+    );
     return payload.map(mapAlert);
+  },
+
+  async submitAction(
+    alertId: string,
+    body: AlertActionRequest,
+    role: OperatorRole,
+  ): Promise<Alert> {
+    await clinicalApiSend(`/api/alerts/${alertId}/actions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await operatorRoleHeaders(role)),
+      },
+      body: JSON.stringify(body),
+    });
+
+    const alerts = await this.list({ limit: MAX_ALERT_LIMIT });
+    const updated = alerts.find((alert) => alert.id === alertId);
+    if (!updated) {
+      throw new Error("Alert not found after action.");
+    }
+    return updated;
+  },
+
+  async getHistory(alertId: string): Promise<AlertActionLogEntry[]> {
+    return clinicalApiGet<AlertActionLogEntry[]>(`/api/alerts/${alertId}/history`);
   },
 };

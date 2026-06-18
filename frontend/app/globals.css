@@ -101,6 +101,14 @@
   --cs-text-soft: #64748b;
   --cs-shadow-card: 0 18px 48px rgba(13, 71, 161, 0.12);
   --cs-shadow-soft: 0 30px 80px rgba(15, 23, 42, 0.1);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --border-hairline: 1px solid #d9e2ec;
+  --shadow-card: 0 10px 30px rgba(13, 71, 161, 0.08);
+  --shadow-soft: 0 20px 60px rgba(15, 23, 42, 0.06);
 }
 
 .dark {
@@ -169,6 +177,14 @@
       linear-gradient(145deg, #f7fbff 0%, #eef4fb 48%, #edf2f7 100%);
     color: var(--cs-text);
     text-rendering: optimizeLegibility;
+  }
+
+  html:has(.public-page),
+  body:has(.public-page) {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   h1,
@@ -313,6 +329,19 @@
   .dashboard-scroll-area::-webkit-scrollbar {
     display: none;
   }
+
+  .alert-pulse-ring {
+    position: absolute;
+    inset: -2px;
+    border-radius: 9999px;
+    border: 2px solid rgba(229, 72, 77, 0.72);
+    animation: alert-pulse-ring 1.75s cubic-bezier(0, 0, 0.2, 1) infinite;
+    pointer-events: none;
+  }
+
+  .alert-pulse-ring--delay {
+    animation-delay: 0.65s;
+  }
 }
 
 @keyframes dashboard-fade-up {
@@ -327,6 +356,19 @@
   }
 }
 
+@keyframes alert-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+
+  70%,
+  100% {
+    transform: scale(1.34);
+    opacity: 0;
+  }
+}
+
 @keyframes dashboard-thinking-bounce {
   0%,
   80%,
@@ -338,5 +380,233 @@
   40% {
     transform: translateY(-4px);
     opacity: 1;
+  }
+}
+
+/* Marketing landing page — design contract tokens */
+.marketing-page {
+  color: var(--cs-text);
+  background: var(--cs-surface);
+}
+
+.marketing-page .marketing-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .marketing-page .marketing-container {
+    padding-inline: 2rem;
+  }
+}
+
+.marketing-page .marketing-h1 {
+  font-size: 2.25rem;
+  line-height: 2.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--cs-heading);
+}
+
+@media (min-width: 640px) {
+  .marketing-page .marketing-h1 {
+    font-size: 2.25rem;
+    line-height: 2.75rem;
+  }
+}
+
+.marketing-page .marketing-h2 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--cs-heading);
+}
+
+.marketing-page .marketing-body {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--cs-text);
+}
+
+.marketing-page .marketing-caption {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--cs-text-soft);
+}
+
+.marketing-page .marketing-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding-inline: 1.5rem;
+  border-radius: var(--radius-md);
+  background: var(--cs-primary);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+  transition: filter 0.15s ease;
+}
+
+.marketing-page .marketing-btn-primary:hover {
+  filter: brightness(0.94);
+}
+
+.marketing-page .marketing-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding-inline: 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--cs-teal);
+  background: white;
+  color: var(--cs-teal);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease;
+}
+
+.marketing-page .marketing-btn-secondary:hover {
+  background: rgba(0, 150, 136, 0.06);
+}
+
+.marketing-page .marketing-card {
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline);
+  background: white;
+  box-shadow: var(--shadow-card);
+}
+
+.marketing-page .marketing-section-muted {
+  background: var(--cs-surface);
+}
+
+.marketing-page .marketing-section-panel {
+  background: white;
+}
+
+.marketing-page .marketing-hero-motif {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.marketing-page .marketing-hero-motif::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(13, 71, 161, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.35;
+}
+
+.marketing-page .marketing-hero-motif::after {
+  content: "";
+  position: absolute;
+  top: -8rem;
+  right: -6rem;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(142, 211, 230, 0.28), transparent 68%);
+}
+
+.marketing-page .marketing-vitals-strip {
+  background: var(--cs-primary);
+  color: white;
+}
+
+.marketing-page .marketing-metric {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 600;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  color: var(--cs-aqua);
+}
+
+.marketing-page .marketing-status-healthy {
+  background: rgba(0, 150, 136, 0.12);
+  color: var(--cs-teal);
+  border: 1px solid rgba(0, 150, 136, 0.24);
+}
+
+.marketing-page .marketing-status-warning {
+  background: rgba(245, 179, 0, 0.12);
+  color: #8a6100;
+  border: 1px solid rgba(245, 179, 0, 0.28);
+}
+
+.marketing-page .marketing-status-critical {
+  background: rgba(229, 72, 77, 0.1);
+  color: var(--cs-danger);
+  border: 1px solid rgba(229, 72, 77, 0.24);
+}
+
+.marketing-reveal-hidden {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.marketing-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s ease;
+}
+
+@keyframes vital-update {
+  0%,
+  85% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 0.4;
+  }
+
+  95% {
+    opacity: 1;
+  }
+}
+
+@keyframes hr-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.marketing-vital-flash {
+  animation: vital-update 3.5s ease-in-out infinite;
+}
+
+.marketing-hr-pulse {
+  animation: hr-pulse 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-reveal-hidden,
+  .marketing-reveal-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .marketing-vital-flash,
+  .marketing-hr-pulse {
+    animation: none;
   }
 }
