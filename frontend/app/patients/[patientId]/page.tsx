@@ -21,9 +21,10 @@ import { normalizePatientId } from "@/lib/patient-id";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { vitalRepository } from "@/lib/repositories/vital.repository";
-import type { Alert, MetricSummary, Patient, VitalSignalSample } from "@/types";
+import type { Alert, MetricSummary, Patient, TimeRange, VitalSignalSample } from "@/types";
 
-const PATIENT_RECORD_REFRESH_MS = 15000;
+const PATIENT_ALERT_REFRESH_MS = 60000;
+const PATIENT_VITAL_REFRESH_MS = 15000;
 const PATIENT_CHART_HEIGHT = 210;
 
 export default function PatientDetailPage() {
@@ -34,7 +35,7 @@ export default function PatientDetailPage() {
   const [vitals, setVitals] = useState<VitalSignalSample[]>([]);
   const [summaries, setSummaries] = useState<MetricSummary[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [range, setRange] = useState("24h");
+  const [range, setRange] = useState<TimeRange>("15m");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,12 +58,12 @@ export default function PatientDetailPage() {
           return;
         }
 
-        const [snapshotResult, alertsResult] = await Promise.allSettled([
-          vitalRepository.getSnapshot(patientId, range),
-          alertRepository.listByPatient(patientId),
-        ]);
+        const alertsResult = await alertRepository.listByPatient(patientId);
         if (cancelled) return;
 
+        setAlerts(alertsResult);
+        setError(null);
+        /*
         const loadErrors: string[] = [];
         if (snapshotResult.status === "fulfilled") {
           setVitals(snapshotResult.value.samples);
@@ -86,6 +87,7 @@ export default function PatientDetailPage() {
         }
 
         setError(loadErrors.length ? loadErrors.join(" ") : null);
+        */
       } catch (nextError: unknown) {
         if (cancelled) return;
         setError(
@@ -101,7 +103,38 @@ export default function PatientDetailPage() {
     };
 
     void load();
-    intervalId = window.setInterval(() => void load(), PATIENT_RECORD_REFRESH_MS);
+    intervalId = window.setInterval(() => void load(), PATIENT_ALERT_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [locale, patientId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const loadVitals = async () => {
+      try {
+        const snapshot = await vitalRepository.getSnapshot(patientId, range);
+        if (cancelled) return;
+
+        setVitals(snapshot.samples);
+        setSummaries(snapshot.metricSummaries);
+      } catch (nextError: unknown) {
+        if (cancelled) return;
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : locale === "vi"
+              ? "KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u sinh tá»“n."
+              : "Unable to load vital signs.",
+        );
+      }
+    };
+
+    void loadVitals();
+    intervalId = window.setInterval(() => void loadVitals(), PATIENT_VITAL_REFRESH_MS);
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
@@ -308,11 +341,6 @@ function PatientHeader({ patient, alertCount }: { patient: Patient; alertCount: 
               <span>{getGenderLabel(patient.gender, locale)}</span>
               {patient.dbProfile?.ageGroup ? (
                 <span>{patient.dbProfile.ageGroup.replace(/_/g, " ")}</span>
-              ) : null}
-              {patient.dbProfile?.healthStatus ? (
-                <span className="font-semibold text-[color:var(--cs-danger)]">
-                  {patient.dbProfile.healthStatus}
-                </span>
               ) : null}
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3" />

@@ -139,8 +139,8 @@ export default function PatientsPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-[color:var(--cs-danger)]">
                   {locale === "vi"
-                    ? `Cần chú ý (4)`
-                    : `Needs attention (4)`}
+                    ? `Cần chú ý (${attentionItems.length})`
+                    : `Needs attention (${attentionItems.length})`}
                 </h3>
                 <span className="h-2 w-2 rounded-full bg-[color:var(--cs-danger)]" />
               </div>

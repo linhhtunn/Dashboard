@@ -45,6 +45,10 @@ type LatestBpRow = {
   diastolic_bp: number | null;
 };
 
+type LatestPatientTimeRow = {
+  latest_time: Date | null;
+};
+
 function toIso(value: Date | string): string {
   return new Date(value).toISOString();
 }
@@ -251,21 +255,43 @@ async function readMeasurementBuckets(
   return [...spo2Samples, ...bpSamples];
 }
 
+async function readLatestPatientTime(patientId: string): Promise<Date | null> {
+  const rows = await timescaleQuery<LatestPatientTimeRow>(
+    `
+      SELECT max(time) AS latest_time
+      FROM (
+        SELECT time FROM wearable_continuous WHERE patient_id = $1
+        UNION ALL
+        SELECT time FROM wearable_measurements WHERE patient_id = $1
+      ) patient_samples
+    `,
+    [patientId],
+  );
+
+  return rows[0]?.latest_time ?? null;
+}
+
+async function resolvePatientSinceDate(patientId: string, since?: Date): Promise<Date> {
+  const requestedWindowMs = since
+    ? Math.max(Date.now() - since.getTime(), 60_000)
+    : 24 * 60 * 60 * 1000;
+  const latestTime = await readLatestPatientTime(patientId);
+
+  if (!latestTime) {
+    return since ?? new Date(Date.now() - requestedWindowMs);
+  }
+
+  return new Date(latestTime.getTime() - requestedWindowMs);
+}
+
 export async function getTimescalePatientVitals(
   patientId: string,
   since?: Date,
 ): Promise<VitalSignalSample[]> {
   if (!isTimescaleConfigured()) return [];
 
-  const sinceDate =
-    since ??
-    (() => {
-      const fallback = new Date();
-      fallback.setHours(fallback.getHours() - 24);
-      return fallback;
-    })();
-
   try {
+    const sinceDate = await resolvePatientSinceDate(patientId, since);
     const [continuous, measurements] = await Promise.all([
       readContinuousBuckets(patientId, sinceDate),
       readMeasurementBuckets(patientId, sinceDate),

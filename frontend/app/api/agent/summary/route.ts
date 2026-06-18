@@ -2,6 +2,12 @@ import { NextRequest } from "next/server";
 
 import { adaptBackendResponse } from "@/lib/ai/agent-adapter";
 import {
+  appendAgentDbContextToMessage,
+  buildAgentDbContext,
+  buildMockPatientContext,
+  withAgentDbMetadata,
+} from "@/lib/ai/agent-db-context";
+import {
   buildSummaryPrompt,
   resolveAgentPatientId,
 } from "@/lib/ai/agent-chat-request";
@@ -27,12 +33,23 @@ export async function POST(request: NextRequest) {
   const title =
     body.locale === "vi" ? "Tóm tắt bệnh nhân" : "Patient summary";
 
+  const dbContext = await buildAgentDbContext(patientId);
+  const agentMessage = appendAgentDbContextToMessage(
+    message,
+    dbContext,
+    body.locale,
+  );
+  const agentMetadata = withAgentDbMetadata(
+    { source_view: "patient_summary" },
+    dbContext,
+  );
+
   if (!isAgentBackendConfigured()) {
     const mock = buildMockChatPayload({
       locale: body.locale,
       message,
       patientId,
-      patientContext: null,
+      patientContext: buildMockPatientContext(dbContext, body.locale),
       threadId: `summary-${patientId}`,
       title,
     });
@@ -43,8 +60,8 @@ export async function POST(request: NextRequest) {
     const raw = await invokeAgentChat({
       patientId,
       conversationId: `summary-${patientId}-${Date.now()}`,
-      message,
-      metadata: { source_view: "patient_summary" },
+      message: agentMessage,
+      metadata: agentMetadata,
     });
 
     const payload = adaptBackendResponse({

@@ -20,7 +20,7 @@ export interface Range {
   max: number;
 }
 
-export type TimeRange = "15m" | "30m" | "1h" | "6h";
+export type TimeRange = "15m" | "30m" | "1h" | "3h" | "9h" | "1d" | "7d";
 
 // -----------------------------
 // controlled vocabulary

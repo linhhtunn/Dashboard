@@ -224,6 +224,21 @@ function Vital({
 function annotationFor(item: PatientListItem, locale: "vi" | "en") {
   const spo2 = item.latestVital?.vitals.spo2;
   const hr = item.latestVital?.vitals.heartRate;
+  if (item.patient.status === "critical") {
+    return locale === "vi"
+      ? "Cần ưu tiên đánh giá và can thiệp ngay."
+      : "Critical status; prioritize clinical review and intervention.";
+  }
+  if (item.patient.status === "at_risk" || item.patient.status === "recent_symptom") {
+    return locale === "vi"
+      ? "Cần theo dõi sát trong ca trực hiện tại."
+      : "Needs close monitoring during the current shift.";
+  }
+  if (item.openAlertCount > 0) {
+    return locale === "vi"
+      ? `${item.openAlertCount} cảnh báo chưa xử lý, cần rà soát.`
+      : `${item.openAlertCount} unresolved alert(s) require review.`;
+  }
   if (spo2 !== undefined && spo2 <= 94) {
     return locale === "vi"
       ? `Oxy máu giảm còn ${spo2}%, cần đối chiếu mức cơ sở và hoạt động gần nhất.`

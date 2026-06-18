@@ -1,5 +1,7 @@
 import "server-only";
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Pool, type PoolConfig, type QueryResultRow } from "pg";
 
 let pool: Pool | null = null;
@@ -10,8 +12,8 @@ export function isTimescaleConfigured(): boolean {
 
 function resolveTimescaleDatabaseUrl(): string | null {
   const raw =
-    process.env.TIMESCALE_DATABASE_URL?.trim() ||
     resolveTimescaleDatabaseUrlFromParts() ||
+    process.env.TIMESCALE_DATABASE_URL?.trim() ||
     process.env.DATABASE_URL?.trim() ||
     null;
 
@@ -22,8 +24,8 @@ function resolveTimescaleDatabaseUrl(): string | null {
 }
 
 function resolveTimescaleDatabaseUrlFromParts(): string | null {
-  const rawUrl = process.env.TIMESCALE_DB_URL?.trim();
-  const password = process.env.TIMESCALE_DB_PASSWORD?.trim();
+  const rawUrl = getRuntimeEnv("TIMESCALE_DB_URL")?.trim();
+  const password = getRuntimeEnv("TIMESCALE_DB_PASSWORD")?.trim();
   if (!rawUrl) return null;
 
   const parsed = new URL(rawUrl.replace(/^postgres:\/\//, "postgresql://"));
@@ -31,6 +33,26 @@ function resolveTimescaleDatabaseUrlFromParts(): string | null {
     parsed.password = password;
   }
   return parsed.toString();
+}
+
+function getRuntimeEnv(key: string): string | undefined {
+  return process.env[key] ?? readLocalEnv(key);
+}
+
+function readLocalEnv(key: string): string | undefined {
+  const envPath = join(process.cwd(), ".env.local");
+  if (!existsSync(envPath)) return undefined;
+
+  const prefix = `${key}=`;
+  const line = readFileSync(envPath, "utf8")
+    .split(/\r?\n/)
+    .find((item) => item.trim().startsWith(prefix));
+  if (!line) return undefined;
+
+  return line
+    .slice(line.indexOf("=") + 1)
+    .trim()
+    .replace(/^['"]|['"]$/g, "");
 }
 
 function assertUsableConnectionString(connectionString: string): void {

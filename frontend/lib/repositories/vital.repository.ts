@@ -1,4 +1,4 @@
-import type { MetricSummary, VitalSignalSample } from "@/types";
+import type { MetricSummary, TimeRange, VitalSignalSample } from "@/types";
 import { clinicalApiGet } from "@/lib/api/client";
 import { normalizePatientId } from "@/lib/patient-id";
 
@@ -24,7 +24,7 @@ type MetricSummaryDto = {
 
 type PatientVitalsDto = {
   patient_id: string;
-  range: string;
+  range: TimeRange;
   samples: VitalDto[];
   metric_summaries: MetricSummaryDto[];
 };
@@ -55,7 +55,7 @@ function mapSummary(dto: MetricSummaryDto): MetricSummary {
   };
 }
 
-async function fetchVitalsPayload(patientId: string, range = "15m") {
+async function fetchVitalsPayload(patientId: string, range: TimeRange = "15m") {
   const normalizedPatientId = normalizePatientId(patientId);
   return clinicalApiGet<PatientVitalsDto>(
     `/api/patients/${normalizedPatientId}/vitals?range=${range}`,
@@ -63,7 +63,7 @@ async function fetchVitalsPayload(patientId: string, range = "15m") {
 }
 
 export const vitalRepository = {
-  async getSnapshot(patientId: string, range = "15m"): Promise<{
+  async getSnapshot(patientId: string, range: TimeRange = "15m"): Promise<{
     samples: VitalSignalSample[];
     metricSummaries: MetricSummary[];
   }> {
@@ -74,12 +74,12 @@ export const vitalRepository = {
     };
   },
 
-  async listByPatient(patientId: string, range = "15m"): Promise<VitalSignalSample[]> {
+  async listByPatient(patientId: string, range: TimeRange = "15m"): Promise<VitalSignalSample[]> {
     const payload = await fetchVitalsPayload(patientId, range);
     return payload.samples.map(mapVital);
   },
 
-  async listMetricSummaries(patientId: string, range = "15m"): Promise<MetricSummary[]> {
+  async listMetricSummaries(patientId: string, range: TimeRange = "15m"): Promise<MetricSummary[]> {
     const payload = await fetchVitalsPayload(patientId, range);
     return payload.metric_summaries.map(mapSummary);
   },

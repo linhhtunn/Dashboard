@@ -132,10 +132,10 @@ function mapEvidence(input: Record<string, unknown>): Evidence {
 }
 
 function mapDbStatus(status: string | null | undefined): PatientStatus {
-  const value = (status ?? "healthy").toLowerCase();
+  const value = (status ?? "healthy").trim().toLowerCase();
   if (value === "normal" || value === "healthy") return "healthy";
   if (value === "warning" || value === "at_risk" || value === "abnormal") return "at_risk";
-  if (value === "critical") return "critical";
+  if (value === "critical" || value === "high") return "critical";
   if (value === "recent_symptom") return "recent_symptom";
   return "healthy";
 }
@@ -273,7 +273,7 @@ export function mapBackendPatientRow(row: DbBackendPatientRow): Patient {
     name: row.name,
     age: row.age,
     gender: row.gender,
-    status: row.status ?? row.health_status ?? "healthy",
+    status: row.health_status ?? row.status ?? "healthy",
     ward_code: "general_ward",
     department_code: "internal_medicine",
     bed: null,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { PatientVitalsDto } from "@/lib/server/patient-service";
 import { getPatientVitalsDto } from "@/lib/server/patient-service";
 import { requireClinicalAccess } from "@/lib/server/authz";
 
@@ -18,7 +19,12 @@ export async function GET(
 
     const payload = await getPatientVitalsDto(patientId, range);
     if (!payload) {
-      return NextResponse.json({ error: "Vitals not found." }, { status: 404 });
+      return NextResponse.json({
+        patient_id: patientId,
+        range,
+        samples: [],
+        metric_summaries: [],
+      } satisfies PatientVitalsDto);
     }
     return NextResponse.json(payload);
   } catch (error) {

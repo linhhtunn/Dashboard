@@ -1,5 +1,6 @@
 import {
   getAlertById,
+  getAlertsForPatient,
   getAlerts,
   getPatientById,
   getPatients,
@@ -102,6 +103,11 @@ export type AlertDto = {
   timestamp: string;
   acknowledged: boolean;
   message: string;
+  workflow_status: Alert["workflowStatus"];
+  assigned_floor_nurse_id: string | null;
+  assigned_zone_code: string | null;
+  noise_note: string | null;
+  treatment: Alert["treatment"] | null;
 };
 
 function mapDbProfileDto(profile?: PatientDbProfile): PatientDbProfileDto | null {
@@ -281,6 +287,27 @@ function buildMetricSummary(
   };
 }
 
+async function resolvePatientVitalSamples(
+  patientId: string,
+  range: string,
+): Promise<VitalSignalSample[] | null> {
+  const rangedSamples = await getVitalsForPatient(patientId, {
+    since: parseVitalsRange(range),
+  });
+
+  if (rangedSamples.length > 0) {
+    return rangedSamples;
+  }
+
+  const latestSamples = await getVitalsForPatient(patientId);
+  if (latestSamples.length > 0) {
+    return latestSamples.slice(-12);
+  }
+
+  const patient = await getPatientById(patientId);
+  return patient ? [] : null;
+}
+
 function mapEvidenceDto(evidence: Evidence): Record<string, unknown> {
   return {
     kind: evidence.kind,
@@ -306,6 +333,11 @@ function mapAlertDto(alert: Alert): AlertDto {
     timestamp: alert.timestamp,
     acknowledged: alert.acknowledged,
     message: "",
+    workflow_status: alert.workflowStatus,
+    assigned_floor_nurse_id: alert.assignedFloorNurseId ?? null,
+    assigned_zone_code: alert.assignedZoneCode ?? null,
+    noise_note: alert.noiseNote ?? null,
+    treatment: alert.treatment ?? null,
   };
 }
 
@@ -376,19 +408,18 @@ export async function getPatientVitalsDto(
   range = "15m",
 ): Promise<PatientVitalsDto | null> {
   const normalizedPatientId = normalizePatientId(patientId);
-  const samples = (
-    await getVitalsForPatient(normalizedPatientId, {
-      since: parseVitalsRange(range),
-    })
-  ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const samples = await resolvePatientVitalSamples(normalizedPatientId, range);
+  if (!samples) return null;
 
-  if (samples.length === 0) return null;
+  const samplesAscending = [...samples].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
 
-  const heartRates = metricValues(samples, (item) => item.vitals.heartRate);
-  const respiratoryRates = metricValues(samples, (item) => item.vitals.respiratoryRate);
-  const systolicBp = metricValues(samples, (item) => item.vitals.systolicBp);
-  const diastolicBp = metricValues(samples, (item) => item.vitals.diastolicBp);
-  const spo2 = metricValues(samples, (item) => item.vitals.spo2);
+  const heartRates = metricValues(samplesAscending, (item) => item.vitals.heartRate);
+  const respiratoryRates = metricValues(samplesAscending, (item) => item.vitals.respiratoryRate);
+  const systolicBp = metricValues(samplesAscending, (item) => item.vitals.systolicBp);
+  const diastolicBp = metricValues(samplesAscending, (item) => item.vitals.diastolicBp);
+  const spo2 = metricValues(samplesAscending, (item) => item.vitals.spo2);
   const summaries: PatientVitalsDto["metric_summaries"] = [];
 
   if (heartRates.length) {
@@ -410,7 +441,7 @@ export async function getPatientVitalsDto(
   return {
     patient_id: normalizedPatientId,
     range,
-    samples: samples.map(mapVitalDto),
+    samples: [...samplesAscending].reverse().map(mapVitalDto),
     metric_summaries: summaries,
   };
 }
@@ -426,6 +457,10 @@ export async function listAlerts(): Promise<AlertDto[]> {
 
 export async function listPatientAlerts(patientId: string): Promise<AlertDto[]> {
   const normalizedPatientId = normalizePatientId(patientId);
-  const alerts = await listAlerts();
-  return alerts.filter((alert) => alert.patient_id === normalizedPatientId);
+  return [...(await getAlertsForPatient(normalizedPatientId))]
+    .map(mapAlertDto)
+    .sort(
+      (left, right) =>
+        new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime(),
+    );
 }

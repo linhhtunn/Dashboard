@@ -27,8 +27,13 @@ import type {
   ShiftBand,
   ShiftScheduleSlot,
   ShiftStaffMember,
-  VitalSignalSample,
 } from "@/types";
+
+const ALERT_QUERY_LIMIT = 100;
+const BACKEND_ALERT_COLUMNS =
+  "alert_id,patient_id,alert_type,severity,alert_time,features,confidence,status,reason";
+const PORTAL_ALERT_COLUMNS =
+  "id,patient_id,type,severity,score,evidence,timestamp,acknowledged,workflow_status,assigned_floor_nurse_id,assigned_zone_code,noise_note,treatment";
 
 function getClient() {
   const client = createSupabaseAdminClient();
@@ -121,9 +126,16 @@ export async function updatePatientStatus(patientId: string, status: PatientStat
   }
 }
 
-async function readPortalAlerts(): Promise<Alert[]> {
+async function readPortalAlerts(patientId?: string): Promise<Alert[]> {
   const supabase = getClient();
-  const { data, error } = await supabase.from("portal_alerts").select("*");
+  let query = supabase
+    .from("portal_alerts")
+    .select(PORTAL_ALERT_COLUMNS)
+    .order("timestamp", { ascending: false })
+    .limit(ALERT_QUERY_LIMIT);
+  if (patientId) query = query.eq("patient_id", patientId);
+
+  const { data, error } = await query;
   if (error) {
     if (isMissingTableError(error.message)) return [];
     throw new Error(error.message);
@@ -131,9 +143,16 @@ async function readPortalAlerts(): Promise<Alert[]> {
   return (data as DbAlertRow[]).map(mapDbAlertRow);
 }
 
-async function readHealthAlerts(): Promise<Alert[]> {
+async function readHealthAlerts(patientId?: string): Promise<Alert[]> {
   const supabase = getClient();
-  const { data, error } = await supabase.from("health_alerts").select("*");
+  let query = supabase
+    .from("health_alerts")
+    .select(BACKEND_ALERT_COLUMNS)
+    .order("alert_time", { ascending: false })
+    .limit(ALERT_QUERY_LIMIT);
+  if (patientId) query = query.eq("patient_id", patientId);
+
+  const { data, error } = await query;
   if (error) {
     if (isMissingTableError(error.message)) return [];
     throw new Error(error.message);
@@ -141,9 +160,16 @@ async function readHealthAlerts(): Promise<Alert[]> {
   return ((data ?? []) as DbBackendAlertRow[]).map(mapBackendAlertRow);
 }
 
-async function readBackendAlerts(): Promise<Alert[]> {
+async function readBackendAlerts(patientId?: string): Promise<Alert[]> {
   const supabase = getClient();
-  const { data, error } = await supabase.from("alerts").select("*");
+  let query = supabase
+    .from("alerts")
+    .select(BACKEND_ALERT_COLUMNS)
+    .order("alert_time", { ascending: false })
+    .limit(ALERT_QUERY_LIMIT);
+  if (patientId) query = query.eq("patient_id", patientId);
+
+  const { data, error } = await query;
   if (error) {
     if (isMissingTableError(error.message)) return [];
     throw new Error(error.message);
@@ -178,6 +204,26 @@ export async function getAlerts(): Promise<Alert[]> {
   }
 
   const health = await readHealthAlerts();
+  if (health.length > 0) return health;
+
+  return portal;
+}
+
+export async function getAlertsForPatient(patientId: string): Promise<Alert[]> {
+  const [backend, portal] = await Promise.all([
+    readBackendAlerts(patientId),
+    readPortalAlerts(patientId),
+  ]);
+
+  if (backend.length > 0) {
+    const portalById = new Map(portal.map((alert) => [alert.id, alert]));
+    return backend.map((alert) => {
+      const overlay = portalById.get(alert.id);
+      return overlay ? mergeAlertWithPortalOverlay(alert, overlay) : alert;
+    });
+  }
+
+  const health = await readHealthAlerts(patientId);
   if (health.length > 0) return health;
 
   return portal;

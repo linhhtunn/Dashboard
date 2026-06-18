@@ -104,9 +104,10 @@ function AbnormalDot({ cx, cy, payload }: DotItemDotProps) {
 
 function formatTimestamp(iso: string) {
   const date = new Date(iso);
-  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
-    date.getUTCMinutes(),
+  const time = `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
   ).padStart(2, "0")}`;
+  return time;
 }
 
 export function VitalChart({
@@ -127,16 +128,21 @@ export function VitalChart({
   const floor = metricFloor[metric];
   const threshold = metricAlertThreshold[metric];
 
-  const chartData = data.flatMap((sample) => {
-    const value = getMetricValue(sample, metric);
-    if (value === undefined) return [];
+  const chartData = [...data]
+    .sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+    )
+    .flatMap((sample) => {
+      const value = getMetricValue(sample, metric);
+      if (value === undefined) return [];
 
-    return {
-      time: formatTimestamp(sample.timestamp),
-      value,
-      abnormal: isAbnormal(metric, value),
-    };
-  });
+      return {
+        time: formatTimestamp(sample.timestamp),
+        value,
+        abnormal: isAbnormal(metric, value),
+      };
+    });
 
   const values = chartData.map((item) => item.value);
   const dataMin = values.length ? Math.min(...values) : floor;
@@ -148,8 +154,8 @@ export function VitalChart({
   return (
     <div
       className={[
-        "w-full overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm",
-        fill ? "h-full min-h-[72px]" : "",
+        "min-w-0 overflow-hidden rounded-[var(--radius-lg)] border border-white/70 bg-white/60 backdrop-blur-sm",
+        fill ? "h-full min-h-[120px] w-full" : "w-full",
         className,
       ].join(" ")}
       style={fill ? undefined : { height }}

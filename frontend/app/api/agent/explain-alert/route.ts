@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 
 import { adaptBackendResponse } from "@/lib/ai/agent-adapter";
 import {
+  appendAgentDbContextToMessage,
+  buildAgentDbContext,
+  withAgentDbMetadata,
+} from "@/lib/ai/agent-db-context";
+import {
   buildExplainAlertPrompt,
   resolveAgentPatientId,
 } from "@/lib/ai/agent-chat-request";
@@ -47,6 +52,17 @@ export async function POST(request: NextRequest) {
   const title =
     body.locale === "vi" ? "Giải thích cảnh báo" : "Alert explanation";
 
+  const dbContext = await buildAgentDbContext(patientId);
+  const agentMessage = appendAgentDbContextToMessage(
+    message,
+    dbContext,
+    body.locale,
+  );
+  const agentMetadata = withAgentDbMetadata(
+    { alert_id: body.alertId, source_view: "alert_detail" },
+    dbContext,
+  );
+
   if (!isAgentBackendConfigured()) {
     return Response.json(await buildMockFromAlert(body));
   }
@@ -55,8 +71,8 @@ export async function POST(request: NextRequest) {
     const raw = await invokeAgentChat({
       patientId,
       conversationId: `alert-${body.alertId}`,
-      message,
-      metadata: { alert_id: body.alertId, source_view: "alert_detail" },
+      message: agentMessage,
+      metadata: agentMetadata,
     });
 
     const payload = adaptBackendResponse({

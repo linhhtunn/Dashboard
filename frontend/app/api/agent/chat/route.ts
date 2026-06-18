@@ -1,6 +1,12 @@
 import { NextRequest } from "next/server";
 
 import { adaptBackendResponse, buildThreadTitle } from "@/lib/ai/agent-adapter";
+import {
+  appendAgentDbContextToMessage,
+  buildAgentDbContext,
+  buildMockPatientContext,
+  withAgentDbMetadata,
+} from "@/lib/ai/agent-db-context";
 import { buildMockChatPayload } from "@/lib/ai/mock-chat";
 import { BackendAgentError, invokeAgentChat } from "@/lib/ai/invoke-agent-chat";
 import { isAgentBackendConfigured } from "@/lib/ai/agent-backend";
@@ -24,13 +30,20 @@ export async function POST(request: NextRequest) {
   }
 
   const title = buildThreadTitle(body.message, body.locale);
+  const dbContext = await buildAgentDbContext(normalizedPatientId);
+  const agentMessage = appendAgentDbContextToMessage(
+    body.message,
+    dbContext,
+    body.locale,
+  );
+  const agentMetadata = withAgentDbMetadata(body.metadata, dbContext);
 
   if (!isAgentBackendConfigured()) {
     const payload = buildMockChatPayload({
       locale: body.locale,
       message: body.message,
       patientId: normalizedPatientId,
-      patientContext: null,
+      patientContext: buildMockPatientContext(dbContext, body.locale),
       threadId: body.threadId,
       title,
     });
@@ -42,8 +55,8 @@ export async function POST(request: NextRequest) {
       patientId: normalizedPatientId,
       conversationId: body.threadId,
       doctorId: body.userId,
-      message: body.message,
-      metadata: body.metadata,
+      message: agentMessage,
+      metadata: agentMetadata,
       history: body.history,
     });
 
