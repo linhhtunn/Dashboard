@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const streamPath = process.env.AI_AGENT_STREAM_PATH ?? "/api/agent/chat/stream";
+    const streamPath =
+      process.env.AI_AGENT_CHAT_STREAM_PATH ??
+      process.env.AI_AGENT_STREAM_PATH ??
+      "/api/agent/chat/stream";
     const backendResponse = await fetch(
       `${baseUrl.replace(/\/$/, "")}${streamPath}`,
       {
@@ -64,6 +67,14 @@ export async function POST(request: NextRequest) {
 
     if (!backendResponse.ok) {
       const detail = await backendResponse.text();
+      console.warn("[Agent stream proxy] backend error", {
+        status: backendResponse.status,
+        detail,
+        patientId: normalizedPatientId || null,
+        backendPatientId: backendBody.patient_id ?? null,
+        bodyKeys: Object.keys(backendBody),
+        metadataKeys: Object.keys(backendBody.metadata ?? {}),
+      });
       throw new BackendAgentError(
         detail || `Backend AI trả lời ${backendResponse.status}.`,
         backendResponse.status,

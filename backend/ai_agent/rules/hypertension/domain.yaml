@@ -1,0 +1,32 @@
+domain_id: hypertension
+name: "Hypertension Medication Recommendation"
+rule_dir: "rules/hypertension"
+keywords:
+  - "tăng huyết áp"
+  - "tang huyet ap"
+  - "cao huyết áp"
+  - "cao huyet ap"
+  - "hypertension"
+  - "huyết áp"
+  - "huyet ap"
+  - "blood pressure"
+  - "bp"
+  - "ace_inhibitor"
+  - "arb"
+  - "beta_blocker"
+  - "calcium_channel_blocker"
+  - "diuretic"
+fallback_drugs: []
+emergency_warning: >
+  No hypertension medication class is currently allowed by the available rule context.
+  Clinician review is required before choosing therapy.
+clinician_review_checklist:
+  - "Confirm repeated blood pressure measurements and measurement technique."
+  - "Review kidney function, potassium, sodium, pregnancy status, gout history, bradycardia, and heart failure phenotype."
+  - "Review current medications and orthostatic symptoms before medication changes."
+  - "Treat this as clinical decision support, not a final prescription."
+required_inputs:
+  - "has_hypertension"
+  - "latest_systolic_bp"
+  - "latest_diastolic_bp"
+  - "crcl"

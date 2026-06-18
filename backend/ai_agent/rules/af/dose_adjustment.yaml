@@ -1,0 +1,43 @@
+# rules/af/dose_adjustment.yaml
+metadata:
+  rule_id: "AF_DOSE_001"
+  title: "DOAC Dosage Adjustment for Renal/Age/Weight Factors"
+  version: "1.0.0"
+  last_updated: "2026-06-10"
+  clinical_source: "ESC 2020 Guidelines Section 10.1.5"
+
+# TODO: Define dosage adjustment rules
+# E.g. Apixaban dose reduction from 5mg BID to 2.5mg BID if at least 2 of:
+# - Age >= 80
+# - Body weight <= 60 kg
+# - Serum creatinine >= 1.5 mg/dL
+# Or if CrCl is between 15 and 29 mL/min.
+rules:
+  apixaban:
+    standard_dose: "5mg BID"
+    reduced_dose: "2.5mg BID"
+    # TODO: Write reduction trigger conditions
+    reduction_triggers:
+      any:
+        - count: 2
+          criteria:
+            - field: "age"
+              operator: "gte"
+              value: 80
+            - field: "weight_kg"
+              operator: "lte"
+              value: 60
+            - field: "serum_creatinine"
+              operator: "gte"
+              value: 1.5
+        - field: "cr_cl"
+          operator: "between"
+          value: [15, 29]
+
+  rivaroxaban:
+    standard_dose: "20mg QD"
+    reduced_dose: "15mg QD"
+    reduction_triggers:
+      field: "cr_cl"
+      operator: "between"
+      value: [15, 49]

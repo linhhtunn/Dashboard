@@ -87,6 +87,7 @@ export function GlobalAlertModal() {
 
   const alert = useMemo(() => {
     if (isAdmin) return null;
+    void popupTick;
     const state = readAlertPopupState();
     return pickAlertForPopup(alerts, state);
   }, [alerts, isAdmin, popupTick]);

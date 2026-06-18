@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+app/fixtures/mimic_demo.db
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+*.log
+Dockerfile
+.dockerignore

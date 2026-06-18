@@ -18,7 +18,13 @@ export function resolveAgentPatientId(patientId: string) {
   const trimmed = patientId.trim();
   if (!trimmed) return trimmed;
   if (/^\d+$/.test(trimmed)) return trimmed;
-  return normalizePatientId(trimmed);
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+  if (/^p\d+$/i.test(trimmed) || trimmed.toLowerCase() === "patient-a") {
+    return normalizePatientId(trimmed);
+  }
+  return trimmed;
 }
 
 export function resolveDoctorId(userId?: string) {

@@ -6,7 +6,9 @@ import {
 } from "@/lib/server/timescale-pg";
 import type { VitalSignalSample } from "@/types";
 
-const CHART_BUCKET = "5 minutes";
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 type ContinuousBucketRow = {
   bucket: Date;
@@ -47,6 +49,11 @@ type LatestBpRow = {
 
 type LatestPatientTimeRow = {
   latest_time: Date | null;
+};
+
+type PatientWindow = {
+  bucketInterval: string;
+  sinceDate: Date;
 };
 
 function toIso(value: Date | string): string {
@@ -155,6 +162,7 @@ function logTimescaleReadError(label: string, error: unknown): void {
 async function readContinuousBuckets(
   patientId: string,
   since: Date,
+  bucketInterval: string,
 ): Promise<VitalSignalSample[]> {
   const rows = await timescaleQuery<ContinuousBucketRow>(
     `
@@ -175,7 +183,7 @@ async function readContinuousBuckets(
       ) samples
       ORDER BY bucket ASC, time DESC
     `,
-    [CHART_BUCKET, patientId, since.toISOString()],
+    [bucketInterval, patientId, since.toISOString()],
   );
 
   return rows.map((row) => ({
@@ -191,6 +199,7 @@ async function readContinuousBuckets(
 async function readMeasurementBuckets(
   patientId: string,
   since: Date,
+  bucketInterval: string,
 ): Promise<VitalSignalSample[]> {
   const [spo2Rows, bpRows] = await Promise.all([
     timescaleQuery<Spo2BucketRow>(
@@ -211,7 +220,7 @@ async function readMeasurementBuckets(
         ) samples
         ORDER BY bucket ASC, time DESC
       `,
-      [CHART_BUCKET, patientId, since.toISOString()],
+      [bucketInterval, patientId, since.toISOString()],
     ),
     timescaleQuery<BpBucketRow>(
       `
@@ -233,7 +242,7 @@ async function readMeasurementBuckets(
         ) samples
         ORDER BY bucket ASC, time DESC
       `,
-      [CHART_BUCKET, patientId, since.toISOString()],
+      [bucketInterval, patientId, since.toISOString()],
     ),
   ]);
 
@@ -271,17 +280,33 @@ async function readLatestPatientTime(patientId: string): Promise<Date | null> {
   return rows[0]?.latest_time ?? null;
 }
 
-async function resolvePatientSinceDate(patientId: string, since?: Date): Promise<Date> {
+function chartBucketForWindow(windowMs: number): string {
+  if (windowMs <= 15 * MINUTE_MS) return "10 seconds";
+  if (windowMs <= HOUR_MS) return "30 seconds";
+  if (windowMs <= 3 * HOUR_MS) return "1 minute";
+  if (windowMs <= 9 * HOUR_MS) return "3 minutes";
+  if (windowMs <= DAY_MS) return "10 minutes";
+  return "1 hour";
+}
+
+async function resolvePatientWindow(patientId: string, since?: Date): Promise<PatientWindow> {
   const requestedWindowMs = since
     ? Math.max(Date.now() - since.getTime(), 60_000)
-    : 24 * 60 * 60 * 1000;
+    : DAY_MS;
   const latestTime = await readLatestPatientTime(patientId);
+  const bucketInterval = chartBucketForWindow(requestedWindowMs);
 
   if (!latestTime) {
-    return since ?? new Date(Date.now() - requestedWindowMs);
+    return {
+      bucketInterval,
+      sinceDate: since ?? new Date(Date.now() - requestedWindowMs),
+    };
   }
 
-  return new Date(latestTime.getTime() - requestedWindowMs);
+  return {
+    bucketInterval,
+    sinceDate: new Date(latestTime.getTime() - requestedWindowMs),
+  };
 }
 
 export async function getTimescalePatientVitals(
@@ -291,10 +316,10 @@ export async function getTimescalePatientVitals(
   if (!isTimescaleConfigured()) return [];
 
   try {
-    const sinceDate = await resolvePatientSinceDate(patientId, since);
+    const { bucketInterval, sinceDate } = await resolvePatientWindow(patientId, since);
     const [continuous, measurements] = await Promise.all([
-      readContinuousBuckets(patientId, sinceDate),
-      readMeasurementBuckets(patientId, sinceDate),
+      readContinuousBuckets(patientId, sinceDate, bucketInterval),
+      readMeasurementBuckets(patientId, sinceDate, bucketInterval),
     ]);
     const samples = mergeVitalSamples([...continuous, ...measurements]);
     logTimescaleRead(`patient ${patientId}`, samples);
