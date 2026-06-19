@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AppShell, ClinicalChrome } from "@/components/AppShell";
 import { MotionProvider } from "@/components/motion/MotionProvider";
@@ -41,6 +43,8 @@ export default function RootLayout({
             <ClinicalChrome />
           </MotionProvider>
         </LocaleProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

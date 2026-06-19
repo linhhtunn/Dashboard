@@ -55,8 +55,9 @@ export type AgentInsightPayload = {
   comparison: AgentComparisonPayload;
 };
 
-export type AgentChatProxyRequest = AskAIRequest & {
+export type AgentChatProxyRequest = Omit<AskAIRequest, "patientId"> & {
   threadId: string;
+  patientId?: string;
   userId: string;
   message: string;
   metadata?: {
@@ -117,6 +118,7 @@ export type AgentChatThreadMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  payload?: AgentInsightPayload;
   fallbackKind?: "patient_not_found" | "safe_response" | "unavailable" | "generic" | null;
   isError?: boolean;
 };
