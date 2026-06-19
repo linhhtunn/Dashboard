@@ -28,9 +28,12 @@ export default function FamilyPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [latestVital, setLatestVital] = useState<VitalSignalSample | null>(null);
   const [medicationConfirmed, setMedicationConfirmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolvedPatientId, setResolvedPatientId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+
     void Promise.all([
       patientRepository.findById(patientId),
       vitalRepository.listByPatient(patientId),
@@ -38,13 +41,35 @@ export default function FamilyPage() {
       if (cancelled) return;
       setPatient(nextPatient);
       setLatestVital(samples.at(-1) ?? null);
-    }).catch(() => undefined);
+      if (nextPatient) {
+        setError(null);
+      } else {
+        setError(
+          locale === "vi"
+            ? "Không tìm thấy thông tin người thân."
+            : "Family member information was not found.",
+        );
+      }
+    }).catch(() => {
+      if (cancelled) return;
+      setPatient(null);
+      setError(
+        locale === "vi"
+          ? "Không thể tải thông tin người thân."
+          : "Unable to load family member information.",
+      );
+    }).finally(() => {
+      if (!cancelled) setResolvedPatientId(patientId);
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [patientId]);
+  }, [locale, patientId]);
 
-  if (!patient) {
+  const loading = resolvedPatientId !== patientId;
+
+  if (loading) {
     return (
       <main className="dashboard-scroll-area h-full overflow-y-auto">
         <div className={`${familyContainer} flex min-h-full items-center justify-center`}>
@@ -60,8 +85,28 @@ export default function FamilyPage() {
     );
   }
 
+  if (error || !patient) {
+    return (
+      <main className="dashboard-scroll-area h-full overflow-y-auto">
+        <div className={`${familyContainer} flex min-h-full items-center justify-center`}>
+          <PageState
+            variant="error"
+            message={
+              error ??
+              (locale === "vi"
+                ? "Không tìm thấy thông tin người thân."
+                : "Family member information was not found.")
+            }
+            className="w-full"
+          />
+        </div>
+      </main>
+    );
+  }
+
   const spo2 = latestVital?.vitals.spo2;
   const heartRate = latestVital?.vitals.heartRate;
+  const updatedAt = latestVital?.timestamp ?? patient.lastUpdated;
   const overall =
     patient.status === "critical"
       ? { label: locale === "vi" ? "Đáng lo" : "Concerning", color: "danger" as const }
@@ -87,7 +132,7 @@ export default function FamilyPage() {
             {new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", {
               hour: "2-digit",
               minute: "2-digit",
-            }).format(new Date())}
+            }).format(new Date(updatedAt))}
           </p>
         </header>
 

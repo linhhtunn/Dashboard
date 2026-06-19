@@ -20,6 +20,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const isVercelDeployment = process.env.VERCEL === "1";
+
 export const metadata: Metadata = {
   title: "CareSignal AI — Theo dõi rõ hơn. Phản ứng nhanh hơn.",
   description:
@@ -43,8 +45,12 @@ export default function RootLayout({
             <ClinicalChrome />
           </MotionProvider>
         </LocaleProvider>
-        <Analytics />
-        <SpeedInsights />
+        {isVercelDeployment ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

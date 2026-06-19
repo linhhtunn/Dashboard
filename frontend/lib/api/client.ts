@@ -1,5 +1,6 @@
 import { getApiErrorMessage } from "@/lib/api-response";
 import { clinicalApiUrl } from "@/lib/api/config";
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
 import { dedupedFetch } from "@/lib/api/request-cache";
 
 type RequestOptions = RequestInit & {
@@ -14,7 +15,7 @@ export async function clinicalApiGet<T>(path: string, options?: RequestOptions):
   const cacheKey = `${path}:${JSON.stringify(init.headers ?? {})}`;
 
   return dedupedFetch(cacheKey, async () => {
-    const response = await fetch(clinicalApiUrl(path), init);
+    const response = await fetchWithTimeout(clinicalApiUrl(path), init);
     if (!response.ok) {
       throw new Error(
         await getApiErrorMessage(
@@ -32,7 +33,7 @@ export async function clinicalApiSend<T>(
   init: RequestInit,
   options?: { errorMessage?: string },
 ): Promise<T> {
-  const response = await fetch(clinicalApiUrl(path), init);
+  const response = await fetchWithTimeout(clinicalApiUrl(path), init);
   if (!response.ok) {
     throw new Error(
       await getApiErrorMessage(
