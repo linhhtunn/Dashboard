@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AppShell, ClinicalChrome } from "@/components/AppShell";
 import { MotionProvider } from "@/components/motion/MotionProvider";
@@ -17,6 +19,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const isVercelDeployment = process.env.VERCEL === "1";
 
 export const metadata: Metadata = {
   title: "CareSignal AI — Theo dõi rõ hơn. Phản ứng nhanh hơn.",
@@ -41,6 +45,12 @@ export default function RootLayout({
             <ClinicalChrome />
           </MotionProvider>
         </LocaleProvider>
+        {isVercelDeployment ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

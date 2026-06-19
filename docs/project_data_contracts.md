@@ -254,14 +254,21 @@ Giao tiếp giữa Doctor Dashboard và AI Agent Service (FastAPI) bắt buộc 
 *   **Request Payload:**
 ```json
 {
+  "schema_version": "v1",
   "patient_id": "P001",
-  "message": "Kích thước hạch của bệnh nhân này có thay đổi gì so với siêu âm tháng trước không?",
+  "conversation_id": "CONV_P001_001",
+  "message": "Nhịp tim và SpO2 của bệnh nhân P001 trong 10 phút gần đây có dấu hiệu bất thường không?",
   "history": [
     {"role": "user", "content": "Xin chào"},
     {"role": "assistant", "content": "Tôi có thể giúp gì cho bác sĩ?"}
   ]
 }
 ```
+*Quy định `history`:*
+*   `history` là tùy chọn trong Sprint 1; nếu không có, Agent xử lý như một lượt hội thoại mới.
+*   `role` chỉ được nhận một trong hai giá trị: `user`, `assistant`.
+*   `content` là chuỗi văn bản, không chứa dữ liệu nhị phân hoặc file đính kèm.
+*   `conversation_id` giúp Frontend và Agent bám ngữ cảnh hội thoại nhiều lượt; nếu chưa có, Frontend có thể tự sinh ID mới.
 
 ### 7.2. Tóm tắt tình trạng bệnh nhân (`/summary`) & Giải thích cảnh báo (`/explain-alert`)
 *   **Endpoints:**
@@ -270,30 +277,44 @@ Giao tiếp giữa Doctor Dashboard và AI Agent Service (FastAPI) bắt buộc 
 *   **Response Payload chung (JSON Mode):**
 ```json
 {
+  "schema_version": "v1",
+  "response_type": "explain-alert",
   "patient_id": "P001",
-  "narrative_summary": "### Tóm tắt lâm sàng\nBệnh nhân P001 vừa kích hoạt cảnh báo té ngã vào lúc 10:05:03. Chỉ số gia tốc cho thấy va đập mạnh...\n\n### Khuyến nghị sơ cứu\nĐặt bệnh nhân nằm nghiêng, kiểm tra phản ứng cơ thể và gọi hỗ trợ.",
+  "source_id": "ALT_FALL_0092",
+  "generated_at": "2026-05-28T10:05:10Z",
+  "narrative_summary": "### Giải thích cảnh báo\nBệnh nhân P001 vừa kích hoạt cảnh báo té ngã vào lúc 10:05:03. Bằng chứng hiện có gồm gia tốc tăng vọt, mức chuyển động sau sự kiện thấp và nhịp tim tăng nhẹ.\n\n### Lưu ý an toàn\nĐây là phân tích hỗ trợ. Bác sĩ cần kiểm tra trực tiếp tình trạng bệnh nhân trước khi đưa ra kết luận lâm sàng.",
   "visualizations": {
     "has_chart": true,
     "chart_type": "time-series",
-    "chart_title": "Nhịp tim bệnh nhân xung quanh thời điểm xảy ra sự cố",
+    "chart_title": "Nhịp tim quanh thời điểm cảnh báo",
     "data_points": [
-      {"timestamp": "2026-05-28T10:04:55Z", "heart_rate": 78, "status": "NORMAL"},
-      {"timestamp": "2026-05-28T10:05:00Z", "heart_rate": 112, "status": "ABNORMAL"},
-      {"timestamp": "2026-05-28T10:05:05Z", "heart_rate": 95, "status": "WARNING"}
+      {"timestamp": "2026-05-28T10:04:55Z", "metric": "heart_rate", "value": 78, "unit": "bpm", "status": "NORMAL"},
+      {"timestamp": "2026-05-28T10:05:00Z", "metric": "heart_rate", "value": 112, "unit": "bpm", "status": "ABNORMAL"},
+      {"timestamp": "2026-05-28T10:05:05Z", "metric": "heart_rate", "value": 95, "unit": "bpm", "status": "WARNING"}
     ]
   },
   "comparisons": {
     "has_comparison": true,
-    "comparison_type": "lesion-tracking",
-    "headers": ["Chỉ tiêu so sánh", "Siêu âm cũ (28/04)", "Siêu âm mới (28/05)", "Đánh giá thay đổi"],
+    "comparison_type": "alert-evidence",
+    "headers": ["Tín hiệu", "Giá trị", "Ngưỡng/Chuẩn tham chiếu", "Diễn giải"],
     "rows": [
-      ["Hạch nách trái", "Kích thước 5x8mm", "Kích thước 8x12mm", "Tăng kích thước (+3x4mm), có dấu hiệu xơ hóa"],
-      ["Hạch nhóm II", "Không phát hiện", "Kích thước 4mm", "Xuất hiện hạch mới ở vùng hố nách"]
+      ["Gia tốc đỉnh", "4.8g", "Tăng đột ngột so với vận động bình thường", "Phù hợp với va chạm mạnh"],
+      ["Mức chuyển động sau sự kiện", "0.05", "Thấp", "Gợi ý bệnh nhân ít cử động sau cảnh báo"],
+      ["Nhịp tim", "112 bpm", "Cao hơn nền gần nhất", "Có thể là phản ứng sau sự kiện, cần bác sĩ kiểm tra thêm"]
     ]
   }
 }
 ```
-*Frontend sẽ tự động phân tích thuộc tính `visualizations` và `comparisons` để vẽ biểu đồ đường trượt hoặc bảng bảng so sánh trực quan cho bác sĩ mà không cần hiển thị dạng text thô.*
+*Quy định response chung:*
+*   `schema_version`: Phiên bản contract, mặc định Sprint 1 là `v1`.
+*   `response_type`: Một trong các giá trị `chat`, `summary`, `explain-alert`.
+*   `source_id`: ID nguồn của câu trả lời. Với `/summary`, có thể trùng `patient_id`; với `/explain-alert`, là `alert_id`; với `/chat`, có thể là `conversation_id`.
+*   `generated_at`: Thời điểm Agent sinh phản hồi theo chuẩn ISO 8601 UTC.
+*   `visualizations.data_points`: Mỗi điểm dữ liệu phải có `timestamp`, `metric`, `value`, `unit`, `status`.
+*   `comparisons.comparison_type`: Sprint 1 chỉ dùng các giá trị `vitals-vs-activity`, `alert-evidence`, `vitals-trend`.
+*   Khi không có dữ liệu vẽ biểu đồ, đặt `visualizations.has_chart = false` và `data_points = []`.
+*   Khi không có bảng so sánh, đặt `comparisons.has_comparison = false` và `rows = []`.
+*Frontend sẽ tự động phân tích thuộc tính `visualizations` và `comparisons` để vẽ biểu đồ đường trượt hoặc bảng so sánh trực quan cho bác sĩ mà không cần hiển thị dạng JSON thô.*
 
 ---
 

@@ -154,7 +154,7 @@ function AgentPayloadBlocks({
         <div className="grid gap-1.5">
           {payload.actions.map((action, index) => (
             <AgentActionButton
-              key={`${action.type}-${action.patientId ?? index}`}
+              key={`${action.type}-${action.patient_id ?? index}`}
               action={action}
               locale={locale}
             />
@@ -225,19 +225,21 @@ function AgentActionButton({
   action: AgentAction;
   locale: Locale;
 }) {
-  const label = action.displayName
-    ? `${action.label}: ${action.displayName}`
+  const label = action.display_name
+    ? `${action.label}: ${action.display_name}`
     : action.label;
 
-  if (action.type === "select_patient_for_chat" && action.patientId) {
+  if (action.type === "select_patient_for_chat" && action.patient_id) {
     return (
       <Link
-        href={`/patients/${action.patientId}`}
+        href={`/patients/${action.patient_id}`}
         className="inline-flex items-center justify-between gap-2 rounded-[0.75rem] border border-[color:rgba(13,71,161,0.16)] bg-white/72 px-3 py-2 text-[11px] font-semibold text-[color:var(--cs-primary)] transition hover:bg-white"
       >
         <span>
           {label}
-          {action.hospitalPatientCode ? ` · ${action.hospitalPatientCode}` : ""}
+          {action.hospital_patient_code
+            ? ` · ${action.hospital_patient_code}`
+            : ""}
         </span>
         <ArrowRight className="h-3.5 w-3.5" />
       </Link>

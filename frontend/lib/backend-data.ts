@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+
 const DATA_DEFAULT_PATHS = {
   patients: "/api/patients",
   alerts: "/api/alerts",
@@ -35,7 +37,7 @@ export async function fetchBackendJson<T>({
     ? `?${searchParams.toString()}`
     : "";
 
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}${search}`, {
+  const response = await fetchWithTimeout(`${baseUrl.replace(/\/$/, "")}${path}${search}`, {
     cache: "no-store",
   });
 

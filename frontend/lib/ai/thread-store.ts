@@ -1,4 +1,5 @@
 import type { ThreadDetail, ThreadMessage, ThreadMeta } from "@/lib/ai/types";
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
 import { normalizePatientId } from "@/lib/patient-id";
 
 type ThreadMetaDto = {
@@ -60,7 +61,7 @@ export async function listThreadMeta(
   search.set("doctor_id", doctorId);
   if (patientId) search.set("patient_id", normalizePatientId(patientId));
 
-  const response = await fetch(`/api/threads?${search.toString()}`, {
+  const response = await fetchWithTimeout(`/api/threads?${search.toString()}`, {
     cache: "no-store",
   });
   if (!response.ok) {
@@ -74,7 +75,7 @@ export async function listThreadMeta(
 export async function getThreadDetail(
   conversationId: string,
 ): Promise<ThreadDetail | null> {
-  const response = await fetch(`/api/threads/${conversationId}`, {
+  const response = await fetchWithTimeout(`/api/threads/${conversationId}`, {
     cache: "no-store",
   });
   if (response.status === 404) {

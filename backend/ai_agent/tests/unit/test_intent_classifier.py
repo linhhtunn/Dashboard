@@ -168,6 +168,30 @@ async def test_classifier_allows_plain_greeting_without_patient() -> None:
 
 
 @pytest.mark.asyncio
+async def test_classifier_does_not_let_llm_override_patient_context_general_chat() -> None:
+    llm = FakeIntentLLM(
+        {
+            "intent": "out_of_scope",
+            "confidence": 1.0,
+            "arguments": {"patient_id": None},
+            "needs_clarification": False,
+            "clarifying_question": None,
+        }
+    )
+    classifier = IntentClassifier(llm_provider=llm, use_llm=True)
+
+    result = await classifier.classify(
+        message="Bệnh nhân có đang khỏe không?",
+        patient_id="P001",
+        metadata={"context_type": "patient_chat"},
+    )
+
+    assert llm.calls == 0
+    assert result.intent == ChatIntent.GENERAL_CHAT
+    assert result.arguments.patient_id == "P001"
+
+
+@pytest.mark.asyncio
 async def test_classifier_detects_doctor_patient_overview_without_patient_id() -> None:
     classifier = IntentClassifier()
 

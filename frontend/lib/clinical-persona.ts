@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { isSupabaseAuthConfigured } from "@/lib/auth/config";
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
 import type { ClinicalPersona, RolePermissions, UserClinicalProfile } from "@/types";
 
 const STORAGE_KEY = "caresignal-clinical-persona";
@@ -54,7 +55,9 @@ export function useClinicalPersona() {
 
     setLoadingProfile(true);
     try {
-      const response = await fetch("/api/me/profile", { cache: "no-store" });
+      const response = await fetchWithTimeout("/api/me/profile", {
+        cache: "no-store",
+      });
       const payload = (await response.json()) as {
         profile?: {
           user_id: string;
