@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       conversationId: `summary-${patientId}-${Date.now()}`,
       message: agentMessage,
       metadata: agentMetadata,
+      authorization: request.headers.get("authorization"),
     });
 
     const payload = adaptBackendResponse({

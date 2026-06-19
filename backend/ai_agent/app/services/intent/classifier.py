@@ -38,10 +38,13 @@ class IntentClassifier:
             patient_id=patient_id,
             metadata=metadata,
         )
+        metadata = metadata or {}
         should_try_llm = (
             self.use_llm
             and self.llm_provider is not None
             and deterministic.intent in {ChatIntent.UNKNOWN, ChatIntent.GENERAL_CHAT}
+            and not metadata
+            and not _is_greeting(_normalize_text(message))
         )
         if not should_try_llm:
             return deterministic
