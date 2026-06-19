@@ -111,10 +111,12 @@ async function fetchAgentJson<TInput>(
   path: string,
   input: TInput,
 ): Promise<AgentInsightPayload> {
+  const authorization = await getAgentAuthorizationHeader();
   const response = await fetch(path, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
     },
     body: JSON.stringify(input),
   });
