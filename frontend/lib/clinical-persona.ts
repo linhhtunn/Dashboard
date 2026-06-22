@@ -33,6 +33,7 @@ export function useClinicalPersona() {
   const [profile, setProfile] = useState<UserClinicalProfile | null>(null);
   const [roleLocked, setRoleLocked] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [personaReady, setPersonaReady] = useState(false);
 
   const syncPersona = useCallback((next: ClinicalPersona, locked: boolean) => {
     setPersonaState(next);
@@ -94,7 +95,13 @@ export function useClinicalPersona() {
   }, [syncPersona]);
 
   useEffect(() => {
-    void loadProfile();
+    let cancelled = false;
+    void loadProfile().finally(() => {
+      if (!cancelled) setPersonaReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadProfile]);
 
   const setPersona = useCallback(
@@ -122,6 +129,7 @@ export function useClinicalPersona() {
     profile,
     roleLocked,
     loadingProfile,
+    personaReady,
     setPersona,
     refreshProfile: loadProfile,
     isAdmin: persona === "admin",

@@ -1,5 +1,6 @@
 import { clinicalApiGet } from "@/lib/api/client";
 import type {
+  DailyReportResponse,
   ReportAlertByTypeResponse,
   ReportHeatmapResponse,
   ReportInsightsResponse,
@@ -21,6 +22,12 @@ function buildQueryString(query: ReportQuery & { filter_date?: string | null }) 
 }
 
 export const reportRepository = {
+  getDaily(doctorId?: string) {
+    const params = new URLSearchParams();
+    if (doctorId) params.set("doctor_id", doctorId);
+    const suffix = params.size ? `?${params.toString()}` : "";
+    return clinicalApiGet<DailyReportResponse>(`/api/report/daily${suffix}`);
+  },
   getSummary(query: Pick<ReportQuery, "range" | "department">) {
     return clinicalApiGet<ReportSummaryResponse>(
       `/api/report/summary?${buildQueryString(query)}`,

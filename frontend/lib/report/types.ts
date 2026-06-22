@@ -46,6 +46,32 @@ export type ReportOverviewResponse = {
   department_label: LocalizedString;
 };
 
+export type DailyReportActivity = {
+  id: string;
+  confirmed_at: string;
+  patient_id: string;
+  patient_name: string;
+  bed: string | null | undefined;
+  department_label: LocalizedString;
+  alert_type: AlertType;
+  severity: AlertSeverity;
+  conclusion: string;
+};
+
+export type DailyReportResponse = {
+  date: string;
+  doctor_id: string | null;
+  doctor_name: string;
+  examined_patients: number;
+  confirmation_count: number;
+  critical_reviewed: number;
+  pending_confirmations: number;
+  current_shift: ReportOverviewResponse["current_shift"];
+  shift_label: LocalizedString;
+  shift_hours: LocalizedString;
+  activities: DailyReportActivity[];
+};
+
 export type ReportInsightsResponse = {
   patient_status: {
     critical: number;

@@ -7,6 +7,7 @@ import {
   Activity,
   Bell,
   ChevronDown,
+  ClipboardCheck,
   FlaskConical,
   Globe2,
   LayoutDashboard,
@@ -143,6 +144,9 @@ function ClinicalNavbar() {
       badge: openAlertCount !== null ? String(openAlertCount) : undefined,
     },
     { href: "/staff", label: ui.nav.staff, icon: UserCog },
+    ...(persona === "doctor"
+      ? [{ href: "/daily-report", label: ui.nav.dailyReport, icon: ClipboardCheck }]
+      : []),
   ];
 
   const adminNavItems: Array<{

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import { useClinicalPersona } from "@/lib/clinical-persona";
 import type { ClinicalPersona } from "@/types";
@@ -18,14 +18,21 @@ export function PersonaGuard({
   redirectTo = "/patients",
 }: PersonaGuardProps) {
   const router = useRouter();
-  const { persona } = useClinicalPersona();
-  const allowed = Array.isArray(require) ? require : [require];
+  const { persona, personaReady } = useClinicalPersona();
+  const allowed = useMemo(
+    () => (Array.isArray(require) ? require : [require]),
+    [require],
+  );
 
   useEffect(() => {
-    if (!allowed.includes(persona)) {
+    if (personaReady && !allowed.includes(persona)) {
       router.replace(redirectTo);
     }
-  }, [allowed, persona, redirectTo, router]);
+  }, [allowed, persona, personaReady, redirectTo, router]);
+
+  if (!personaReady) {
+    return null;
+  }
 
   if (!allowed.includes(persona)) {
     return null;
