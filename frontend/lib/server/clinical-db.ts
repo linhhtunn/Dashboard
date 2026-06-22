@@ -555,6 +555,32 @@ export async function getAlertActionHistory(alertId: string): Promise<AlertActio
   return (data ?? []).map(mapDbActionLogRow);
 }
 
+export async function getDoctorConfirmationsForDay(
+  date: string,
+  actorId?: string,
+): Promise<AlertActionLogEntry[]> {
+  const supabase = getClient();
+  const startDate = new Date(`${date}T00:00:00+07:00`);
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+
+  let query = supabase
+    .from("portal_alert_action_logs")
+    .select("*")
+    .eq("action", "doctor_confirm")
+    .gte("created_at", startDate.toISOString())
+    .lt("created_at", endDate.toISOString())
+    .order("created_at", { ascending: false });
+  if (actorId) query = query.eq("actor_id", actorId);
+
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingTableError(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []).map(mapDbActionLogRow);
+}
+
 export async function listPendingDoctorConfirmations(): Promise<string[]> {
   const alerts = await getAlerts();
   return alerts
