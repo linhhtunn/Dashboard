@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { getDailyDoctorReport } from "@/lib/server/report-service";
+import { requireRole } from "@/lib/server/authz";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+export async function GET() {
+  const authz = await requireRole("doctor");
+  if (authz.response) return authz.response;
   try {
-    const { searchParams } = new URL(request.url);
-    const doctorId = searchParams.get("doctor_id")?.trim() || undefined;
-    return NextResponse.json(await getDailyDoctorReport(doctorId));
+    return NextResponse.json(await getDailyDoctorReport(authz.profile!));
   } catch (error) {
     return NextResponse.json(
       {

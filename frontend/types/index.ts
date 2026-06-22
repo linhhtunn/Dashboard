@@ -271,6 +271,7 @@ export interface Alert {
   workflowStatus: AlertWorkflowStatus;
   assignedFloorNurseId?: string;
   assignedZoneCode?: string;
+  assignedDoctorUserId?: string;
   noiseNote?: string;
   treatment?: AlertTreatmentRecord;
 }

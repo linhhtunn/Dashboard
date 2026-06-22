@@ -15,7 +15,6 @@ import {
 
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { getAlertTypeLabel } from "@/lib/i18n/domain";
-import { operatorSessionRepository } from "@/lib/repositories/operator-session.repository";
 import { reportRepository } from "@/lib/repositories/report.repository";
 import type { DailyReportResponse } from "@/lib/report/types";
 
@@ -47,8 +46,7 @@ export function DailyReportDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const session = await operatorSessionRepository.get("doctor").catch(() => null);
-        const next = await reportRepository.getDaily(session?.actor_id);
+        const next = await reportRepository.getDaily();
         if (!cancelled) setData(next);
       } catch (nextError) {
         if (!cancelled) {
@@ -80,7 +78,7 @@ export function DailyReportDashboard() {
     },
     {
       label: locale === "vi" ? "Lượt xác nhận" : "Confirmations",
-      value: data?.confirmation_count ?? 0,
+      value: data?.encounter_count ?? 0,
       note: locale === "vi" ? "Kết luận đã ghi nhận" : "Conclusions recorded",
       icon: CheckCircle2,
       tone: "var(--cs-success)",
@@ -198,7 +196,7 @@ export function DailyReportDashboard() {
                 {data?.activities.map((activity) => (
                   <tr key={activity.id} className="text-[12px] transition hover:bg-white/30">
                     <td className="whitespace-nowrap px-4 py-3 font-semibold text-[color:var(--cs-heading)]">
-                      {formatTime(activity.confirmed_at, locale)}
+                      {formatTime(activity.completed_at, locale)}
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/patients/${activity.patient_id}`} className="font-semibold text-[color:var(--cs-primary)] hover:underline">

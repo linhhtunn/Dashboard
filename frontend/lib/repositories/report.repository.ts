@@ -22,11 +22,8 @@ function buildQueryString(query: ReportQuery & { filter_date?: string | null }) 
 }
 
 export const reportRepository = {
-  getDaily(doctorId?: string) {
-    const params = new URLSearchParams();
-    if (doctorId) params.set("doctor_id", doctorId);
-    const suffix = params.size ? `?${params.toString()}` : "";
-    return clinicalApiGet<DailyReportResponse>(`/api/report/daily${suffix}`);
+  getDaily() {
+    return clinicalApiGet<DailyReportResponse>("/api/report/daily");
   },
   getSummary(query: Pick<ReportQuery, "range" | "department">) {
     return clinicalApiGet<ReportSummaryResponse>(

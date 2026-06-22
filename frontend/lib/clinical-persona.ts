@@ -40,10 +40,10 @@ export function useClinicalPersona() {
     setRoleLocked(locked);
     if (!locked) {
       window.localStorage.setItem(STORAGE_KEY, next);
-      if (next === "coordinator" || next === "doctor") {
-        window.localStorage.setItem("caresignal-operator-role", next);
-        window.dispatchEvent(new CustomEvent("operator-role-change", { detail: next }));
-      }
+    }
+    if (next === "coordinator" || next === "doctor") {
+      if (!locked) window.localStorage.setItem("caresignal-operator-role", next);
+      window.dispatchEvent(new CustomEvent("operator-role-change", { detail: next }));
     }
     window.dispatchEvent(new CustomEvent("clinical-persona-change", { detail: next }));
   }, []);

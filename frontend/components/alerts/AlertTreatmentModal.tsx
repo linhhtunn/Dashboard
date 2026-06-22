@@ -7,11 +7,13 @@ import { useLocale } from "@/components/providers/LocaleProvider";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import { getZoneLabel } from "@/lib/staff-ui";
 import type { Alert, ShiftStaffMember } from "@/types";
+import type { DoctorOption } from "@/lib/repositories/doctor.repository";
 
 type AlertTreatmentModalProps = {
   alert: Alert;
   patientName?: string;
   floorNurses: ShiftStaffMember[];
+  doctors: DoctorOption[];
   open: boolean;
   onClose: () => void;
   onSubmitTreat: (payload: {
@@ -19,11 +21,12 @@ type AlertTreatmentModalProps = {
     actionTaken: string;
     symptomsAfter: string;
     floorNurseId: string;
+    doctorUserId: string;
     zoneCode: string;
     outcome: "completed" | "needs_follow_up";
     followUpNote?: string;
   }) => Promise<void>;
-  onSubmitNoise: (description: string) => Promise<void>;
+  onSubmitNoise: (description: string, doctorUserId: string) => Promise<void>;
   submitting?: boolean;
 };
 
@@ -31,6 +34,7 @@ export function AlertTreatmentModal({
   alert,
   patientName,
   floorNurses,
+  doctors,
   open,
   onClose,
   onSubmitTreat,
@@ -46,6 +50,7 @@ export function AlertTreatmentModal({
   const [followUpNote, setFollowUpNote] = useState("");
   const [noiseDescription, setNoiseDescription] = useState("");
   const [floorNurseId, setFloorNurseId] = useState("");
+  const [doctorUserId, setDoctorUserId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,8 +62,9 @@ export function AlertTreatmentModal({
     setFollowUpNote("");
     setNoiseDescription("");
     setFloorNurseId(floorNurses[0]?.id ?? "");
+    setDoctorUserId(doctors[0]?.user_id ?? "");
     setError(null);
-  }, [open, alert.id, floorNurses]);
+  }, [open, alert.id, floorNurses, doctors]);
 
   if (!open) return null;
 
@@ -73,16 +79,25 @@ export function AlertTreatmentModal({
       setError(ui.alerts.selectNurse);
       return;
     }
+    if (!doctorUserId) {
+      setError(locale === "vi" ? "Hãy chọn bác sĩ phụ trách." : "Select the assigned doctor.");
+      return;
+    }
     setError(null);
-    await onSubmitTreat({
-      symptomsBefore: symptomsBefore.trim(),
-      actionTaken: actionTaken.trim(),
-      symptomsAfter: symptomsAfter.trim(),
-      floorNurseId,
-      zoneCode: selectedNurse?.zoneCode ?? "",
-      outcome,
-      followUpNote: outcome === "needs_follow_up" ? followUpNote.trim() : undefined,
-    });
+    try {
+      await onSubmitTreat({
+        symptomsBefore: symptomsBefore.trim(),
+        actionTaken: actionTaken.trim(),
+        symptomsAfter: symptomsAfter.trim(),
+        floorNurseId,
+        doctorUserId,
+        zoneCode: selectedNurse?.zoneCode ?? "",
+        outcome,
+        followUpNote: outcome === "needs_follow_up" ? followUpNote.trim() : undefined,
+      });
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : ui.auth.genericError);
+    }
   }
 
   async function handleNoise() {
@@ -90,8 +105,16 @@ export function AlertTreatmentModal({
       setError(ui.alerts.requiredFields);
       return;
     }
+    if (!doctorUserId) {
+      setError(locale === "vi" ? "Hãy chọn bác sĩ phụ trách." : "Select the assigned doctor.");
+      return;
+    }
     setError(null);
-    await onSubmitNoise(noiseDescription.trim());
+    try {
+      await onSubmitNoise(noiseDescription.trim(), doctorUserId);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : ui.auth.genericError);
+    }
   }
 
   return (
@@ -136,6 +159,24 @@ export function AlertTreatmentModal({
             </button>
           ))}
         </div>
+
+        <label className="mb-3 block text-[11px] font-semibold text-[color:var(--cs-heading)]">
+          {locale === "vi" ? "Bác sĩ phụ trách" : "Assigned doctor"}
+          <select
+            value={doctorUserId}
+            onChange={(event) => setDoctorUserId(event.target.value)}
+            className="dashboard-input mt-1 h-9 w-full rounded-[0.65rem] px-2 text-[11px]"
+          >
+            {doctors.length === 0 ? (
+              <option value="">{locale === "vi" ? "Chưa có tài khoản bác sĩ" : "No doctor accounts"}</option>
+            ) : null}
+            {doctors.map((doctor) => (
+              <option key={doctor.user_id} value={doctor.user_id}>
+                {doctor.display_name}{doctor.email ? ` · ${doctor.email}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {mode === "treat" ? (
           <div className="space-y-2">

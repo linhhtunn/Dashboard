@@ -65,7 +65,7 @@ export async function operatorRoleHeaders(
     return {
       "x-operator-role": session.role,
       "x-operator-id": session.actor_id,
-      "x-operator-name": session.name,
+      "x-operator-name": encodeURIComponent(session.name),
     };
   } catch {
     return { "x-operator-role": role };

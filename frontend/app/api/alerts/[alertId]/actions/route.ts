@@ -7,6 +7,14 @@ import {
 } from "@/lib/mock/alert-workflow-store";
 import { getAlertById, getFloorNurses, getOperatorActor } from "@/lib/server/clinical-store";
 import { normalizePatientId } from "@/lib/patient-id";
+import { isSupabaseAuthConfigured } from "@/lib/auth/config";
+import { requireRole } from "@/lib/server/authz";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  assignAlertToDoctor,
+  createCompletedEncounter,
+  getAlertAssignment,
+} from "@/lib/server/encounter-db";
 import type { OperatorRole } from "@/types";
 
 export const runtime = "nodejs";
@@ -20,10 +28,19 @@ async function findAlert(alertId: string) {
 async function getActor(request: Request) {
   const role = (request.headers.get("x-operator-role") ?? "coordinator") as OperatorRole;
   const session = await getOperatorActor(role);
+  const encodedName = request.headers.get("x-operator-name");
+  let headerName: string | null = null;
+  if (encodedName) {
+    try {
+      headerName = decodeURIComponent(encodedName);
+    } catch {
+      headerName = encodedName;
+    }
+  }
   return {
     role,
     actorId: request.headers.get("x-operator-id") ?? session?.actorId ?? role,
-    actorName: request.headers.get("x-operator-name") ?? session?.name ?? role,
+    actorName: headerName ?? session?.name ?? role,
   };
 }
 
@@ -37,7 +54,22 @@ export async function POST(request: Request, context: RouteContext) {
 
     const body = (await request.json()) as Record<string, unknown>;
     const action = body.action as string;
-    const actor = await getActor(request);
+    const expectedRole = action === "doctor_confirm" ? "doctor" : "coordinator";
+    let actor: Awaited<ReturnType<typeof getActor>>;
+    if (isSupabaseAuthConfigured()) {
+      const authz = await requireRole(expectedRole);
+      if (authz.response) return authz.response;
+      actor = {
+        role: expectedRole,
+        actorId: authz.profile!.userId,
+        actorName: authz.profile!.displayName ?? authz.profile!.email ?? expectedRole,
+      };
+    } else {
+      actor = await getActor(request);
+    }
+    const writeClient = isSupabaseAuthConfigured()
+      ? await createSupabaseServerClient()
+      : undefined;
 
     if (action === "nurse_treat" || action === "needs_follow_up") {
       if (actor.role !== "coordinator") {
@@ -76,6 +108,19 @@ export async function POST(request: Request, context: RouteContext) {
           ? ("needs_follow_up" as const)
           : (String(body.outcome ?? "completed") as "completed" | "needs_follow_up");
 
+      if (isSupabaseAuthConfigured()) {
+        const doctorUserId = String(body.doctorUserId ?? "").trim();
+        if (!doctorUserId) {
+          return NextResponse.json({ error: "doctorUserId is required." }, { status: 400 });
+        }
+        await assignAlertToDoctor({
+          alertId,
+          patientId: normalizePatientId(alert.patientId),
+          doctorUserId,
+          assignedByUserId: actor.actorId,
+        });
+      }
+
       const state = await recordNurseTreatment(alertId, normalizePatientId(alert.patientId), {
         symptomsBefore,
         actionTaken,
@@ -90,7 +135,7 @@ export async function POST(request: Request, context: RouteContext) {
             : undefined,
         actorId: actor.actorId,
         actorName: actor.actorName,
-      });
+      }, writeClient ?? undefined);
 
       return NextResponse.json(state);
     }
@@ -111,7 +156,26 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
 
-      const state = await recordNoise(alertId, description, actor.actorId, actor.actorName);
+      if (isSupabaseAuthConfigured()) {
+        const doctorUserId = String(body.doctorUserId ?? "").trim();
+        if (!doctorUserId) {
+          return NextResponse.json({ error: "doctorUserId is required." }, { status: 400 });
+        }
+        await assignAlertToDoctor({
+          alertId,
+          patientId: normalizePatientId(alert.patientId),
+          doctorUserId,
+          assignedByUserId: actor.actorId,
+        });
+      }
+
+      const state = await recordNoise(
+        alertId,
+        description,
+        actor.actorId,
+        actor.actorName,
+        writeClient ?? undefined,
+      );
       return NextResponse.json(state);
     }
 
@@ -131,12 +195,44 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
 
+      if (isSupabaseAuthConfigured()) {
+        const assignment = await getAlertAssignment(alertId);
+        if (!assignment || assignment.doctor_user_id !== actor.actorId) {
+          return NextResponse.json(
+            { error: "This alert is assigned to another doctor." },
+            { status: 403 },
+          );
+        }
+      }
+
+      const symptoms = String(body.symptoms ?? "").trim();
+      const clinicalNotes = String(body.clinicalNotes ?? "").trim();
+      const startedAt = String(body.startedAt ?? "").trim();
+      if (isSupabaseAuthConfigured() && (!symptoms || !clinicalNotes || !startedAt)) {
+        return NextResponse.json(
+          { error: "symptoms, clinicalNotes, and startedAt are required." },
+          { status: 400 },
+        );
+      }
+
       const state = await recordDoctorConfirm(
         alertId,
         conclusion,
         actor.actorId,
         actor.actorName,
+        writeClient ?? undefined,
       );
+      if (isSupabaseAuthConfigured()) {
+        await createCompletedEncounter({
+          patientId: normalizePatientId(alert.patientId),
+          alertId,
+          doctorUserId: actor.actorId,
+          startedAt,
+          symptoms,
+          clinicalNotes,
+          conclusion,
+        });
+      }
       return NextResponse.json(state);
     }
 

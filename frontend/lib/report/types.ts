@@ -48,7 +48,7 @@ export type ReportOverviewResponse = {
 
 export type DailyReportActivity = {
   id: string;
-  confirmed_at: string;
+  completed_at: string;
   patient_id: string;
   patient_name: string;
   bed: string | null | undefined;
@@ -63,7 +63,7 @@ export type DailyReportResponse = {
   doctor_id: string | null;
   doctor_name: string;
   examined_patients: number;
-  confirmation_count: number;
+  encounter_count: number;
   critical_reviewed: number;
   pending_confirmations: number;
   current_shift: ReportOverviewResponse["current_shift"];
