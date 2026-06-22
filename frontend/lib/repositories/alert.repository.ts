@@ -24,6 +24,7 @@ type AlertDto = {
   workflow_status?: AlertWorkflowStatus;
   assigned_floor_nurse_id?: string | null;
   assigned_zone_code?: string | null;
+  assigned_doctor_user_id?: string | null;
   noise_note?: string | null;
   treatment?: AlertTreatmentRecord | null;
 };
@@ -59,6 +60,7 @@ function mapAlert(dto: AlertDto): Alert {
     workflowStatus: dto.workflow_status ?? "open",
     assignedFloorNurseId: dto.assigned_floor_nurse_id ?? undefined,
     assignedZoneCode: dto.assigned_zone_code ?? undefined,
+    assignedDoctorUserId: dto.assigned_doctor_user_id ?? undefined,
     noiseNote: dto.noise_note ?? undefined,
     treatment: dto.treatment ?? undefined,
   };
@@ -87,6 +89,7 @@ export type AlertActionRequest =
       symptomsAfter: string;
       outcome?: "completed" | "needs_follow_up";
       floorNurseId: string;
+      doctorUserId: string;
       zone?: string;
     }
   | {
@@ -98,8 +101,14 @@ export type AlertActionRequest =
       zone?: string;
       followUpNote?: string;
     }
-  | { action: "mark_noise"; description: string }
-  | { action: "doctor_confirm"; conclusion: string };
+  | { action: "mark_noise"; description: string; doctorUserId: string }
+  | {
+      action: "doctor_confirm";
+      conclusion: string;
+      symptoms: string;
+      clinicalNotes: string;
+      startedAt: string;
+    };
 
 type AlertListParams = {
   limit?: number;

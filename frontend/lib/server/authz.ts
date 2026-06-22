@@ -29,6 +29,18 @@ export async function requireAdminProfile() {
   return result;
 }
 
+export async function requireRole(role: ClinicalPersona) {
+  const result = await requireAuthenticatedProfile();
+  if (result.response) return result;
+  if (result.profile!.roleCode !== role) {
+    return {
+      profile: result.profile,
+      response: NextResponse.json({ error: `${role} access required.` }, { status: 403 }),
+    };
+  }
+  return result;
+}
+
 export async function requireClinicalAccess() {
   if (!isSupabaseAuthConfigured()) {
     return { profile: null, response: null };

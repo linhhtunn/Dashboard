@@ -11,6 +11,7 @@ import type {
   AlertTreatmentRecord,
   AlertWorkflowStatus,
 } from "@/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export { listPendingDoctorConfirmations, getAlertActionHistory };
 
@@ -41,11 +42,11 @@ export type NurseTreatInput = {
   actorName: string;
 };
 
-async function setPatientRecentSymptom(patientId: string) {
+async function setPatientRecentSymptom(patientId: string, writeClient?: SupabaseClient) {
   const { getPatientById } = await import("@/lib/server/clinical-db");
   const patient = await getPatientById(patientId);
   if (patient && patient.status !== "critical") {
-    await updatePatientStatus(patientId, "recent_symptom");
+    await updatePatientStatus(patientId, "recent_symptom", writeClient);
   }
 }
 
@@ -53,6 +54,7 @@ export async function recordNurseTreatment(
   alertId: string,
   patientId: string,
   input: NurseTreatInput,
+  writeClient?: SupabaseClient,
 ) {
   const treatment: AlertTreatmentRecord = {
     symptomsBefore: input.symptomsBefore,
@@ -72,7 +74,7 @@ export async function recordNurseTreatment(
     input.outcome === "needs_follow_up" ? "needs_follow_up" : "nurse_treated";
 
   if (input.outcome === "needs_follow_up") {
-    await setPatientRecentSymptom(patientId);
+    await setPatientRecentSymptom(patientId, writeClient);
   }
 
   await updateAlertWorkflow(alertId, {
@@ -80,7 +82,7 @@ export async function recordNurseTreatment(
     assigned_floor_nurse_id: input.floorNurseId,
     assigned_zone_code: input.zoneCode,
     treatment,
-  });
+  }, writeClient);
 
   await appendAlertActionLog({
     alertId,
@@ -89,7 +91,7 @@ export async function recordNurseTreatment(
     actorName: input.actorName,
     actorRole: "coordinator",
     payload: { ...treatment },
-  });
+  }, writeClient);
 
   return getAlertWorkflow(alertId);
 }
@@ -99,11 +101,12 @@ export async function recordNoise(
   description: string,
   actorId: string,
   actorName: string,
+  writeClient?: SupabaseClient,
 ) {
   await updateAlertWorkflow(alertId, {
     workflow_status: "noise",
     noise_note: description,
-  });
+  }, writeClient);
 
   await appendAlertActionLog({
     alertId,
@@ -112,7 +115,7 @@ export async function recordNoise(
     actorName,
     actorRole: "coordinator",
     payload: { description },
-  });
+  }, writeClient);
 
   return getAlertWorkflow(alertId);
 }
@@ -122,6 +125,7 @@ export async function recordDoctorConfirm(
   conclusion: string,
   actorId: string,
   actorName: string,
+  writeClient?: SupabaseClient,
 ) {
   const current = await getAlertWorkflow(alertId);
   if (!["nurse_treated", "noise", "needs_follow_up"].includes(current.workflowStatus)) {
@@ -154,7 +158,7 @@ export async function recordDoctorConfirm(
   await updateAlertWorkflow(alertId, {
     workflow_status: "doctor_confirmed",
     treatment: treatment ?? null,
-  });
+  }, writeClient);
 
   await appendAlertActionLog({
     alertId,
@@ -163,7 +167,7 @@ export async function recordDoctorConfirm(
     actorName,
     actorRole: "doctor",
     payload: { conclusion },
-  });
+  }, writeClient);
 
   return getAlertWorkflow(alertId);
 }

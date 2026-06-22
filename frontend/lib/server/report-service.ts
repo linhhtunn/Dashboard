@@ -24,12 +24,17 @@ import type {
 import {
   buildWeekSchedule,
   getAlerts,
-  getDoctorConfirmationsForDay,
   getPatients,
   getStaffMember,
   getWeekDates,
   listStaff,
 } from "@/lib/server/clinical-store";
+import {
+  countPendingAssignments,
+  listDailyEncounters,
+  unassignedDepartmentLabel,
+} from "@/lib/server/encounter-db";
+import type { UserProfile } from "@/lib/server/roles-db";
 import { getAllVitals as getVitals } from "@/lib/server/vitals-db";
 import type { Alert, AlertSeverity, AlertType, Patient, PatientStatus } from "@/types";
 import {
@@ -631,71 +636,43 @@ export async function getReportInsights(query: ReportQuery): Promise<ReportInsig
 }
 
 export async function getDailyDoctorReport(
-  doctorId?: string,
+  doctor: UserProfile,
 ): Promise<DailyReportResponse> {
   const date = toVietnamDateKey(new Date());
-  const [patients, alerts, confirmations, overview, pendingIds] = await Promise.all([
+  const [patients, alerts, encounters, overview, pendingCount] = await Promise.all([
     getPatients(),
     getAlerts(),
-    getDoctorConfirmationsForDay(date, doctorId),
+    listDailyEncounters(doctor.userId, date),
     getReportOverview({ range: "7d", department: "all" }),
-    listPendingDoctorConfirmations(),
+    countPendingAssignments(doctor.userId),
   ]);
 
   const patientById = new Map(patients.map((patient) => [patient.id, patient]));
   const alertById = new Map(alerts.map((alert) => [alert.id, alert]));
-  const activities = confirmations.flatMap((confirmation) => {
-    const alert = alertById.get(confirmation.alertId);
-    if (!alert) return [];
-    const patient = patientById.get(alert.patientId);
-    return [{
-      id: confirmation.id,
-      confirmed_at: confirmation.createdAt,
-      patient_id: alert.patientId,
-      patient_name: patient?.name ?? alert.patientId,
+  const activities = encounters.map((encounter) => {
+    const alert = encounter.alert_id ? alertById.get(encounter.alert_id) : undefined;
+    const patient = patientById.get(encounter.patient_id);
+    return {
+      id: encounter.id,
+      completed_at: encounter.completed_at ?? encounter.created_at,
+      patient_id: encounter.patient_id,
+      patient_name: patient?.name ?? encounter.patient_id,
       bed: patient?.bed,
-      department_label: patient?.departmentLabel ?? text("Chưa phân khoa", "Unassigned"),
-      alert_type: alert.type,
-      severity: alert.severity,
-      conclusion:
-        typeof confirmation.payload.conclusion === "string"
-          ? confirmation.payload.conclusion
-          : "",
-    }];
+      department_label: patient?.departmentLabel ?? unassignedDepartmentLabel(),
+      alert_type: alert?.type ?? ("deterioration_risk" as const),
+      severity: alert?.severity ?? ("info" as const),
+      conclusion: encounter.conclusion,
+    };
   });
-
-  // Older records may contain the confirmation timestamp on the alert but no action log.
-  if (activities.length === 0 && !doctorId) {
-    for (const alert of alerts) {
-      const confirmedAt = alert.treatment?.doctorConfirmedAt;
-      if (!confirmedAt || !confirmedAt.startsWith(date)) continue;
-      const patient = patientById.get(alert.patientId);
-      activities.push({
-        id: `alert-${alert.id}`,
-        confirmed_at: confirmedAt,
-        patient_id: alert.patientId,
-        patient_name: patient?.name ?? alert.patientId,
-        bed: patient?.bed,
-        department_label: patient?.departmentLabel ?? text("Chưa phân khoa", "Unassigned"),
-        alert_type: alert.type,
-        severity: alert.severity,
-        conclusion: alert.treatment?.doctorConclusion ?? "",
-      });
-    }
-    activities.sort((left, right) => right.confirmed_at.localeCompare(left.confirmed_at));
-  }
-
-  const examinedPatients = new Set(activities.map((activity) => activity.patient_id));
-  const doctorName = confirmations[0]?.actorName ?? "Bác sĩ trực";
 
   return {
     date,
-    doctor_id: doctorId ?? null,
-    doctor_name: doctorName,
-    examined_patients: examinedPatients.size,
-    confirmation_count: activities.length,
+    doctor_id: doctor.userId,
+    doctor_name: doctor.displayName ?? doctor.email ?? "Bác sĩ trực",
+    examined_patients: new Set(activities.map((activity) => activity.patient_id)).size,
+    encounter_count: activities.length,
     critical_reviewed: activities.filter((activity) => activity.severity === "critical").length,
-    pending_confirmations: pendingIds.length,
+    pending_confirmations: pendingCount,
     current_shift: overview.current_shift,
     shift_label: overview.shift_label,
     shift_hours: overview.shift_hours,

@@ -23,6 +23,7 @@ import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { shiftRepository } from "@/lib/repositories/shift.repository";
+import { doctorRepository, type DoctorOption } from "@/lib/repositories/doctor.repository";
 import type { Alert, AlertSeverity, Patient, ShiftStaffMember } from "@/types";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -59,6 +60,7 @@ export function GlobalAlertModal() {
   const [popupTick, setPopupTick] = useState(0);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [floorNurses, setFloorNurses] = useState<ShiftStaffMember[]>([]);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [treatmentOpen, setTreatmentOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +86,11 @@ export function GlobalAlertModal() {
       })
       .catch(() => undefined);
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin || operatorRole !== "coordinator") return;
+    void doctorRepository.list().then(setDoctors).catch(() => setDoctors([]));
+  }, [isAdmin, operatorRole]);
 
   const alert = useMemo(() => {
     if (isAdmin) return null;
@@ -301,6 +308,7 @@ export function GlobalAlertModal() {
           alert={alert}
           patientName={patient?.name}
           floorNurses={floorNurses}
+          doctors={doctors}
           open
           submitting={submitting}
           onClose={() => setTreatmentOpen(false)}
@@ -324,12 +332,12 @@ export function GlobalAlertModal() {
               setSubmitting(false);
             }
           }}
-          onSubmitNoise={async (description) => {
+          onSubmitNoise={async (description, doctorUserId) => {
             setSubmitting(true);
             try {
               await alertRepository.submitAction(
                 alert.id,
-                { action: "mark_noise", description },
+                { action: "mark_noise", description, doctorUserId },
                 operatorRole,
               );
               await afterWorkflowAction();
@@ -347,12 +355,12 @@ export function GlobalAlertModal() {
           open
           submitting={submitting}
           onClose={() => setConfirmOpen(false)}
-          onConfirm={async (conclusion) => {
+          onConfirm={async (payload) => {
             setSubmitting(true);
             try {
               await alertRepository.submitAction(
                 alert.id,
-                { action: "doctor_confirm", conclusion },
+                { action: "doctor_confirm", ...payload },
                 "doctor",
               );
               await afterWorkflowAction();

@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   alertToDbRow,
   buildShift,
@@ -122,8 +123,12 @@ export async function getPatientById(patientId: string): Promise<Patient | undef
   return patients.find((item) => item.id === patientId);
 }
 
-export async function updatePatientStatus(patientId: string, status: PatientStatus) {
-  const supabase = getClient();
+export async function updatePatientStatus(
+  patientId: string,
+  status: PatientStatus,
+  writeClient?: SupabaseClient,
+) {
+  const supabase = writeClient ?? getClient();
   const { error: portalError } = await supabase
     .from("portal_patients")
     .update({ status })
@@ -265,10 +270,23 @@ export async function updateAlertWorkflow(
     noise_note: string | null;
     treatment: AlertTreatmentRecord | null;
   }>,
+  writeClient?: SupabaseClient,
 ) {
-  const supabase = getClient();
-  const { error } = await supabase.from("portal_alerts").update(patch).eq("id", alertId);
+  const supabase = writeClient ?? getClient();
+  const { data, error } = await supabase
+    .from("portal_alerts")
+    .update(patch)
+    .eq("id", alertId)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (data?.length) return;
+
+  const alert = await getAlertById(alertId);
+  if (!alert) throw new Error("Alert not found.");
+  const { error: insertError } = await supabase
+    .from("portal_alerts")
+    .insert({ ...alertToDbRow(alert), ...patch });
+  if (insertError) throw new Error(insertError.message);
 }
 
 async function getCurrentShiftRow() {
@@ -527,8 +545,9 @@ export async function getClinicalSummary() {
 
 export async function appendAlertActionLog(
   entry: Omit<AlertActionLogEntry, "id" | "createdAt">,
+  writeClient?: SupabaseClient,
 ): Promise<AlertActionLogEntry> {
-  const supabase = getClient();
+  const supabase = writeClient ?? getClient();
   const next = {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     alert_id: entry.alertId,
