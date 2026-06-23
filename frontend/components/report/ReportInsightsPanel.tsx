@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Activity, HeartPulse } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { getPatientStatusLabel } from "@/lib/i18n";
@@ -15,16 +15,11 @@ type ReportInsightsPanelProps = {
     patientStatus: string;
     alertsToday: string;
     workflow: string;
-    vitals: string;
     attention: string;
     open: string;
     pendingDoctor: string;
     resolved: string;
     unresolved: string;
-    avgSpo2: string;
-    avgHr: string;
-    lowSpo2: string;
-    elevatedHr: string;
     critical: string;
     warning: string;
     viewChart: string;
@@ -147,43 +142,6 @@ export function ReportInsightsPanel({
               />
             </div>
           </div>
-
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--cs-text-soft)]">
-              {labels.vitals}
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="rounded-[0.8rem] bg-[color:rgba(13,71,161,0.05)] px-3 py-2.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[color:var(--cs-text-soft)]">
-                  <Activity className="h-3.5 w-3.5" />
-                  {labels.avgSpo2}
-                </div>
-                <p className="mt-1 text-[1.1rem] font-semibold text-[color:var(--cs-heading)]">
-                  {data.vitals_snapshot.avg_spo2 !== null
-                    ? `${data.vitals_snapshot.avg_spo2}%`
-                    : "—"}
-                </p>
-                <p className="mt-0.5 text-[10px] text-[color:var(--cs-danger)]">
-                  {data.vitals_snapshot.low_spo2_patients} {labels.lowSpo2}
-                </p>
-              </div>
-              <div className="rounded-[0.8rem] bg-[color:rgba(13,71,161,0.05)] px-3 py-2.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[color:var(--cs-text-soft)]">
-                  <HeartPulse className="h-3.5 w-3.5" />
-                  {labels.avgHr}
-                </div>
-                <p className="mt-1 text-[1.1rem] font-semibold text-[color:var(--cs-heading)]">
-                  {data.vitals_snapshot.avg_hr !== null
-                    ? `${data.vitals_snapshot.avg_hr} bpm`
-                    : "—"}
-                </p>
-                <p className="mt-0.5 text-[10px] text-[color:#B8860B]">
-                  {data.vitals_snapshot.elevated_hr_patients} {labels.elevatedHr}
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--cs-text-soft)]">
               {labels.attention}
