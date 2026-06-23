@@ -59,13 +59,18 @@ export function ReportAlertByTypeChart({
           </p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 8 }}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ left: 8, right: 8 }}
+            >
               <CartesianGrid stroke="rgba(13,71,161,0.08)" horizontal={false} />
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
               <YAxis
                 type="category"
                 dataKey="type"
-                width={108}
+                width={124}
+                tickMargin={8}
                 tick={{ fontSize: 10, fill: "var(--cs-text-soft)" }}
               />
               <Tooltip />
