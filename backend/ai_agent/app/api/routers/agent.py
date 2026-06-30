@@ -1,21 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 import json
+import uuid
 
 from app.api.controllers import agent_controller
 from app.api.schemas.agent_requests import ChatRequest
+from app.core.config import get_settings
 from app.contracts.agent_response import AgentResponse
 from app.services.agent_service import AgentService, create_agent_service_async
+from app.observability.ai_audit import record_ai_interaction
+from app.security_rate_limit import ai_rate_limiter
 from app.security import (
     InputSanitizer,
     SupabaseUser,
     assert_patient_access,
     authorize_chat_request,
+    enforce_ai_mode,
     sanitize_request_or_400,
     verify_supabase_jwt,
 )
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+def ensure_ai_enabled() -> None:
+    if get_settings().ai_mode == "off":
+        raise HTTPException(status_code=503, detail="Clinical AI is disabled")
 
 
 async def get_agent_service() -> AgentService:
@@ -25,25 +35,38 @@ async def get_agent_service() -> AgentService:
 @router.post("/chat", response_model=AgentResponse)
 async def chat(
     request: ChatRequest,
+    _: None = Depends(ensure_ai_enabled),
     user: SupabaseUser = Depends(verify_supabase_jwt),
     service: AgentService = Depends(get_agent_service),
 ) -> AgentResponse:
     request = sanitize_request_or_400(request)
+    await ai_rate_limiter.check(user.user_id)
+    enforce_ai_mode(request)
     await authorize_chat_request(
         request=request,
         user=user,
         patient_repository=service.patient_repository,
     )
-    return await agent_controller.chat(request, service)
+    response = await agent_controller.chat(request, service)
+    await record_ai_interaction(
+        actor_user_id=user.user_id,
+        patient_id=request.patient_id,
+        response=response,
+        correlation_id=str(uuid.uuid4()),
+    )
+    return response
 
 
 @router.post("/chat/stream")
 async def chat_stream(
     request: ChatRequest,
+    _: None = Depends(ensure_ai_enabled),
     user: SupabaseUser = Depends(verify_supabase_jwt),
     service: AgentService = Depends(get_agent_service),
 ) -> StreamingResponse:
     request = sanitize_request_or_400(request)
+    await ai_rate_limiter.check(user.user_id)
+    enforce_ai_mode(request)
     await authorize_chat_request(
         request=request,
         user=user,
@@ -61,6 +84,12 @@ async def chat_stream(
                     yield f"event: status\ndata: {val}\n\n"
                 elif event_type == "result":
                     # Stream the final validated AgentResponse JSON
+                    await record_ai_interaction(
+                        actor_user_id=user.user_id,
+                        patient_id=request.patient_id,
+                        response=val,
+                        correlation_id=str(uuid.uuid4()),
+                    )
                     data_str = json.dumps(val.model_dump(mode="json"))
                     yield f"event: result\ndata: {data_str}\n\n"
         except Exception as exc:

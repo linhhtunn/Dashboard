@@ -1,0 +1,59 @@
+name: Deploy Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Build immutable images
+        run: |
+          gcloud builds submit backend/ai_agent --tag "${{ vars.ARTIFACT_REGISTRY }}/ai-agent:${GITHUB_SHA}"
+          gcloud builds submit backend --tag "${{ vars.ARTIFACT_REGISTRY }}/ingestion:${GITHUB_SHA}"
+      - name: Capture current AI revision
+        id: previous
+        shell: bash
+        run: |
+          revision="$(gcloud run services describe caresignal-ai-${{ inputs.environment }} --region asia-southeast1 --format='value(status.latestReadyRevisionName)' 2>/dev/null || true)"
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+      - name: Deploy AI service
+        run: >-
+          gcloud run deploy caresignal-ai-${{ inputs.environment }}
+          --image "${{ vars.ARTIFACT_REGISTRY }}/ai-agent:${GITHUB_SHA}"
+          --region asia-southeast1 --platform managed --allow-unauthenticated
+          --set-env-vars APP_ENVIRONMENT=${{ inputs.environment == 'production' && 'production' || 'staging' }},AI_MODE=${{ vars.AI_MODE }},ALERT_DISPATCH_MODE=${{ vars.ALERT_DISPATCH_MODE }},PHI_PROCESSING_APPROVED=${{ vars.PHI_PROCESSING_APPROVED }},SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          --set-secrets OPENAI_API_KEY=OPENAI_API_KEY:latest,SUPABASE_SERVICE_KEY=SUPABASE_SERVICE_KEY:latest,SUPABASE_JWKS_URL=SUPABASE_JWKS_URL:latest,SUPABASE_DB_URL=SUPABASE_DB_URL:latest,TIMESCALE_DB_URL=TIMESCALE_DB_URL:latest
+      - name: Deploy ingestion service
+        run: >-
+          gcloud run deploy caresignal-ingestion-${{ inputs.environment }}
+          --image "${{ vars.ARTIFACT_REGISTRY }}/ingestion:${GITHUB_SHA}"
+          --region asia-southeast1 --platform managed --no-allow-unauthenticated --min-instances 1
+          --set-secrets DATABASE_URL=TIMESCALE_DATABASE_URL:latest,RABBITMQ_URL=CLOUDAMQP_URL:latest
+      - name: Verify and rollback on failure
+        shell: bash
+        run: |
+          AI_URL="$(gcloud run services describe caresignal-ai-${{ inputs.environment }} --region asia-southeast1 --format='value(status.url)')"
+          if ! curl --fail --retry 6 --retry-delay 5 "${AI_URL}/health"; then
+            previous="${{ steps.previous.outputs.revision }}"
+            if [ -n "${previous}" ]; then
+              gcloud run services update-traffic caresignal-ai-${{ inputs.environment }} --region asia-southeast1 --to-revisions "${previous}=100"
+            fi
+            exit 1
+          fi

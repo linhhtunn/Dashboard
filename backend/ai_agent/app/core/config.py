@@ -1,6 +1,8 @@
 from functools import lru_cache
+import os
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +10,16 @@ class Settings(BaseSettings):
     """Runtime configuration for the AI Agent service."""
 
     port: int = Field(default=8005, alias="PORT")
+    app_environment: Literal["development", "staging", "production"] = Field(
+        default="development", alias="APP_ENVIRONMENT"
+    )
+    ai_mode: Literal["off", "summary", "cdss"] = Field(default="cdss", alias="AI_MODE")
+    alert_dispatch_mode: Literal["shadow", "live"] = Field(
+        default="shadow", alias="ALERT_DISPATCH_MODE"
+    )
+    phi_processing_approved: bool = Field(default=False, alias="PHI_PROCESSING_APPROVED")
+    prompt_version: str = Field(default="unversioned", alias="PROMPT_VERSION")
+    rule_version: str = Field(default="unversioned", alias="RULE_VERSION")
     supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
     supabase_service_key: str | None = Field(default=None, alias="SUPABASE_SERVICE_KEY")
     supabase_jwt_secret: str | None = Field(default=None, alias="SUPABASE_JWT_SECRET")
@@ -46,6 +58,35 @@ class Settings(BaseSettings):
     langfuse_capture_content: bool = Field(default=False, alias="LANGFUSE_CAPTURE_CONTENT")
     langfuse_patient_id_mode: str = Field(default="hash", alias="LANGFUSE_PATIENT_ID_MODE")
     langfuse_hash_salt: str | None = Field(default=None, alias="LANGFUSE_HASH_SALT")
+
+    @model_validator(mode="after")
+    def validate_production_safety(self) -> "Settings":
+        if self.app_environment != "production":
+            return self
+
+        if not os.getenv("AI_MODE"):
+            raise ValueError("AI_MODE must be explicitly configured in production")
+
+        required = {
+            "SUPABASE_URL": self.supabase_url,
+            "SUPABASE_SERVICE_KEY": self.supabase_service_key,
+            "SUPABASE_JWKS_URL or SUPABASE_JWT_SECRET": (
+                self.supabase_jwks_url or self.supabase_jwt_secret
+            ),
+            "TIMESCALE_DB_URL": self.resolved_timescale_dsn,
+        }
+        missing = [name for name, value in required.items() if not value]
+        if missing:
+            raise ValueError(f"Missing production configuration: {', '.join(missing)}")
+        if self.ai_mode != "off" and not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is required when AI_MODE is enabled")
+        if self.alert_dispatch_mode == "live" and not self.phi_processing_approved:
+            raise ValueError("Live alert dispatch requires PHI_PROCESSING_APPROVED=true")
+        if self.langfuse_capture_content:
+            raise ValueError("LANGFUSE_CAPTURE_CONTENT must be false in production")
+        if self.langfuse_patient_id_mode == "raw":
+            raise ValueError("Raw patient identifiers cannot be exported in production")
+        return self
 
     @property
     def resolved_memory_postgres_dsn(self) -> str | None:

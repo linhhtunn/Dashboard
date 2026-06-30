@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/roles-db";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ClinicalPersona } from "@/types";
+import { isDemoModeAllowed } from "@/lib/runtime-config";
 
 export const runtime = "nodejs";
 
@@ -51,7 +52,10 @@ let demoStore = [...DEMO_USERS];
 
 async function listAuthUsers(): Promise<AdminUserRecord[]> {
   const admin = createSupabaseAdminClient();
-  if (!admin?.auth.admin.listUsers) return demoStore;
+  if (!admin?.auth.admin.listUsers) {
+    if (isDemoModeAllowed()) return demoStore;
+    throw new Error("Supabase admin API is not configured.");
+  }
 
   const profiles = await listUserProfiles();
   const profileMap = new Map(profiles.map((profile) => [profile.userId, profile]));
@@ -79,7 +83,7 @@ async function listAuthUsers(): Promise<AdminUserRecord[]> {
 export async function GET() {
   const authz = await requireAdminProfile();
   if (authz.response) {
-    if (authz.response.status === 401) {
+    if (authz.response.status === 401 && isDemoModeAllowed()) {
       return NextResponse.json({ users: demoStore, source: "demo" });
     }
     return authz.response;
@@ -89,6 +93,12 @@ export async function GET() {
     const users = await listAuthUsers();
     return NextResponse.json({ users, source: "supabase" });
   } catch (error) {
+    if (!isDemoModeAllowed()) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Failed to load users." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({
       users: demoStore,
       source: "demo",
@@ -99,7 +109,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const authz = await requireAdminProfile();
-  if (authz.response && authz.response.status === 403) return authz.response;
+  if (authz.response && !isDemoModeAllowed()) return authz.response;
+  if (authz.response?.status === 403) return authz.response;
 
   const body = (await request.json()) as Record<string, unknown>;
   const email = String(body.email ?? "").trim().toLowerCase();
@@ -147,6 +158,9 @@ export async function POST(request: Request) {
     }
   }
 
+  if (!isDemoModeAllowed()) {
+    return NextResponse.json({ error: "Supabase admin API is unavailable." }, { status: 503 });
+  }
   const user: AdminUserRecord = {
     id: `demo-${Math.random().toString(36).slice(2, 9)}`,
     email,
@@ -161,7 +175,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const authz = await requireAdminProfile();
-  if (authz.response && authz.response.status === 403) return authz.response;
+  if (authz.response && !isDemoModeAllowed()) return authz.response;
+  if (authz.response?.status === 403) return authz.response;
 
   const body = (await request.json()) as Record<string, unknown>;
   const id = String(body.id ?? "").trim();
@@ -211,6 +226,9 @@ export async function PATCH(request: Request) {
     }
   }
 
+  if (!isDemoModeAllowed()) {
+    return NextResponse.json({ error: "Supabase admin API is unavailable." }, { status: 503 });
+  }
   const index = demoStore.findIndex((item) => item.id === id);
   if (index < 0) {
     return NextResponse.json({ error: "User not found." }, { status: 404 });
@@ -225,7 +243,8 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const authz = await requireAdminProfile();
-  if (authz.response && authz.response.status === 403) return authz.response;
+  if (authz.response && !isDemoModeAllowed()) return authz.response;
+  if (authz.response?.status === 403) return authz.response;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id")?.trim();
@@ -242,6 +261,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (!isDemoModeAllowed()) {
+    return NextResponse.json({ error: "Supabase admin API is unavailable." }, { status: 503 });
+  }
   const before = demoStore.length;
   demoStore = demoStore.filter((item) => item.id !== id);
   if (demoStore.length === before) {

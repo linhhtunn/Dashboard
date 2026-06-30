@@ -76,6 +76,8 @@ class InputSanitizer:
                 raise SecurityViolationError("Message contains disallowed content")
 
         message = re.sub(r"<[^>]+>", "", message)
+        message = re.sub(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", "[REDACTED_EMAIL]", message)
+        message = re.sub(r"\b(?:MRN|medical record|so ho so|số hồ sơ)\s*[:#-]?\s*[A-Z0-9-]+", "MRN:[REDACTED]", message, flags=re.I)
         message = " ".join(message.split())
         return message.strip()
 
@@ -207,7 +209,7 @@ async def assert_patient_access(
     patient_repository: PatientRepository,
 ) -> None:
     if user.role == "admin":
-        return
+        raise HTTPException(status_code=403, detail="Admin PHI access requires audited break-glass")
 
     try:
         patient = patient_repository.get_by_id(patient_id)
@@ -231,3 +233,9 @@ def _looks_like_summary_request(request: ChatRequest) -> bool:
     text = request.message.lower()
     summary_terms = ["summary", "summarize", "tom tat", "tong quan", "tóm tắt", "tổng quan"]
     return bool(request.patient_id and any(term in text for term in summary_terms))
+
+
+def enforce_ai_mode(request: ChatRequest) -> None:
+    settings = get_settings()
+    if settings.ai_mode == "summary" and not _looks_like_summary_request(request):
+        raise HTTPException(status_code=403, detail="AI is restricted to grounded summaries")

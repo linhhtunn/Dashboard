@@ -19,6 +19,8 @@ CLAUDE.md
 AGENTS.md
 backend/.venv
 *.json
+!frontend/vercel.json
+*.egg-info/
 __pycache__/
 *.pyc
 backend/simulator/output/

@@ -96,11 +96,14 @@ export function useClinicalPersona() {
 
   useEffect(() => {
     let cancelled = false;
-    void loadProfile().finally(() => {
-      if (!cancelled) setPersonaReady(true);
-    });
+    const timeout = window.setTimeout(() => {
+      void loadProfile().finally(() => {
+        if (!cancelled) setPersonaReady(true);
+      });
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, [loadProfile]);
 

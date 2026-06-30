@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { AUTH_COOKIE_NAME } from "@/lib/auth/config";
+import { AUTH_COOKIE_NAME, canUseDemoAuthentication } from "@/lib/auth/config";
 
 export const runtime = "nodejs";
 
@@ -10,6 +10,13 @@ type DemoLoginBody = {
 };
 
 export async function POST(request: Request) {
+  if (!canUseDemoAuthentication()) {
+    return NextResponse.json(
+      { error: "Demo authentication is disabled in this environment." },
+      { status: 404 },
+    );
+  }
+
   const body = (await request.json()) as DemoLoginBody;
   const email = body.email?.trim().toLowerCase();
   const password = body.password?.trim();

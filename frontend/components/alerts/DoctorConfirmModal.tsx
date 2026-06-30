@@ -38,11 +38,14 @@ export function DoctorConfirmModal({
 
   useEffect(() => {
     if (!open) return;
-    setConclusion("");
-    setSymptoms("");
-    setClinicalNotes("");
-    setStartedAt(new Date().toISOString());
-    setError(null);
+    const timeout = window.setTimeout(() => {
+      setConclusion("");
+      setSymptoms("");
+      setClinicalNotes("");
+      setStartedAt(new Date().toISOString());
+      setError(null);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [open, alert.id]);
 
   if (!open) return null;

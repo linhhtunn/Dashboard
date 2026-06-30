@@ -1,6 +1,10 @@
 import { cookies } from "next/headers";
 
-import { AUTH_COOKIE_NAME, isSupabaseAuthConfigured } from "@/lib/auth/config";
+import {
+  AUTH_COOKIE_NAME,
+  canUseDemoAuthentication,
+  isSupabaseAuthConfigured,
+} from "@/lib/auth/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ServerSession =
@@ -19,6 +23,8 @@ export async function getServerSession(): Promise<ServerSession | null> {
       }
     }
   }
+
+  if (!canUseDemoAuthentication()) return null;
 
   const cookieStore = await cookies();
   const raw = cookieStore.get(AUTH_COOKIE_NAME)?.value;

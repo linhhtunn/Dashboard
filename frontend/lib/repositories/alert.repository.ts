@@ -82,6 +82,7 @@ function normalizeAlertSeverity(severity: string): AlertSeverity {
 }
 
 export type AlertActionRequest =
+  | { action: "acknowledge" }
   | {
       action: "nurse_treat";
       symptomsBefore: string;
@@ -108,7 +109,8 @@ export type AlertActionRequest =
       symptoms: string;
       clinicalNotes: string;
       startedAt: string;
-    };
+    }
+  | { action: "doctor_confirm_noise"; conclusion: string };
 
 type AlertListParams = {
   limit?: number;
@@ -158,6 +160,8 @@ export const alertRepository = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Idempotency-Key": crypto.randomUUID(),
+        "X-Correlation-ID": crypto.randomUUID(),
         ...(await operatorRoleHeaders(role)),
       },
       body: JSON.stringify(body),
@@ -173,5 +177,17 @@ export const alertRepository = {
 
   async getHistory(alertId: string): Promise<AlertActionLogEntry[]> {
     return clinicalApiGet<AlertActionLogEntry[]>(`/api/alerts/${alertId}/history`);
+  },
+
+  async recordDeliveryReceipt(alertId: string): Promise<void> {
+    await clinicalApiSend(`/api/alerts/${alertId}/delivery-receipt`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": `ui-delivery-${alertId}`,
+        "X-Correlation-ID": crypto.randomUUID(),
+      },
+      body: "{}",
+    });
   },
 };

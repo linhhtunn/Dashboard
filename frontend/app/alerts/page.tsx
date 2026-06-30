@@ -236,7 +236,9 @@ export default function AlertsPage() {
             try {
               await alertRepository.submitAction(
                 confirmAlert.id,
-                { action: "doctor_confirm", ...payload },
+                confirmAlert.workflowStatus === "suspected_noise"
+                  ? { action: "doctor_confirm_noise", conclusion: payload.conclusion }
+                  : { action: "doctor_confirm", ...payload },
                 "doctor",
               );
               await refreshAfterAction();

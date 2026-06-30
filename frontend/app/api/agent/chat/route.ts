@@ -10,6 +10,8 @@ import type {
   AgentChatStreamEvent,
 } from "@/lib/ai/types";
 import { resolveAgentPatientId } from "@/lib/ai/agent-chat-request";
+import { getAiMode, isDemoModeAllowed } from "@/lib/runtime-config";
+import { resolveBackendAuthorization } from "@/lib/ai/backend-authorization";
 
 export const runtime = "nodejs";
 
@@ -25,7 +27,14 @@ export async function POST(request: NextRequest) {
 
   const title = buildThreadTitle(body.message, body.locale);
 
+  if (getAiMode() === "off") {
+    return new Response("Clinical AI is disabled.", { status: 503 });
+  }
+
   if (!isAgentBackendConfigured()) {
+    if (!isDemoModeAllowed()) {
+      return new Response("Clinical AI backend is unavailable.", { status: 503 });
+    }
     const payload = buildMockChatPayload({
       locale: body.locale,
       message: body.message,
@@ -45,7 +54,7 @@ export async function POST(request: NextRequest) {
       message: body.message,
       metadata: body.metadata,
       history: body.history,
-      authorization: request.headers.get("authorization"),
+      authorization: await resolveBackendAuthorization(request),
     });
 
     const payload = {

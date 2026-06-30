@@ -43,19 +43,22 @@ export default function StaffPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void load()
-      .catch((nextError: unknown) => {
-        if (!cancelled) {
-          setError(
-            nextError instanceof Error ? nextError.message : ui.staff.loadError,
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const timeout = window.setTimeout(() => {
+      void load()
+        .catch((nextError: unknown) => {
+          if (!cancelled) {
+            setError(
+              nextError instanceof Error ? nextError.message : ui.staff.loadError,
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, [load, ui.staff.loadError]);
 

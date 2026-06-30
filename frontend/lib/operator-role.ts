@@ -21,7 +21,8 @@ export function useOperatorRole() {
   const [sessionName, setSessionName] = useState<string | null>(null);
 
   useEffect(() => {
-    setRoleState(getStoredOperatorRole());
+    const timeout = window.setTimeout(() => setRoleState(getStoredOperatorRole()), 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   useEffect(() => {

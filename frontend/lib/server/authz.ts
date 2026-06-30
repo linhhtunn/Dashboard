@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { isSupabaseAuthConfigured } from "@/lib/auth/config";
+import { canUseDemoAuthentication, isSupabaseAuthConfigured } from "@/lib/auth/config";
 import { getSessionUserProfile } from "@/lib/server/roles-db";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ClinicalPersona } from "@/types";
 
 export async function requireAuthenticatedProfile() {
@@ -43,11 +44,33 @@ export async function requireRole(role: ClinicalPersona) {
 
 export async function requireClinicalAccess() {
   if (!isSupabaseAuthConfigured()) {
-    return { profile: null, response: null };
+    if (canUseDemoAuthentication()) return { profile: null, response: null };
+    return {
+      profile: null,
+      response: NextResponse.json(
+        { error: "Clinical access is unavailable until authentication is configured." },
+        { status: 503 },
+      ),
+    };
   }
 
   const result = await requireAuthenticatedProfile();
   if (result.response) return result;
+
+  if (result.profile!.roleCode === "admin") {
+    const supabase = await createSupabaseServerClient();
+    const { data: grant } = supabase
+      ? await supabase
+          .from("break_glass_grants")
+          .select("id")
+          .eq("user_id", result.profile!.userId)
+          .is("revoked_at", null)
+          .gt("expires_at", new Date().toISOString())
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+    if (grant) return result;
+  }
 
   if (!hasPermission(result.profile!, "clinical_access")) {
     return {

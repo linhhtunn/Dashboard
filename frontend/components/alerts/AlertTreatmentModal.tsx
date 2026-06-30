@@ -55,15 +55,18 @@ export function AlertTreatmentModal({
 
   useEffect(() => {
     if (!open) return;
-    setMode("treat");
-    setSymptomsBefore("");
-    setActionTaken("");
-    setSymptomsAfter("");
-    setFollowUpNote("");
-    setNoiseDescription("");
-    setFloorNurseId(floorNurses[0]?.id ?? "");
-    setDoctorUserId(doctors[0]?.user_id ?? "");
-    setError(null);
+    const timeout = window.setTimeout(() => {
+      setMode("treat");
+      setSymptomsBefore("");
+      setActionTaken("");
+      setSymptomsAfter("");
+      setFollowUpNote("");
+      setNoiseDescription("");
+      setFloorNurseId(floorNurses[0]?.id ?? "");
+      setDoctorUserId(doctors[0]?.user_id ?? "");
+      setError(null);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [open, alert.id, floorNurses, doctors]);
 
   if (!open) return null;

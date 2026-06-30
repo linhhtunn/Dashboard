@@ -265,6 +265,9 @@ export async function updateAlertWorkflow(
   alertId: string,
   patch: Partial<{
     workflow_status: AlertWorkflowStatus;
+    acknowledged: boolean;
+    acknowledged_at: string | null;
+    acknowledged_by: string | null;
     assigned_floor_nurse_id: string | null;
     assigned_zone_code: string | null;
     noise_note: string | null;
@@ -604,7 +607,7 @@ export async function listPendingDoctorConfirmations(): Promise<string[]> {
   const alerts = await getAlerts();
   return alerts
     .filter((alert) =>
-      ["nurse_treated", "noise", "needs_follow_up"].includes(alert.workflowStatus),
+      ["nurse_treated", "needs_follow_up", "suspected_noise"].includes(alert.workflowStatus),
     )
     .map((alert) => alert.id);
 }

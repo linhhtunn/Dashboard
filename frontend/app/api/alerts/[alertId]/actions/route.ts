@@ -1,31 +1,37 @@
+import { randomUUID } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
+import { isSupabaseAuthConfigured } from "@/lib/auth/config";
 import {
+  recordAcknowledgement,
   recordDoctorConfirm,
+  recordDoctorConfirmNoise,
   recordNoise,
   recordNurseTreatment,
 } from "@/lib/mock/alert-workflow-store";
-import { getAlertById, getFloorNurses, getOperatorActor } from "@/lib/server/clinical-store";
 import { normalizePatientId } from "@/lib/patient-id";
-import { isSupabaseAuthConfigured } from "@/lib/auth/config";
+import { appendClinicalAuditEvent } from "@/lib/server/clinical-audit";
 import { requireRole } from "@/lib/server/authz";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAlertById, getFloorNurses, getOperatorActor } from "@/lib/server/clinical-store";
 import {
   assignAlertToDoctor,
   createCompletedEncounter,
   getAlertAssignment,
 } from "@/lib/server/encounter-db";
-import type { OperatorRole } from "@/types";
+import {
+  beginIdempotentRequest,
+  completeIdempotentRequest,
+} from "@/lib/server/idempotency";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { ClinicalPersona, OperatorRole } from "@/types";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ alertId: string }> };
+type Actor = { role: OperatorRole; actorId: string; actorName: string };
 
-async function findAlert(alertId: string) {
-  return (await getAlertById(alertId)) ?? null;
-}
-
-async function getActor(request: Request) {
+async function getActor(request: Request): Promise<Actor> {
   const role = (request.headers.get("x-operator-role") ?? "coordinator") as OperatorRole;
   const session = await getOperatorActor(role);
   const encodedName = request.headers.get("x-operator-name");
@@ -44,18 +50,27 @@ async function getActor(request: Request) {
   };
 }
 
+function correlationIdFrom(request: Request): string {
+  const value = request.headers.get("x-correlation-id")?.trim();
+  return value && /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(value) ? value : randomUUID();
+}
+
 export async function POST(request: Request, context: RouteContext) {
+  let failureContext: {
+    actorUserId: string;
+    key: string;
+    requestHash: string;
+  } | null = null;
   try {
     const { alertId } = await context.params;
-    const alert = await findAlert(alertId);
-    if (!alert) {
-      return NextResponse.json({ error: "Alert not found." }, { status: 404 });
-    }
+    const alert = (await getAlertById(alertId)) ?? null;
+    if (!alert) return NextResponse.json({ error: "Alert not found." }, { status: 404 });
 
     const body = (await request.json()) as Record<string, unknown>;
-    const action = body.action as string;
-    const expectedRole = action === "doctor_confirm" ? "doctor" : "coordinator";
-    let actor: Awaited<ReturnType<typeof getActor>>;
+    const action = String(body.action ?? "");
+    const doctorAction = action === "doctor_confirm" || action === "doctor_confirm_noise";
+    const expectedRole: ClinicalPersona = doctorAction ? "doctor" : "coordinator";
+    let actor: Actor;
     if (isSupabaseAuthConfigured()) {
       const authz = await requireRole(expectedRole);
       if (authz.response) return authz.response;
@@ -67,52 +82,110 @@ export async function POST(request: Request, context: RouteContext) {
     } else {
       actor = await getActor(request);
     }
+
+    const idempotencyKey = request.headers.get("idempotency-key");
+    const correlationId = correlationIdFrom(request);
+    const idempotency = await beginIdempotentRequest({
+      actorUserId: actor.actorId,
+      key: idempotencyKey,
+      body: { alertId, ...body },
+    });
+    if (idempotency.replay) {
+      return NextResponse.json(idempotency.replay.body, {
+        status: idempotency.replay.status,
+        headers: { "X-Correlation-ID": correlationId, "Idempotency-Replayed": "true" },
+      });
+    }
+    failureContext = {
+      actorUserId: actor.actorId,
+      key: idempotencyKey!,
+      requestHash: idempotency.requestHash,
+    };
+
     const writeClient = isSupabaseAuthConfigured()
       ? await createSupabaseServerClient()
       : undefined;
 
+    const finish = async (
+      state: Record<string, unknown>,
+      eventType: string,
+      auditPayload: Record<string, unknown> = {},
+    ) => {
+      await appendClinicalAuditEvent({
+        eventType,
+        aggregateType: "alert",
+        aggregateId: alertId,
+        actorUserId: actor.actorId,
+        actorRole: expectedRole,
+        correlationId,
+        idempotencyKey: idempotencyKey!,
+        payload: auditPayload,
+      });
+      await completeIdempotentRequest({
+        actorUserId: actor.actorId,
+        key: idempotencyKey!,
+        requestHash: idempotency.requestHash,
+        status: 200,
+        body: state,
+      });
+      failureContext = null;
+      return NextResponse.json(state, { headers: { "X-Correlation-ID": correlationId } });
+    };
+
+    const reject = async (error: string, status: number) => {
+      const responseBody = { error };
+      await completeIdempotentRequest({
+        actorUserId: actor.actorId,
+        key: idempotencyKey!,
+        requestHash: idempotency.requestHash,
+        status,
+        body: responseBody,
+      });
+      failureContext = null;
+      return NextResponse.json(responseBody, { status, headers: { "X-Correlation-ID": correlationId } });
+    };
+
+    if (action === "acknowledge") {
+      if (actor.role !== "coordinator") {
+        return reject("Only the coordinator can acknowledge alerts.", 403);
+      }
+      const state = await recordAcknowledgement(
+        alertId,
+        actor.actorId,
+        actor.actorName,
+        writeClient ?? undefined,
+      );
+      return finish(state, "alert.acknowledged");
+    }
+
     if (action === "nurse_treat" || action === "needs_follow_up") {
       if (actor.role !== "coordinator") {
-        return NextResponse.json(
-          { error: "Only the shift coordinator can record treatment." },
-          { status: 403 },
-        );
+        return reject("Only the coordinator can record treatment.", 403);
+      }
+      if (alert.workflowStatus === "open") {
+        await recordAcknowledgement(alertId, actor.actorId, actor.actorName, writeClient ?? undefined);
       }
 
       const floorNurseId = String(body.floorNurseId ?? "");
-      const floorNurses = await getFloorNurses();
-      const floorNurse = floorNurses.find((member) => member.id === floorNurseId);
+      const floorNurse = (await getFloorNurses()).find((member) => member.id === floorNurseId);
       if (!floorNurse) {
-        return NextResponse.json(
-          { error: "Select a floor nurse on shift." },
-          { status: 400 },
-        );
+        return reject("Select a floor nurse on shift.", 400);
       }
-
       const symptomsBefore = String(body.symptomsBefore ?? "").trim();
       const actionTaken = String(body.actionTaken ?? "").trim();
       const symptomsAfter = String(body.symptomsAfter ?? "").trim();
-      const zoneCode = String(
-        body.zone_code ?? body.zoneCode ?? floorNurse.zoneCode,
-      ).trim();
-
       if (!symptomsBefore || !actionTaken || !symptomsAfter) {
-        return NextResponse.json(
-          { error: "symptomsBefore, actionTaken, and symptomsAfter are required." },
-          { status: 400 },
-        );
+        return reject("symptomsBefore, actionTaken, and symptomsAfter are required.", 400);
       }
 
-      const outcome =
-        action === "needs_follow_up"
-          ? ("needs_follow_up" as const)
-          : (String(body.outcome ?? "completed") as "completed" | "needs_follow_up");
-
-      if (isSupabaseAuthConfigured()) {
-        const doctorUserId = String(body.doctorUserId ?? "").trim();
-        if (!doctorUserId) {
-          return NextResponse.json({ error: "doctorUserId is required." }, { status: 400 });
-        }
+      const outcome = action === "needs_follow_up" || body.outcome === "needs_follow_up"
+        ? "needs_follow_up" as const
+        : "completed" as const;
+      const doctorUserId = String(body.doctorUserId ?? "").trim();
+      if (isSupabaseAuthConfigured() && !doctorUserId) {
+        return reject("doctorUserId is required.", 400);
+      }
+      if (doctorUserId) {
         await assignAlertToDoctor({
           alertId,
           patientId: normalizePatientId(alert.patientId),
@@ -121,46 +194,44 @@ export async function POST(request: Request, context: RouteContext) {
         });
       }
 
-      const state = await recordNurseTreatment(alertId, normalizePatientId(alert.patientId), {
-        symptomsBefore,
-        actionTaken,
-        symptomsAfter,
-        outcome,
-        floorNurseId: floorNurse.id,
-        floorNurseName: floorNurse.name,
-        zoneCode,
-        followUpNote:
-          outcome === "needs_follow_up"
+      const state = await recordNurseTreatment(
+        alertId,
+        normalizePatientId(alert.patientId),
+        {
+          symptomsBefore,
+          actionTaken,
+          symptomsAfter,
+          outcome,
+          floorNurseId: floorNurse.id,
+          floorNurseName: floorNurse.name,
+          zoneCode: String(body.zone_code ?? body.zoneCode ?? floorNurse.zoneCode).trim(),
+          followUpNote: outcome === "needs_follow_up"
             ? String(body.followUpNote ?? "").trim() || undefined
             : undefined,
-        actorId: actor.actorId,
-        actorName: actor.actorName,
-      }, writeClient ?? undefined);
-
-      return NextResponse.json(state);
+          actorId: actor.actorId,
+          actorName: actor.actorName,
+        },
+        writeClient ?? undefined,
+      );
+      return finish(state, `alert.${action}`, { doctorUserId, floorNurseId });
     }
 
     if (action === "mark_noise") {
       if (actor.role !== "coordinator") {
-        return NextResponse.json(
-          { error: "Only the shift coordinator can mark noise." },
-          { status: 403 },
-        );
+        return reject("Only the coordinator can mark noise.", 403);
       }
-
+      if (alert.workflowStatus === "open") {
+        await recordAcknowledgement(alertId, actor.actorId, actor.actorName, writeClient ?? undefined);
+      }
       const description = String(body.description ?? "").trim();
       if (!description) {
-        return NextResponse.json(
-          { error: "description is required for noise alerts." },
-          { status: 400 },
-        );
+        return reject("description is required for noise alerts.", 400);
       }
-
-      if (isSupabaseAuthConfigured()) {
-        const doctorUserId = String(body.doctorUserId ?? "").trim();
-        if (!doctorUserId) {
-          return NextResponse.json({ error: "doctorUserId is required." }, { status: 400 });
-        }
+      const doctorUserId = String(body.doctorUserId ?? "").trim();
+      if (alert.severity === "critical" && !doctorUserId) {
+        return reject("Critical suspected noise must be assigned to a doctor.", 400);
+      }
+      if (doctorUserId) {
         await assignAlertToDoctor({
           alertId,
           patientId: normalizePatientId(alert.patientId),
@@ -168,53 +239,52 @@ export async function POST(request: Request, context: RouteContext) {
           assignedByUserId: actor.actorId,
         });
       }
-
       const state = await recordNoise(
         alertId,
+        alert.severity,
         description,
         actor.actorId,
         actor.actorName,
         writeClient ?? undefined,
       );
-      return NextResponse.json(state);
+      return finish(state, "alert.noise_marked", {
+        severity: alert.severity,
+        doctorReviewRequired: alert.severity === "critical",
+      });
     }
 
-    if (action === "doctor_confirm") {
+    if (doctorAction) {
       if (actor.role !== "doctor") {
-        return NextResponse.json(
-          { error: "Only a doctor can confirm alerts." },
-          { status: 403 },
-        );
+        return reject("Only a doctor can confirm alerts.", 403);
       }
-
       const conclusion = String(body.conclusion ?? "").trim();
       if (!conclusion) {
-        return NextResponse.json(
-          { error: "conclusion is required." },
-          { status: 400 },
-        );
+        return reject("conclusion is required.", 400);
       }
-
       if (isSupabaseAuthConfigured()) {
         const assignment = await getAlertAssignment(alertId);
         if (!assignment || assignment.doctor_user_id !== actor.actorId) {
-          return NextResponse.json(
-            { error: "This alert is assigned to another doctor." },
-            { status: 403 },
-          );
+          return reject("This alert is assigned to another doctor.", 403);
         }
+      }
+
+      if (action === "doctor_confirm_noise") {
+        const state = await recordDoctorConfirmNoise(
+          alertId,
+          conclusion,
+          actor.actorId,
+          actor.actorName,
+          writeClient ?? undefined,
+        );
+        return finish(state, "alert.noise_confirmed");
       }
 
       const symptoms = String(body.symptoms ?? "").trim();
       const clinicalNotes = String(body.clinicalNotes ?? "").trim();
       const startedAt = String(body.startedAt ?? "").trim();
       if (isSupabaseAuthConfigured() && (!symptoms || !clinicalNotes || !startedAt)) {
-        return NextResponse.json(
-          { error: "symptoms, clinicalNotes, and startedAt are required." },
-          { status: 400 },
-        );
+        return reject("symptoms, clinicalNotes, and startedAt are required.", 400);
       }
-
       const state = await recordDoctorConfirm(
         alertId,
         conclusion,
@@ -233,14 +303,24 @@ export async function POST(request: Request, context: RouteContext) {
           conclusion,
         });
       }
-      return NextResponse.json(state);
+      return finish(state, "alert.doctor_confirmed");
     }
 
-    return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+    return reject("Unknown action.", 400);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Không thể ghi hành động." },
-      { status: 500 },
-    );
+    const message = error instanceof Error ? error.message : "Unable to record action.";
+    const status = message.includes("Idempotency-Key")
+      ? message.includes("different") || message.includes("progress") ? 409 : 400
+      : message.includes("not allowed") ? 409 : 500;
+    if (failureContext) {
+      await completeIdempotentRequest({
+        actorUserId: failureContext.actorUserId,
+        key: failureContext.key,
+        requestHash: failureContext.requestHash,
+        status,
+        body: { error: message },
+      }).catch(() => undefined);
+    }
+    return NextResponse.json({ error: message }, { status });
   }
 }

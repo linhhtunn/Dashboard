@@ -58,7 +58,11 @@ export function ReportDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setAdminMode(window.localStorage.getItem(ADMIN_STORAGE_KEY) === "1");
+    const timeout = window.setTimeout(
+      () => setAdminMode(window.localStorage.getItem(ADMIN_STORAGE_KEY) === "1"),
+      0,
+    );
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const department = useMemo(() => {
@@ -127,7 +131,8 @@ export function ReportDashboard() {
   }, [department, filterDate, locale, page, range, sort]);
 
   useEffect(() => {
-    void load();
+    const timeout = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timeout);
   }, [load]);
 
   const departmentTitle = summary

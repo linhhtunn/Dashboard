@@ -24,6 +24,7 @@ import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { shiftRepository } from "@/lib/repositories/shift.repository";
 import { doctorRepository, type DoctorOption } from "@/lib/repositories/doctor.repository";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Alert, AlertSeverity, Patient, ShiftStaffMember } from "@/types";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -67,6 +68,11 @@ export function GlobalAlertModal() {
 
   const refreshAlerts = useCallback(async () => {
     const items = await alertRepository.listOpen();
+    await Promise.allSettled(
+      items
+        .filter((item) => item.severity === "critical" && !item.acknowledged)
+        .map((item) => alertRepository.recordDeliveryReceipt(item.id)),
+    );
     ensureAlertPopupBaseline(items);
     setAlerts(items);
     setPopupTick(Date.now());
@@ -76,6 +82,24 @@ export function GlobalAlertModal() {
     enabled: !isAdmin,
     intervalMs: POLL_INTERVAL_MS,
   });
+
+  useEffect(() => {
+    if (isAdmin) return;
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+    const channel = supabase
+      .channel("clinical-alert-delivery")
+      .on("postgres_changes", { event: "*", schema: "public", table: "portal_alerts" }, () => {
+        void refreshAlerts();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "health_alerts" }, () => {
+        void refreshAlerts();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isAdmin, refreshAlerts]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -360,7 +384,9 @@ export function GlobalAlertModal() {
             try {
               await alertRepository.submitAction(
                 alert.id,
-                { action: "doctor_confirm", ...payload },
+                alert.workflowStatus === "suspected_noise"
+                  ? { action: "doctor_confirm_noise", conclusion: payload.conclusion }
+                  : { action: "doctor_confirm", ...payload },
                 "doctor",
               );
               await afterWorkflowAction();
