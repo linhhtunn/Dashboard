@@ -15,6 +15,8 @@ import { isAgentBackendConfigured } from "@/lib/ai/agent-backend";
 import { BackendAgentError, invokeAgentChat } from "@/lib/ai/invoke-agent-chat";
 import { buildMockChatPayload } from "@/lib/ai/mock-chat";
 import type { AgentSummaryProxyRequest } from "@/lib/ai/types";
+import { getAiMode, isDemoModeAllowed } from "@/lib/runtime-config";
+import { resolveBackendAuthorization } from "@/lib/ai/backend-authorization";
 
 export const runtime = "nodejs";
 
@@ -44,7 +46,14 @@ export async function POST(request: NextRequest) {
     dbContext,
   );
 
+  if (getAiMode() === "off") {
+    return Response.json({ error: "Clinical AI is disabled." }, { status: 503 });
+  }
+
   if (!isAgentBackendConfigured()) {
+    if (!isDemoModeAllowed()) {
+      return Response.json({ error: "Clinical AI backend is unavailable." }, { status: 503 });
+    }
     const mock = buildMockChatPayload({
       locale: body.locale,
       message,
@@ -62,7 +71,7 @@ export async function POST(request: NextRequest) {
       conversationId: `summary-${patientId}-${Date.now()}`,
       message: agentMessage,
       metadata: agentMetadata,
-      authorization: request.headers.get("authorization"),
+      authorization: await resolveBackendAuthorization(request),
     });
 
     const payload = adaptBackendResponse({

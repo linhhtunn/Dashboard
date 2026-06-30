@@ -24,6 +24,7 @@ type AlertDto = {
   workflow_status?: AlertWorkflowStatus;
   assigned_floor_nurse_id?: string | null;
   assigned_zone_code?: string | null;
+  assigned_doctor_user_id?: string | null;
   noise_note?: string | null;
   treatment?: AlertTreatmentRecord | null;
 };
@@ -59,6 +60,7 @@ function mapAlert(dto: AlertDto): Alert {
     workflowStatus: dto.workflow_status ?? "open",
     assignedFloorNurseId: dto.assigned_floor_nurse_id ?? undefined,
     assignedZoneCode: dto.assigned_zone_code ?? undefined,
+    assignedDoctorUserId: dto.assigned_doctor_user_id ?? undefined,
     noiseNote: dto.noise_note ?? undefined,
     treatment: dto.treatment ?? undefined,
   };
@@ -80,6 +82,7 @@ function normalizeAlertSeverity(severity: string): AlertSeverity {
 }
 
 export type AlertActionRequest =
+  | { action: "acknowledge" }
   | {
       action: "nurse_treat";
       symptomsBefore: string;
@@ -87,6 +90,7 @@ export type AlertActionRequest =
       symptomsAfter: string;
       outcome?: "completed" | "needs_follow_up";
       floorNurseId: string;
+      doctorUserId: string;
       zone?: string;
     }
   | {
@@ -98,8 +102,15 @@ export type AlertActionRequest =
       zone?: string;
       followUpNote?: string;
     }
-  | { action: "mark_noise"; description: string }
-  | { action: "doctor_confirm"; conclusion: string };
+  | { action: "mark_noise"; description: string; doctorUserId: string }
+  | {
+      action: "doctor_confirm";
+      conclusion: string;
+      symptoms: string;
+      clinicalNotes: string;
+      startedAt: string;
+    }
+  | { action: "doctor_confirm_noise"; conclusion: string };
 
 type AlertListParams = {
   limit?: number;
@@ -149,6 +160,8 @@ export const alertRepository = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Idempotency-Key": crypto.randomUUID(),
+        "X-Correlation-ID": crypto.randomUUID(),
         ...(await operatorRoleHeaders(role)),
       },
       body: JSON.stringify(body),
@@ -164,5 +177,17 @@ export const alertRepository = {
 
   async getHistory(alertId: string): Promise<AlertActionLogEntry[]> {
     return clinicalApiGet<AlertActionLogEntry[]>(`/api/alerts/${alertId}/history`);
+  },
+
+  async recordDeliveryReceipt(alertId: string): Promise<void> {
+    await clinicalApiSend(`/api/alerts/${alertId}/delivery-receipt`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": `ui-delivery-${alertId}`,
+        "X-Correlation-ID": crypto.randomUUID(),
+      },
+      body: "{}",
+    });
   },
 };

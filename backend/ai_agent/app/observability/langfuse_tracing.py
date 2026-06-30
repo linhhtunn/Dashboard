@@ -188,7 +188,11 @@ def observe(
 
 def sanitize_metadata(metadata: dict[str, Any], settings: Settings | None = None) -> dict[str, Any]:
     settings = settings or get_settings()
-    sanitized: dict[str, Any] = {}
+    sanitized: dict[str, Any] = {
+        "model_version": settings.openai_model,
+        "prompt_version": settings.prompt_version,
+        "rule_version": settings.rule_version,
+    }
     for key, value in metadata.items():
         if key == "patient_id":
             sanitized[key] = sanitize_patient_id(value, settings)

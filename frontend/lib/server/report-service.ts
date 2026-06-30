@@ -8,6 +8,7 @@ import {
   getShiftBandLabel,
 } from "@/lib/i18n/domain";
 import type {
+  DailyReportResponse,
   ReportAlertByTypeResponse,
   ReportAlertTrendResponse,
   ReportHeatmapLevel,
@@ -28,6 +29,12 @@ import {
   getWeekDates,
   listStaff,
 } from "@/lib/server/clinical-store";
+import {
+  countPendingAssignments,
+  listDailyEncounters,
+  unassignedDepartmentLabel,
+} from "@/lib/server/encounter-db";
+import type { UserProfile } from "@/lib/server/roles-db";
 import { getAllVitals as getVitals } from "@/lib/server/vitals-db";
 import type { Alert, AlertSeverity, AlertType, Patient, PatientStatus } from "@/types";
 import {
@@ -64,6 +71,15 @@ function hashCode(value: string): number {
 
 function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function toVietnamDateKey(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function buildDateRange(days: number, anchor = new Date()): string[] {
@@ -616,6 +632,51 @@ export async function getReportInsights(query: ReportQuery): Promise<ReportInsig
     attention_patients: attentionPatients,
     range: ctx.range,
     department_code: ctx.department,
+  };
+}
+
+export async function getDailyDoctorReport(
+  doctor: UserProfile,
+): Promise<DailyReportResponse> {
+  const date = toVietnamDateKey(new Date());
+  const [patients, alerts, encounters, overview, pendingCount] = await Promise.all([
+    getPatients(),
+    getAlerts(),
+    listDailyEncounters(doctor.userId, date),
+    getReportOverview({ range: "7d", department: "all" }),
+    countPendingAssignments(doctor.userId),
+  ]);
+
+  const patientById = new Map(patients.map((patient) => [patient.id, patient]));
+  const alertById = new Map(alerts.map((alert) => [alert.id, alert]));
+  const activities = encounters.map((encounter) => {
+    const alert = encounter.alert_id ? alertById.get(encounter.alert_id) : undefined;
+    const patient = patientById.get(encounter.patient_id);
+    return {
+      id: encounter.id,
+      completed_at: encounter.completed_at ?? encounter.created_at,
+      patient_id: encounter.patient_id,
+      patient_name: patient?.name ?? encounter.patient_id,
+      bed: patient?.bed,
+      department_label: patient?.departmentLabel ?? unassignedDepartmentLabel(),
+      alert_type: alert?.type ?? ("deterioration_risk" as const),
+      severity: alert?.severity ?? ("info" as const),
+      conclusion: encounter.conclusion,
+    };
+  });
+
+  return {
+    date,
+    doctor_id: doctor.userId,
+    doctor_name: doctor.displayName ?? doctor.email ?? "Bác sĩ trực",
+    examined_patients: new Set(activities.map((activity) => activity.patient_id)).size,
+    encounter_count: activities.length,
+    critical_reviewed: activities.filter((activity) => activity.severity === "critical").length,
+    pending_confirmations: pendingCount,
+    current_shift: overview.current_shift,
+    shift_label: overview.shift_label,
+    shift_hours: overview.shift_hours,
+    activities,
   };
 }
 

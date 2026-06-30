@@ -12,7 +12,7 @@ import {
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { getConditionLabel } from "@/lib/i18n/domain";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
-import type { Patient, PatientBaselineSignals, PatientDbProfile } from "@/types";
+import type { Patient, PatientBaselineSignals } from "@/types";
 
 type PatientDbProfilePanelProps = {
   patient: Patient;

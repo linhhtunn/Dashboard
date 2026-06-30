@@ -39,12 +39,14 @@ export function getWorkflowFilterBucket(
     case "doctor_confirmed":
       return "resolved";
     case "nurse_treated":
+    case "suspected_noise":
       return "pending_doctor";
     case "noise":
       return "noise";
     case "needs_follow_up":
       return "needs_follow_up";
     case "open":
+    case "acknowledged":
     default:
       return "open";
   }
@@ -99,5 +101,5 @@ export function filterAlertsByZone(
 }
 
 export function isAwaitingDoctor(alert: Alert): boolean {
-  return ["nurse_treated", "noise", "needs_follow_up"].includes(alert.workflowStatus);
+  return ["nurse_treated", "suspected_noise", "needs_follow_up"].includes(alert.workflowStatus);
 }

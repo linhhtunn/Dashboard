@@ -29,8 +29,8 @@ export function ResetPasswordForm() {
 
     const supabase = createSupabaseBrowserClient();
     if (!supabase) {
-      setError(ui.auth.configError);
-      return;
+      const timeout = window.setTimeout(() => setError(ui.auth.configError), 0);
+      return () => window.clearTimeout(timeout);
     }
 
     void supabase.auth.getSession().then(({ data }) => {

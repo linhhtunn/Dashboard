@@ -33,16 +33,17 @@ export function useClinicalPersona() {
   const [profile, setProfile] = useState<UserClinicalProfile | null>(null);
   const [roleLocked, setRoleLocked] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [personaReady, setPersonaReady] = useState(false);
 
   const syncPersona = useCallback((next: ClinicalPersona, locked: boolean) => {
     setPersonaState(next);
     setRoleLocked(locked);
     if (!locked) {
       window.localStorage.setItem(STORAGE_KEY, next);
-      if (next === "coordinator" || next === "doctor") {
-        window.localStorage.setItem("caresignal-operator-role", next);
-        window.dispatchEvent(new CustomEvent("operator-role-change", { detail: next }));
-      }
+    }
+    if (next === "coordinator" || next === "doctor") {
+      if (!locked) window.localStorage.setItem("caresignal-operator-role", next);
+      window.dispatchEvent(new CustomEvent("operator-role-change", { detail: next }));
     }
     window.dispatchEvent(new CustomEvent("clinical-persona-change", { detail: next }));
   }, []);
@@ -94,7 +95,16 @@ export function useClinicalPersona() {
   }, [syncPersona]);
 
   useEffect(() => {
-    void loadProfile();
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      void loadProfile().finally(() => {
+        if (!cancelled) setPersonaReady(true);
+      });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
   }, [loadProfile]);
 
   const setPersona = useCallback(
@@ -122,6 +132,7 @@ export function useClinicalPersona() {
     profile,
     roleLocked,
     loadingProfile,
+    personaReady,
     setPersona,
     refreshProfile: loadProfile,
     isAdmin: persona === "admin",

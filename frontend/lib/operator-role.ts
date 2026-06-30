@@ -21,7 +21,8 @@ export function useOperatorRole() {
   const [sessionName, setSessionName] = useState<string | null>(null);
 
   useEffect(() => {
-    setRoleState(getStoredOperatorRole());
+    const timeout = window.setTimeout(() => setRoleState(getStoredOperatorRole()), 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export async function operatorRoleHeaders(
     return {
       "x-operator-role": session.role,
       "x-operator-id": session.actor_id,
-      "x-operator-name": session.name,
+      "x-operator-name": encodeURIComponent(session.name),
     };
   } catch {
     return { "x-operator-role": role };

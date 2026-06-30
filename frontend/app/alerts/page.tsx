@@ -14,18 +14,20 @@ import {
   type AlertZoneFilters,
 } from "@/lib/alerts-filters";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
-import { useOperatorRole } from "@/lib/operator-role";
+import { useClinicalPersona } from "@/lib/clinical-persona";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { shiftRepository } from "@/lib/repositories/shift.repository";
+import { doctorRepository, type DoctorOption } from "@/lib/repositories/doctor.repository";
 import type { Alert, Patient, ShiftStaffMember } from "@/types";
 
 export default function AlertsPage() {
   const ui = useClinicalUi();
-  const { role: operatorRole } = useOperatorRole();
+  const { operatorRole } = useClinicalPersona();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [patients, setPatients] = useState<Record<string, Patient>>({});
   const [floorNurses, setFloorNurses] = useState<ShiftStaffMember[]>([]);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [criticalFilters, setCriticalFilters] =
     useState<AlertZoneFilters>(defaultAlertZoneFilters);
   const [warningFilters, setWarningFilters] =
@@ -38,19 +40,23 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const [nextAlerts, staff, patientProfiles] = await Promise.all([
+    const [nextAlerts, staff, patientProfiles, doctorOptions] = await Promise.all([
       alertRepository.list({ limit: 200 }),
       shiftRepository.listStaff(),
       patientRepository.listProfiles(),
+      operatorRole === "coordinator"
+        ? doctorRepository.list().catch(() => [])
+        : Promise.resolve([]),
     ]);
     setAlerts(nextAlerts);
     setFloorNurses(staff.filter((member) => member.role === "floor_nurse"));
+    setDoctors(doctorOptions);
     setPatients(
       Object.fromEntries(
         patientProfiles.map((patient) => [patient.id, patient] as const),
       ),
     );
-  }, []);
+  }, [operatorRole]);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,6 +180,7 @@ export default function AlertsPage() {
           alert={treatmentAlert}
           patientName={patients[treatmentAlert.patientId]?.name}
           floorNurses={floorNurses}
+          doctors={doctors}
           open
           submitting={submitting}
           onClose={() => setTreatmentAlert(null)}
@@ -201,12 +208,12 @@ export default function AlertsPage() {
               setSubmitting(false);
             }
           }}
-          onSubmitNoise={async (description) => {
+          onSubmitNoise={async (description, doctorUserId) => {
             setSubmitting(true);
             try {
               await alertRepository.submitAction(
                 treatmentAlert.id,
-                { action: "mark_noise", description },
+                { action: "mark_noise", description, doctorUserId },
                 operatorRole,
               );
               await refreshAfterAction();
@@ -224,12 +231,14 @@ export default function AlertsPage() {
           open
           submitting={submitting}
           onClose={() => setConfirmAlert(null)}
-          onConfirm={async (conclusion) => {
+          onConfirm={async (payload) => {
             setSubmitting(true);
             try {
               await alertRepository.submitAction(
                 confirmAlert.id,
-                { action: "doctor_confirm", conclusion },
+                confirmAlert.workflowStatus === "suspected_noise"
+                  ? { action: "doctor_confirm_noise", conclusion: payload.conclusion }
+                  : { action: "doctor_confirm", ...payload },
                 "doctor",
               );
               await refreshAfterAction();

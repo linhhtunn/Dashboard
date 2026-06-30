@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { getAlertSeverityPresentation } from "@/lib/alert-severity";
+import { useOperatorRole } from "@/lib/operator-role";
+import { alertRepository } from "@/lib/repositories/alert.repository";
 import {
   formatAlertTimestamp,
   getAlertSeverityLabel,
@@ -19,7 +21,9 @@ type AlertItemProps = {
 
 export function AlertItem({ alert, compact = false }: AlertItemProps) {
   const { locale } = useLocale();
+  const { role } = useOperatorRole();
   const [acknowledged, setAcknowledged] = useState(alert.acknowledged);
+  const [acknowledging, setAcknowledging] = useState(false);
   const severity = getAlertSeverityPresentation(alert.severity);
   const evidenceLines = formatEvidence(alert, locale);
 
@@ -90,14 +94,24 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
 
         <button
           type="button"
-          disabled={acknowledged}
-          onClick={() => setAcknowledged(true)}
+          disabled={acknowledged || acknowledging || role !== "coordinator"}
+          onClick={async () => {
+            setAcknowledging(true);
+            try {
+              await alertRepository.submitAction(alert.id, { action: "acknowledge" }, role);
+              setAcknowledged(true);
+            } finally {
+              setAcknowledging(false);
+            }
+          }}
           className={[
             "shrink-0 rounded-full border border-[color:rgba(13,71,161,0.14)] bg-white/78 font-semibold text-[color:var(--cs-primary)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60",
             compact ? "h-6 px-2 text-[8px]" : "h-9 px-3.5 text-[13px]",
           ].join(" ")}
         >
-          {acknowledged
+          {acknowledging
+            ? locale === "vi" ? "Äang ghi nháº­n..." : "Acknowledging..."
+            : acknowledged
             ? locale === "vi"
               ? "Đã ghi nhận"
               : "Acknowledged"

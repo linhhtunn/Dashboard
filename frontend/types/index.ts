@@ -204,8 +204,10 @@ export interface Evidence {
 
 export type AlertWorkflowStatus =
   | "open"
+  | "acknowledged"
   | "nurse_treated"
   | "needs_follow_up"
+  | "suspected_noise"
   | "noise"
   | "doctor_confirmed";
 
@@ -251,7 +253,13 @@ export interface AlertTreatmentRecord {
 export interface AlertActionLogEntry {
   id: string;
   alertId: string;
-  action: "nurse_treat" | "mark_noise" | "needs_follow_up" | "doctor_confirm";
+  action:
+    | "acknowledge"
+    | "nurse_treat"
+    | "mark_noise"
+    | "needs_follow_up"
+    | "doctor_confirm"
+    | "doctor_confirm_noise";
   actorId: string;
   actorName: string;
   actorRole: OperatorRole;
@@ -271,6 +279,7 @@ export interface Alert {
   workflowStatus: AlertWorkflowStatus;
   assignedFloorNurseId?: string;
   assignedZoneCode?: string;
+  assignedDoctorUserId?: string;
   noiseNote?: string;
   treatment?: AlertTreatmentRecord;
 }

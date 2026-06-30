@@ -47,7 +47,7 @@ const DEFAULT_ROLE_PERMISSIONS: Record<ClinicalPersona, RolePermissions> = {
     manage_users: false,
   },
   admin: {
-    clinical_access: true,
+    clinical_access: false,
     record_treatment: false,
     confirm_alerts: false,
     simulation: true,

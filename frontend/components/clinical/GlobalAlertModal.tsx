@@ -23,6 +23,8 @@ import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import { alertRepository } from "@/lib/repositories/alert.repository";
 import { patientRepository } from "@/lib/repositories/patient.repository";
 import { shiftRepository } from "@/lib/repositories/shift.repository";
+import { doctorRepository, type DoctorOption } from "@/lib/repositories/doctor.repository";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Alert, AlertSeverity, Patient, ShiftStaffMember } from "@/types";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -59,12 +61,18 @@ export function GlobalAlertModal() {
   const [popupTick, setPopupTick] = useState(0);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [floorNurses, setFloorNurses] = useState<ShiftStaffMember[]>([]);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [treatmentOpen, setTreatmentOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const refreshAlerts = useCallback(async () => {
     const items = await alertRepository.listOpen();
+    await Promise.allSettled(
+      items
+        .filter((item) => item.severity === "critical" && !item.acknowledged)
+        .map((item) => alertRepository.recordDeliveryReceipt(item.id)),
+    );
     ensureAlertPopupBaseline(items);
     setAlerts(items);
     setPopupTick(Date.now());
@@ -77,6 +85,24 @@ export function GlobalAlertModal() {
 
   useEffect(() => {
     if (isAdmin) return;
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+    const channel = supabase
+      .channel("clinical-alert-delivery")
+      .on("postgres_changes", { event: "*", schema: "public", table: "portal_alerts" }, () => {
+        void refreshAlerts();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "health_alerts" }, () => {
+        void refreshAlerts();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isAdmin, refreshAlerts]);
+
+  useEffect(() => {
+    if (isAdmin) return;
     void shiftRepository
       .listStaff()
       .then((staff) => {
@@ -84,6 +110,11 @@ export function GlobalAlertModal() {
       })
       .catch(() => undefined);
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin || operatorRole !== "coordinator") return;
+    void doctorRepository.list().then(setDoctors).catch(() => setDoctors([]));
+  }, [isAdmin, operatorRole]);
 
   const alert = useMemo(() => {
     if (isAdmin) return null;
@@ -301,6 +332,7 @@ export function GlobalAlertModal() {
           alert={alert}
           patientName={patient?.name}
           floorNurses={floorNurses}
+          doctors={doctors}
           open
           submitting={submitting}
           onClose={() => setTreatmentOpen(false)}
@@ -324,12 +356,12 @@ export function GlobalAlertModal() {
               setSubmitting(false);
             }
           }}
-          onSubmitNoise={async (description) => {
+          onSubmitNoise={async (description, doctorUserId) => {
             setSubmitting(true);
             try {
               await alertRepository.submitAction(
                 alert.id,
-                { action: "mark_noise", description },
+                { action: "mark_noise", description, doctorUserId },
                 operatorRole,
               );
               await afterWorkflowAction();
@@ -347,12 +379,14 @@ export function GlobalAlertModal() {
           open
           submitting={submitting}
           onClose={() => setConfirmOpen(false)}
-          onConfirm={async (conclusion) => {
+          onConfirm={async (payload) => {
             setSubmitting(true);
             try {
               await alertRepository.submitAction(
                 alert.id,
-                { action: "doctor_confirm", conclusion },
+                alert.workflowStatus === "suspected_noise"
+                  ? { action: "doctor_confirm_noise", conclusion: payload.conclusion }
+                  : { action: "doctor_confirm", ...payload },
                 "doctor",
               );
               await afterWorkflowAction();

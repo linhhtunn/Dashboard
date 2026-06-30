@@ -12,7 +12,12 @@ type DoctorConfirmModalProps = {
   patientName?: string;
   open: boolean;
   onClose: () => void;
-  onConfirm: (conclusion: string) => Promise<void>;
+  onConfirm: (payload: {
+    conclusion: string;
+    symptoms: string;
+    clinicalNotes: string;
+    startedAt: string;
+  }) => Promise<void>;
   submitting?: boolean;
 };
 
@@ -26,23 +31,41 @@ export function DoctorConfirmModal({
 }: DoctorConfirmModalProps) {
   const ui = useClinicalUi();
   const [conclusion, setConclusion] = useState("");
+  const [symptoms, setSymptoms] = useState("");
+  const [clinicalNotes, setClinicalNotes] = useState("");
+  const [startedAt, setStartedAt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setConclusion("");
-    setError(null);
+    const timeout = window.setTimeout(() => {
+      setConclusion("");
+      setSymptoms("");
+      setClinicalNotes("");
+      setStartedAt(new Date().toISOString());
+      setError(null);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [open, alert.id]);
 
   if (!open) return null;
 
   async function handleSubmit() {
-    if (!conclusion.trim()) {
+    if (!conclusion.trim() || !symptoms.trim() || !clinicalNotes.trim()) {
       setError(ui.alerts.requiredFields);
       return;
     }
     setError(null);
-    await onConfirm(conclusion.trim());
+    try {
+      await onConfirm({
+        conclusion: conclusion.trim(),
+        symptoms: symptoms.trim(),
+        clinicalNotes: clinicalNotes.trim(),
+        startedAt,
+      });
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Không thể hoàn tất khám.");
+    }
   }
 
   return (
@@ -69,6 +92,26 @@ export function DoctorConfirmModal({
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        <label className="mt-3 block text-[11px] font-semibold text-[color:var(--cs-heading)]">
+          Triệu chứng khi khám
+          <textarea
+            value={symptoms}
+            onChange={(event) => setSymptoms(event.target.value)}
+            rows={2}
+            className="dashboard-input mt-1 w-full rounded-[0.65rem] px-2.5 py-2 text-[11px]"
+          />
+        </label>
+
+        <label className="mt-3 block text-[11px] font-semibold text-[color:var(--cs-heading)]">
+          Ghi chú khám
+          <textarea
+            value={clinicalNotes}
+            onChange={(event) => setClinicalNotes(event.target.value)}
+            rows={2}
+            className="dashboard-input mt-1 w-full rounded-[0.65rem] px-2.5 py-2 text-[11px]"
+          />
+        </label>
 
         <div className="rounded-[0.75rem] border border-white/50 bg-white/40 px-3 py-2">
           <p className="text-[11px] font-semibold text-[color:var(--cs-heading)]">

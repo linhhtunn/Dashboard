@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   alertToDbRow,
   buildShift,
@@ -122,8 +123,12 @@ export async function getPatientById(patientId: string): Promise<Patient | undef
   return patients.find((item) => item.id === patientId);
 }
 
-export async function updatePatientStatus(patientId: string, status: PatientStatus) {
-  const supabase = getClient();
+export async function updatePatientStatus(
+  patientId: string,
+  status: PatientStatus,
+  writeClient?: SupabaseClient,
+) {
+  const supabase = writeClient ?? getClient();
   const { error: portalError } = await supabase
     .from("portal_patients")
     .update({ status })
@@ -260,15 +265,31 @@ export async function updateAlertWorkflow(
   alertId: string,
   patch: Partial<{
     workflow_status: AlertWorkflowStatus;
+    acknowledged: boolean;
+    acknowledged_at: string | null;
+    acknowledged_by: string | null;
     assigned_floor_nurse_id: string | null;
     assigned_zone_code: string | null;
     noise_note: string | null;
     treatment: AlertTreatmentRecord | null;
   }>,
+  writeClient?: SupabaseClient,
 ) {
-  const supabase = getClient();
-  const { error } = await supabase.from("portal_alerts").update(patch).eq("id", alertId);
+  const supabase = writeClient ?? getClient();
+  const { data, error } = await supabase
+    .from("portal_alerts")
+    .update(patch)
+    .eq("id", alertId)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (data?.length) return;
+
+  const alert = await getAlertById(alertId);
+  if (!alert) throw new Error("Alert not found.");
+  const { error: insertError } = await supabase
+    .from("portal_alerts")
+    .insert({ ...alertToDbRow(alert), ...patch });
+  if (insertError) throw new Error(insertError.message);
 }
 
 async function getCurrentShiftRow() {
@@ -527,8 +548,9 @@ export async function getClinicalSummary() {
 
 export async function appendAlertActionLog(
   entry: Omit<AlertActionLogEntry, "id" | "createdAt">,
+  writeClient?: SupabaseClient,
 ): Promise<AlertActionLogEntry> {
-  const supabase = getClient();
+  const supabase = writeClient ?? getClient();
   const next = {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     alert_id: entry.alertId,
@@ -555,11 +577,37 @@ export async function getAlertActionHistory(alertId: string): Promise<AlertActio
   return (data ?? []).map(mapDbActionLogRow);
 }
 
+export async function getDoctorConfirmationsForDay(
+  date: string,
+  actorId?: string,
+): Promise<AlertActionLogEntry[]> {
+  const supabase = getClient();
+  const startDate = new Date(`${date}T00:00:00+07:00`);
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+
+  let query = supabase
+    .from("portal_alert_action_logs")
+    .select("*")
+    .eq("action", "doctor_confirm")
+    .gte("created_at", startDate.toISOString())
+    .lt("created_at", endDate.toISOString())
+    .order("created_at", { ascending: false });
+  if (actorId) query = query.eq("actor_id", actorId);
+
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingTableError(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []).map(mapDbActionLogRow);
+}
+
 export async function listPendingDoctorConfirmations(): Promise<string[]> {
   const alerts = await getAlerts();
   return alerts
     .filter((alert) =>
-      ["nurse_treated", "noise", "needs_follow_up"].includes(alert.workflowStatus),
+      ["nurse_treated", "needs_follow_up", "suspected_noise"].includes(alert.workflowStatus),
     )
     .map((alert) => alert.id);
 }

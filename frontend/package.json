@@ -10,6 +10,7 @@
     "analyze": "cross-env ANALYZE=true next build --webpack",
     "analyze:turbopack": "next experimental-analyze --output",
     "lint": "eslint",
+    "test:unit": "node --experimental-strip-types --test tests/*.test.ts",
     "db:seed": "node scripts/seed-clinical-db.mjs",
     "db:introspect": "node scripts/introspect-db.mjs",
     "db:timescale:probe": "node scripts/probe-timescale.mjs",

@@ -16,6 +16,8 @@ import { buildMockExplainAlertPayload } from "@/lib/ai/mock-chat";
 import type { AgentExplainAlertProxyRequest } from "@/lib/ai/types";
 import { getAlertById } from "@/lib/server/clinical-store";
 import { getMetricLabel } from "@/lib/i18n";
+import { getAiMode, isDemoModeAllowed } from "@/lib/runtime-config";
+import { resolveBackendAuthorization } from "@/lib/ai/backend-authorization";
 
 export const runtime = "nodejs";
 
@@ -63,7 +65,17 @@ export async function POST(request: NextRequest) {
     dbContext,
   );
 
+  if (getAiMode() !== "cdss") {
+    return Response.json(
+      { error: "Alert explanation requires AI_MODE=cdss." },
+      { status: 503 },
+    );
+  }
+
   if (!isAgentBackendConfigured()) {
+    if (!isDemoModeAllowed()) {
+      return Response.json({ error: "Clinical AI backend is unavailable." }, { status: 503 });
+    }
     return Response.json(await buildMockFromAlert(body));
   }
 
@@ -73,7 +85,7 @@ export async function POST(request: NextRequest) {
       conversationId: `alert-${body.alertId}`,
       message: agentMessage,
       metadata: agentMetadata,
-      authorization: request.headers.get("authorization"),
+      authorization: await resolveBackendAuthorization(request),
     });
 
     const payload = adaptBackendResponse({

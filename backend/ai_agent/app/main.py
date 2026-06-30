@@ -97,6 +97,8 @@ async def health() -> dict:
     return {
         "status": "ok",
         "version": app.version,
+        "ai_mode": settings.ai_mode,
+        "alert_dispatch_mode": settings.alert_dispatch_mode,
         "checks": {
             "supabase": await check_supabase(),
             "timescale": await check_timescale(),
