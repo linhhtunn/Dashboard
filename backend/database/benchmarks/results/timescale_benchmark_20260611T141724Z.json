@@ -1,0 +1,21 @@
+{
+  "batch_results": [
+    {
+      "batch_size": 100,
+      "duplicate_insert_ms": 131.861,
+      "insert_ms": 182.11,
+      "insert_rows_per_second": 549.12,
+      "latest_upsert_ms": 122.197,
+      "window_query_ms": 171.484
+    },
+    {
+      "batch_size": 500,
+      "duplicate_insert_ms": 196.037,
+      "insert_ms": 185.881,
+      "insert_rows_per_second": 2689.89,
+      "latest_upsert_ms": 122.682,
+      "window_query_ms": 468.987
+    }
+  ],
+  "started_at": "2026-06-11T14:17:22.470573+00:00"
+}

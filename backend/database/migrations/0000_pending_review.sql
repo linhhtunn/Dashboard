@@ -1,0 +1,3 @@
+-- Proposal placeholder only.
+-- Do not run this file.
+-- Real migrations will be added after the database model is reviewed.

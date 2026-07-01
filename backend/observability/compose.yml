@@ -1,0 +1,17 @@
+services:
+  alloy:
+    image: grafana/alloy:latest
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "/etc/alloy/config.alloy"
+    ports:
+      - "12345:12345"
+    env_file:
+      - .env
+    environment:
+      METRICS_SCRAPE_TARGET: ${METRICS_SCRAPE_TARGET:-host.docker.internal:9108}
+    volumes:
+      - ./alloy/config.local.alloy:/etc/alloy/config.alloy:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

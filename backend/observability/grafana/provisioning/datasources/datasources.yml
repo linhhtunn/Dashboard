@@ -1,0 +1,40 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: Prometheus
+    type: prometheus
+    access: proxy
+    url: ${PROMETHEUS_URL:-http://prometheus:9090}
+    isDefault: true
+    editable: true
+
+  - name: Health Timescale
+    uid: Health Timescale
+    type: postgres
+    access: proxy
+    url: ${TIMESCALE_HOST:-host.docker.internal}:${TIMESCALE_PORT:-5432}
+    user: ${TIMESCALE_USER}
+    database: ${TIMESCALE_DB}
+    secureJsonData:
+      password: ${TIMESCALE_PASSWORD}
+    jsonData:
+      postgresVersion: 1600
+      sslmode: ${TIMESCALE_SSLMODE:-disable}
+      timescaledb: true
+    editable: true
+
+  - name: Health Supabase
+    uid: Health Supabase
+    type: postgres
+    access: proxy
+    url: ${SUPABASE_HOST:-host.docker.internal}:${SUPABASE_PORT:-5432}
+    user: ${SUPABASE_USER}
+    database: ${SUPABASE_DB}
+    secureJsonData:
+      password: ${SUPABASE_PASSWORD}
+    jsonData:
+      postgresVersion: 1600
+      sslmode: ${SUPABASE_SSLMODE:-require}
+      timescaledb: false
+    editable: true

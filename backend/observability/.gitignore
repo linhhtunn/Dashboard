@@ -1,0 +1,4 @@
+.env
+prometheus/prometheus.cloud.yml
+alloy/config.local.alloy
+reports/

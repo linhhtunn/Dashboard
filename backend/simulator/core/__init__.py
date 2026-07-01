@@ -1,0 +1,1 @@
+"""Synthetic wearable simulator package."""

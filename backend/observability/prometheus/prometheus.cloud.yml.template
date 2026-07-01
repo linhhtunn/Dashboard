@@ -1,0 +1,35 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+remote_write:
+  - url: "__GRAFANA_CLOUD_PROMETHEUS_REMOTE_WRITE_URL__"
+    basic_auth:
+      username: "__GRAFANA_CLOUD_PROMETHEUS_USERNAME__"
+      password: "__GRAFANA_CLOUD_PROMETHEUS_PASSWORD__"
+
+scrape_configs:
+  - job_name: "health-realtime-evaluation"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9108"
+          - "localhost:9108"
+
+  - job_name: "rabbitmq"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:15692"
+
+  - job_name: "node-exporter"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9100"
+
+  - job_name: "cadvisor"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:8080"

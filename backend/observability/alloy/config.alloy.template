@@ -1,0 +1,52 @@
+// Grafana Alloy config for Dashboard B metrics.
+// Required env:
+//   GCLOUD_RW_API_KEY, GCLOUD_HOSTED_METRICS_ID, GCLOUD_HOSTED_METRICS_URL
+// Optional env:
+//   METRICS_SCRAPE_TARGET (Docker default: host.docker.internal:9108)
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GCLOUD_HOSTED_METRICS_URL")
+
+    basic_auth {
+      username = env("GCLOUD_HOSTED_METRICS_ID")
+      password = env("GCLOUD_RW_API_KEY")
+    }
+  }
+}
+
+prometheus.scrape "health_realtime_worker" {
+  targets = [
+    {
+      "__address__" = coalesce(env("METRICS_SCRAPE_TARGET"), "host.docker.internal:9108"),
+      "job"         = "health-realtime-evaluation",
+      "component"   = "team2_team3_worker",
+    },
+  ]
+
+  scrape_interval = "5s"
+  scrape_timeout  = "4s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.scrape "cloudamqp_lavinmq" {
+  targets = [
+    {
+      "__address__" = env("CLOUDAMQP_PROMETHEUS_TARGET"),
+      "job"         = "cloudamqp-lavinmq",
+      "component"   = "cloudamqp",
+    },
+  ]
+
+  scheme        = "https"
+  metrics_path  = "/metrics"
+  scrape_interval = "10s"
+  scrape_timeout  = "8s"
+
+  basic_auth {
+    username = env("CLOUDAMQP_PROMETHEUS_USERNAME")
+    password = env("CLOUDAMQP_PROMETHEUS_PASSWORD")
+  }
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}

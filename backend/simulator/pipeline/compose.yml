@@ -1,0 +1,9 @@
+services:
+  wearable-job:
+    build:
+      context: ../..
+      dockerfile: simulator/pipeline/Dockerfile
+    image: wearable-backend-job:local
+    env_file:
+      - path: ./jobs/.env
+        required: false

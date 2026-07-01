@@ -1,0 +1,522 @@
+[
+  {
+    "patient_id": "P001",
+    "mimic_subject_id": 10009035,
+    "name": "Nguyen Minh Quan",
+    "age": 28,
+    "height_cm": 175,
+    "weight_kg": 72,
+    "gender": "male",
+    "age_group": "young",
+    "pregnancy_status": "none",
+    "lifestyle": "moderately_active",
+    "risk_factors": ["heart_disease_risk"],
+    "activity_level": "medium",
+    "medical_history": "Mitral valve disorder; post-procedure monitoring",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 86,
+      "respiratory_rate": 16.0,
+      "ppi_resting_mean_ms": 698,
+      "ppi_resting_std_ms": 15,
+      "stress_score": 42,
+      "systolic_bp": 116,
+      "diastolic_bp": 72,
+      "spo2": 97,
+      "hrv_rmssd_morning": 44,
+      "ecg_rhythm": "sinus_tachycardia"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 124,
+        "creatinine_mg_dl": 0.9,
+        "sodium_meq_l": 138,
+        "potassium_meq_l": 4.1,
+        "chloride_meq_l": 102,
+        "bicarbonate_meq_l": 29,
+        "urea_nitrogen_mg_dl": 14,
+        "calcium_mg_dl": 8.7,
+        "alt_iu_l": 16,
+        "ast_iu_l": 18,
+        "bilirubin_total_mg_dl": 0.5
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 11.4,
+        "hematocrit_pct": 32.8,
+        "white_blood_cells_k_ul": 11.9,
+        "platelet_count_k_ul": 186,
+        "inr": 1.3,
+        "ptt_sec": 28.4
+      }
+    }
+  },
+  {
+    "patient_id": "P002",
+    "mimic_subject_id": 10038933,
+    "name": "Tran Duc Anh",
+    "age": 34,
+    "height_cm": 175,
+    "weight_kg": 78,
+    "gender": "male",
+    "age_group": "young",
+    "pregnancy_status": "none",
+    "lifestyle": "sedentary",
+    "risk_factors": ["diabetes_risk", "liver_risk"],
+    "activity_level": "low",
+    "medical_history": "Type II diabetes; elevated liver enzymes; encephalopathy episode",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 84,
+      "respiratory_rate": 17.0,
+      "ppi_resting_mean_ms": 714,
+      "ppi_resting_std_ms": 12,
+      "stress_score": 48,
+      "systolic_bp": 136,
+      "diastolic_bp": 68,
+      "spo2": 96,
+      "hrv_rmssd_morning": 38,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 171,
+        "creatinine_mg_dl": 0.6,
+        "sodium_meq_l": 136,
+        "potassium_meq_l": 4.0,
+        "chloride_meq_l": 100,
+        "bicarbonate_meq_l": 25,
+        "urea_nitrogen_mg_dl": 11,
+        "calcium_mg_dl": 8.8,
+        "alt_iu_l": 64.5,
+        "ast_iu_l": 89.5,
+        "bilirubin_total_mg_dl": 0.7
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 14.2,
+        "hematocrit_pct": 41.0,
+        "white_blood_cells_k_ul": 15.6,
+        "platelet_count_k_ul": 304,
+        "inr": 1.3,
+        "ptt_sec": 28.3
+      }
+    }
+  },
+  {
+    "patient_id": "P003",
+    "mimic_subject_id": 10014729,
+    "name": "Le Thanh Mai",
+    "age": 21,
+    "height_cm": 168,
+    "weight_kg": 73,
+    "gender": "female",
+    "age_group": "young",
+    "pregnancy_status": "none",
+    "lifestyle": "sedentary",
+    "risk_factors": ["anemia_risk"],
+    "activity_level": "low",
+    "medical_history": "Post-surgical anemia; recovering from thoracotomy",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 92,
+      "respiratory_rate": 16.5,
+      "ppi_resting_mean_ms": 652,
+      "ppi_resting_std_ms": 16,
+      "stress_score": 44,
+      "systolic_bp": 116,
+      "diastolic_bp": 70,
+      "spo2": 97,
+      "hrv_rmssd_morning": 42,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 100,
+        "creatinine_mg_dl": 0.6,
+        "sodium_meq_l": 138,
+        "potassium_meq_l": 3.8,
+        "chloride_meq_l": 103,
+        "bicarbonate_meq_l": 25,
+        "urea_nitrogen_mg_dl": 7,
+        "calcium_mg_dl": 8.3,
+        "alt_iu_l": 21,
+        "ast_iu_l": 18,
+        "bilirubin_total_mg_dl": 0.2
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 9.2,
+        "hematocrit_pct": 27.0,
+        "white_blood_cells_k_ul": 13.4,
+        "platelet_count_k_ul": 280,
+        "inr": 1.2,
+        "ptt_sec": 29.8
+      }
+    }
+  },
+  {
+    "patient_id": "P004",
+    "mimic_subject_id": 10008454,
+    "name": "Pham Ngoc Linh",
+    "age": 26,
+    "height_cm": 170,
+    "weight_kg": 82,
+    "gender": "female",
+    "age_group": "young",
+    "pregnancy_status": "none",
+    "lifestyle": "sedentary",
+    "risk_factors": ["anemia_risk", "liver_risk"],
+    "activity_level": "low",
+    "medical_history": "Multiple rib fractures; anemia; elevated liver enzymes; obesity",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 92,
+      "respiratory_rate": 18.0,
+      "ppi_resting_mean_ms": 652,
+      "ppi_resting_std_ms": 14,
+      "stress_score": 46,
+      "systolic_bp": 118,
+      "diastolic_bp": 68,
+      "spo2": 95,
+      "hrv_rmssd_morning": 38,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 218,
+        "creatinine_mg_dl": 0.6,
+        "sodium_meq_l": 138,
+        "potassium_meq_l": 3.8,
+        "chloride_meq_l": 104,
+        "bicarbonate_meq_l": 25,
+        "urea_nitrogen_mg_dl": 10,
+        "calcium_mg_dl": 8.2,
+        "alt_iu_l": 160.5,
+        "ast_iu_l": 163.5,
+        "bilirubin_total_mg_dl": 0.7
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 10.4,
+        "hematocrit_pct": 28.8,
+        "white_blood_cells_k_ul": 11.0,
+        "platelet_count_k_ul": 261,
+        "inr": 1.3,
+        "ptt_sec": 23.1
+      }
+    }
+  },
+  {
+    "patient_id": "P005",
+    "mimic_subject_id": 10010867,
+    "name": "Hoang Thu Ha",
+    "age": 28,
+    "height_cm": 170,
+    "weight_kg": 95,
+    "gender": "female",
+    "age_group": "young",
+    "pregnancy_status": "pregnant",
+    "lifestyle": "low_activity",
+    "risk_factors": ["anemia_risk"],
+    "activity_level": "low",
+    "medical_history": "Pregnancy monitoring; obese BMI 32.9; gestational anemia",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 88,
+      "respiratory_rate": 18.0,
+      "ppi_resting_mean_ms": 682,
+      "ppi_resting_std_ms": 12,
+      "stress_score": 42,
+      "systolic_bp": 120,
+      "diastolic_bp": 62,
+      "spo2": 98,
+      "hrv_rmssd_morning": 42,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 112,
+        "creatinine_mg_dl": 0.6,
+        "sodium_meq_l": 139,
+        "potassium_meq_l": 4.0,
+        "chloride_meq_l": 105,
+        "bicarbonate_meq_l": 25,
+        "urea_nitrogen_mg_dl": 9,
+        "calcium_mg_dl": 8.5,
+        "alt_iu_l": null,
+        "ast_iu_l": null,
+        "bilirubin_total_mg_dl": null
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 9.5,
+        "hematocrit_pct": 30.7,
+        "white_blood_cells_k_ul": 10.0,
+        "platelet_count_k_ul": 259,
+        "inr": 1.1,
+        "ptt_sec": 27.3
+      }
+    }
+  },
+  {
+    "patient_id": "P006",
+    "mimic_subject_id": 10022880,
+    "name": "Nguyen Van Hung",
+    "age": 66,
+    "height_cm": 180,
+    "weight_kg": 95,
+    "gender": "male",
+    "age_group": "elderly",
+    "pregnancy_status": "none",
+    "lifestyle": "low_activity",
+    "risk_factors": ["arrhythmia_risk", "hypertension_risk"],
+    "activity_level": "low",
+    "medical_history": "Atrial fibrillation; long-term anticoagulant use; history of TIA; hip replacement",
+    "health_status": "CRITICAL",
+    "baseline_signals": {
+      "heart_rate": 84,
+      "respiratory_rate": 16.0,
+      "ppi_resting_mean_ms": 714,
+      "ppi_resting_std_ms": 45,
+      "stress_score": 52,
+      "systolic_bp": 138,
+      "diastolic_bp": 82,
+      "spo2": 96,
+      "hrv_rmssd_morning": 52,
+      "ecg_rhythm": "atrial_fibrillation"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 123,
+        "creatinine_mg_dl": 1.0,
+        "sodium_meq_l": 139,
+        "potassium_meq_l": 4.1,
+        "chloride_meq_l": 104,
+        "bicarbonate_meq_l": 26,
+        "urea_nitrogen_mg_dl": 14,
+        "calcium_mg_dl": 8.7,
+        "alt_iu_l": null,
+        "ast_iu_l": null,
+        "bilirubin_total_mg_dl": null
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 12.7,
+        "hematocrit_pct": 37.1,
+        "white_blood_cells_k_ul": 8.3,
+        "platelet_count_k_ul": 159,
+        "inr": 1.2,
+        "ptt_sec": 29.3
+      }
+    }
+  },
+  {
+    "patient_id": "P007",
+    "mimic_subject_id": 10016150,
+    "name": "Tran Quoc Bao",
+    "age": 69,
+    "height_cm": 183,
+    "weight_kg": 89,
+    "gender": "male",
+    "age_group": "elderly",
+    "pregnancy_status": "none",
+    "lifestyle": "low_activity",
+    "risk_factors": ["heart_disease_risk", "ckd_risk"],
+    "activity_level": "low",
+    "medical_history": "Cardiomyopathy; chronic kidney disease; elevated bilirubin; cardiac catheterization history; ventricular pacing",
+    "health_status": "CRITICAL",
+    "baseline_signals": {
+      "heart_rate": 72,
+      "respiratory_rate": 18.0,
+      "ppi_resting_mean_ms": 833,
+      "ppi_resting_std_ms": 8,
+      "stress_score": 52,
+      "systolic_bp": 148,
+      "diastolic_bp": 76,
+      "spo2": 96,
+      "hrv_rmssd_morning": 26,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 149,
+        "creatinine_mg_dl": 0.9,
+        "sodium_meq_l": 138,
+        "potassium_meq_l": 3.8,
+        "chloride_meq_l": 102,
+        "bicarbonate_meq_l": 23,
+        "urea_nitrogen_mg_dl": 24,
+        "calcium_mg_dl": 8.8,
+        "alt_iu_l": 22,
+        "ast_iu_l": 15,
+        "bilirubin_total_mg_dl": 2.1
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 15.5,
+        "hematocrit_pct": 45.8,
+        "white_blood_cells_k_ul": 7.4,
+        "platelet_count_k_ul": 144,
+        "inr": 1.3,
+        "ptt_sec": 38.8
+      }
+    }
+  },
+  {
+    "patient_id": "P008",
+    "mimic_subject_id": 10016810,
+    "name": "Le Thi Hoa",
+    "age": 66,
+    "height_cm": 158,
+    "weight_kg": 62,
+    "gender": "female",
+    "age_group": "elderly",
+    "pregnancy_status": "none",
+    "lifestyle": "sedentary",
+    "risk_factors": ["diabetes_risk", "low_spo2_risk"],
+    "activity_level": "low",
+    "medical_history": "Type II diabetes; tobacco use disorder; hypotension; appendicitis history",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 72,
+      "respiratory_rate": 18.0,
+      "ppi_resting_mean_ms": 833,
+      "ppi_resting_std_ms": 10,
+      "stress_score": 46,
+      "systolic_bp": 112,
+      "diastolic_bp": 62,
+      "spo2": 93,
+      "hrv_rmssd_morning": 32,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 140,
+        "creatinine_mg_dl": 0.6,
+        "sodium_meq_l": 133,
+        "potassium_meq_l": 3.7,
+        "chloride_meq_l": 98,
+        "bicarbonate_meq_l": 24,
+        "urea_nitrogen_mg_dl": 14,
+        "calcium_mg_dl": 8.2,
+        "alt_iu_l": 16,
+        "ast_iu_l": 18,
+        "bilirubin_total_mg_dl": 0.7
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 12.2,
+        "hematocrit_pct": 35.6,
+        "white_blood_cells_k_ul": 13.9,
+        "platelet_count_k_ul": 238,
+        "inr": 1.3,
+        "ptt_sec": 25.2
+      }
+    }
+  },
+  {
+    "patient_id": "P009",
+    "mimic_subject_id": 10027602,
+    "name": "Pham Thi Lan",
+    "age": 71,
+    "height_cm": 159,
+    "weight_kg": 56,
+    "gender": "female",
+    "age_group": "elderly",
+    "pregnancy_status": "none",
+    "lifestyle": "low_activity",
+    "risk_factors": ["hypertension_risk", "anemia_risk"],
+    "activity_level": "low",
+    "medical_history": "Controlled hypertension; mild anemia; lung disease; ADHD",
+    "health_status": "WARNING",
+    "baseline_signals": {
+      "heart_rate": 78,
+      "respiratory_rate": 17.0,
+      "ppi_resting_mean_ms": 769,
+      "ppi_resting_std_ms": 9,
+      "stress_score": 44,
+      "systolic_bp": 122,
+      "diastolic_bp": 70,
+      "spo2": 96,
+      "hrv_rmssd_morning": 30,
+      "ecg_rhythm": "sinus_rhythm"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 138,
+        "creatinine_mg_dl": 0.6,
+        "sodium_meq_l": 139,
+        "potassium_meq_l": 3.7,
+        "chloride_meq_l": 103,
+        "bicarbonate_meq_l": 26,
+        "urea_nitrogen_mg_dl": 13,
+        "calcium_mg_dl": 8.4,
+        "alt_iu_l": null,
+        "ast_iu_l": null,
+        "bilirubin_total_mg_dl": null
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 11.0,
+        "hematocrit_pct": 33.0,
+        "white_blood_cells_k_ul": 12.6,
+        "platelet_count_k_ul": 297,
+        "inr": 1.1,
+        "ptt_sec": 25.2
+      }
+    }
+  },
+  {
+    "patient_id": "P010",
+    "mimic_subject_id": 10023239,
+    "name": "Nguyen Thi Bich",
+    "age": 29,
+    "height_cm": 165,
+    "weight_kg": 82,
+    "gender": "female",
+    "age_group": "young",
+    "pregnancy_status": "pregnant",
+    "lifestyle": "low_activity",
+    "risk_factors": ["diabetes_risk", "anemia_risk"],
+    "activity_level": "low",
+    "medical_history": "Type 1 diabetes with DKA history; insulin pump; epilepsy; hypothyroidism; high-risk pregnancy",
+    "health_status": "CRITICAL",
+    "baseline_signals": {
+      "heart_rate": 96,
+      "respiratory_rate": 20.0,
+      "ppi_resting_mean_ms": 625,
+      "ppi_resting_std_ms": 14,
+      "stress_score": 56,
+      "systolic_bp": 116,
+      "diastolic_bp": 68,
+      "spo2": 96,
+      "hrv_rmssd_morning": 32,
+      "ecg_rhythm": "sinus_tachycardia"
+    },
+    "lab_results": {
+      "sampled_at": "2026-06-09",
+      "chemistry": {
+        "glucose_mg_dl": 235,
+        "creatinine_mg_dl": 1.0,
+        "sodium_meq_l": 135,
+        "potassium_meq_l": 4.2,
+        "chloride_meq_l": 100,
+        "bicarbonate_meq_l": 19,
+        "urea_nitrogen_mg_dl": 15,
+        "calcium_mg_dl": 8.9,
+        "alt_iu_l": 41,
+        "ast_iu_l": 31,
+        "bilirubin_total_mg_dl": 0.4
+      },
+      "hematology": {
+        "hemoglobin_g_dl": 11.6,
+        "hematocrit_pct": 34.6,
+        "white_blood_cells_k_ul": 8.5,
+        "platelet_count_k_ul": 216,
+        "inr": 1.1,
+        "ptt_sec": 28.5
+      }
+    }
+  }
+]
