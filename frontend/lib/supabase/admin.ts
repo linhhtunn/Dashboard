@@ -4,10 +4,16 @@ import { isDemoModeAllowed } from "@/lib/runtime-config";
 
 let adminClient: SupabaseClient | null = null;
 
+export function isSupabaseServiceRoleConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() &&
+      (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+        process.env.SUPABASE_SECRET_KEY?.trim()),
+  );
+}
+
 export function isSupabaseAdminConfigured() {
-  const serverKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.SUPABASE_SECRET_KEY?.trim();
+  const serverKey = isSupabaseServiceRoleConfigured();
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() &&
       (serverKey ||

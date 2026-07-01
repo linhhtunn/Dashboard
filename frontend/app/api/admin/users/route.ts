@@ -6,7 +6,10 @@ import {
   patchUserProfile,
   upsertUserProfile,
 } from "@/lib/server/roles-db";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  createSupabaseAdminClient,
+  isSupabaseServiceRoleConfigured,
+} from "@/lib/supabase/admin";
 import type { ClinicalPersona } from "@/types";
 import { isDemoModeAllowed } from "@/lib/runtime-config";
 
@@ -51,6 +54,10 @@ const DEMO_USERS: AdminUserRecord[] = [
 let demoStore = [...DEMO_USERS];
 
 async function listAuthUsers(): Promise<AdminUserRecord[]> {
+  if (!isSupabaseServiceRoleConfigured()) {
+    if (isDemoModeAllowed()) return demoStore;
+    throw new Error("Supabase service-role key is not configured.");
+  }
   const admin = createSupabaseAdminClient();
   if (!admin?.auth.admin.listUsers) {
     if (isDemoModeAllowed()) return demoStore;
@@ -124,7 +131,9 @@ export async function POST(request: Request) {
 
   const clinicalRole: ClinicalPersona = isClinicalPersona(String(role)) ? (role as ClinicalPersona) : "coordinator";
 
-  const admin = createSupabaseAdminClient();
+  const admin = isSupabaseServiceRoleConfigured()
+    ? createSupabaseAdminClient()
+    : null;
   if (admin?.auth.admin.createUser && password.length >= 6 && authz.profile) {
     const { data, error } = await admin.auth.admin.createUser({
       email,
@@ -188,7 +197,9 @@ export async function PATCH(request: Request) {
   const displayName =
     body.displayName !== undefined ? String(body.displayName).trim() : undefined;
 
-  const admin = createSupabaseAdminClient();
+  const admin = isSupabaseServiceRoleConfigured()
+    ? createSupabaseAdminClient()
+    : null;
   if (admin?.auth.admin.updateUserById && authz.profile && !id.startsWith("demo-")) {
     const metadata: Record<string, unknown> = {};
     if (displayName !== undefined) metadata.display_name = displayName;
@@ -252,7 +263,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "id query param is required." }, { status: 400 });
   }
 
-  const admin = createSupabaseAdminClient();
+  const admin = isSupabaseServiceRoleConfigured()
+    ? createSupabaseAdminClient()
+    : null;
   if (admin?.auth.admin.deleteUser && authz.profile && !id.startsWith("demo-")) {
     const { error } = await admin.auth.admin.deleteUser(id);
     if (error) {
