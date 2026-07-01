@@ -20,7 +20,8 @@ export async function updateSession(request: NextRequest) {
     !isPublicApiRoute &&
     !pathname.startsWith("/api/admin/") &&
     !pathname.startsWith("/api/me/") &&
-    !pathname.startsWith("/api/roles");
+    !pathname.startsWith("/api/roles") &&
+    !pathname.startsWith("/api/simulator/");
 
   if (!isSupabaseAuthConfigured()) {
     if (!canUseDemoAuthentication()) {
