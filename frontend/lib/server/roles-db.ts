@@ -247,16 +247,23 @@ export async function getSessionUserProfile(): Promise<UserProfile | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Local JWT verification (cached JWKS, no network round-trip on asymmetric keys)
+  // instead of a getUser() call to the Auth server. This route skips the proxy
+  // auth lookup (isSelfAuthorizingApiRoute), so keeping it fast here is what makes
+  // the post-login profile fetch cheap.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims ?? null;
+  const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  if (!user) return null;
+  if (!userId) return null;
+
+  const metadata = (claims?.user_metadata ?? {}) as Record<string, unknown>;
+  const userEmail = typeof claims?.email === "string" ? claims.email : null;
 
   const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
     .select("*, role:roles(*)")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (profileError) {
@@ -265,21 +272,21 @@ export async function getSessionUserProfile(): Promise<UserProfile | null> {
   }
 
   if (!profile) {
-    const metadataRole = user.user_metadata?.clinical_role;
+    const metadataRole = metadata.clinical_role;
     const roleCode = isRoleCode(metadataRole) ? metadataRole : "coordinator";
     const role = (await getRoleByCode(roleCode)) ?? fallbackRole(roleCode);
 
     return mapProfile(
       {
-        user_id: user.id,
+        user_id: userId,
         role_code: roleCode,
         display_name:
-          typeof user.user_metadata?.display_name === "string"
-            ? user.user_metadata.display_name
-            : typeof user.user_metadata?.full_name === "string"
-              ? user.user_metadata.full_name
+          typeof metadata.display_name === "string"
+            ? metadata.display_name
+            : typeof metadata.full_name === "string"
+              ? metadata.full_name
               : null,
-        email: user.email ?? null,
+        email: userEmail,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

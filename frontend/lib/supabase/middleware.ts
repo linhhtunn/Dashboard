@@ -81,25 +81,32 @@ export async function updateSession(request: NextRequest) {
   // remote auth lookup in both proxy and route handler on the critical path.
   if (isSelfAuthorizingApiRoute) return supabaseResponse;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Verify the JWT locally with getClaims() rather than getUser(). getUser() hits
+  // the Supabase Auth server on every request; the proxy runs on all routes, so
+  // that network round-trip stacked across a page + its parallel API calls and
+  // drove the production login timeout. With asymmetric (ES256) signing keys
+  // getClaims() verifies the token signature against a cached JWKS with no
+  // per-request network call, so the fail-closed gate is preserved (it falls back
+  // to a getUser network check automatically for symmetric keys).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims ?? null;
+  const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  if (!user && isApiRoute && !isPublicApiRoute) {
+  if (!userId && isApiRoute && !isPublicApiRoute) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (user && isClinicalApiRoute) {
+  if (userId && isClinicalApiRoute) {
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("role_code")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
     if (profile?.role_code === "admin") {
       const { data: grant } = await supabase
         .from("break_glass_grants")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .is("revoked_at", null)
         .gt("expires_at", new Date().toISOString())
         .limit(1)
@@ -113,7 +120,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  if (!user && isPageRoute && !isPublicPageRoute(pathname)) {
+  if (!userId && isPageRoute && !isPublicPageRoute(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

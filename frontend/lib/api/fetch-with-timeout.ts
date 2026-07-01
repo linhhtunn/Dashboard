@@ -1,4 +1,7 @@
-export const RENDER_REQUEST_TIMEOUT_MS = 2500;
+// 2500ms was too tight for the real browser -> Next server -> Supabase (cross-region)
+// round-trip and made the post-login profile/persona load abort under load. 5000ms
+// leaves headroom while still surfacing genuinely stuck requests.
+export const RENDER_REQUEST_TIMEOUT_MS = 5000;
 export const MUTATION_REQUEST_TIMEOUT_MS = 8000;
 
 export async function fetchWithTimeout(
