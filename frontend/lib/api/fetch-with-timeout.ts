@@ -1,4 +1,5 @@
-export const RENDER_REQUEST_TIMEOUT_MS = 4000;
+export const RENDER_REQUEST_TIMEOUT_MS = 2500;
+export const MUTATION_REQUEST_TIMEOUT_MS = 8000;
 
 export async function fetchWithTimeout(
   input: RequestInfo | URL,

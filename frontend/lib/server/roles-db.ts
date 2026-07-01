@@ -21,6 +21,10 @@ export type DbUserProfileRow = {
   updated_at: string;
 };
 
+type DbUserProfileWithRole = DbUserProfileRow & {
+  role: DbRoleRow | DbRoleRow[] | null;
+};
+
 export type UserProfile = {
   userId: string;
   roleCode: ClinicalPersona;
@@ -251,7 +255,7 @@ export async function getSessionUserProfile(): Promise<UserProfile | null> {
 
   const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
-    .select("*")
+    .select("*, role:roles(*)")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -283,17 +287,12 @@ export async function getSessionUserProfile(): Promise<UserProfile | null> {
     );
   }
 
-  const { data: role, error: roleError } = await supabase
-    .from("roles")
-    .select("*")
-    .eq("code", (profile as DbUserProfileRow).role_code)
-    .maybeSingle();
-
-  if (roleError) {
-    if (isMissingTableError(roleError.message)) return null;
-    throw new Error(roleError.message);
-  }
-
-  if (!role) return mapProfile(profile as DbUserProfileRow, fallbackRole((profile as DbUserProfileRow).role_code));
-  return mapProfile(profile as DbUserProfileRow, role as DbRoleRow);
+  const profileWithRole = profile as DbUserProfileWithRole;
+  const relatedRole = Array.isArray(profileWithRole.role)
+    ? profileWithRole.role[0]
+    : profileWithRole.role;
+  return mapProfile(
+    profileWithRole,
+    relatedRole ?? fallbackRole(profileWithRole.role_code),
+  );
 }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { canIgnoreWorkflowStorageError } from "@/lib/supabase/errors";
 
 export type IdempotencyReplay = { status: number; body: Record<string, unknown> };
 
@@ -28,7 +29,10 @@ export async function beginIdempotentRequest(input: {
     .eq("actor_user_id", input.actorUserId)
     .eq("idempotency_key", key)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (canIgnoreWorkflowStorageError(error)) return { requestHash, replay: null };
+    throw new Error(error.message);
+  }
   if (data) {
     if (new Date(data.expires_at).getTime() <= Date.now()) {
       const { error: deleteError } = await admin
@@ -56,7 +60,9 @@ export async function beginIdempotentRequest(input: {
     idempotency_key: key,
     request_hash: requestHash,
   });
-  if (insertError) throw new Error(insertError.message);
+  if (insertError && !canIgnoreWorkflowStorageError(insertError)) {
+    throw new Error(insertError.message);
+  }
   return { requestHash, replay: null };
 }
 
@@ -75,5 +81,5 @@ export async function completeIdempotentRequest(input: {
     .eq("actor_user_id", input.actorUserId)
     .eq("idempotency_key", input.key)
     .eq("request_hash", input.requestHash);
-  if (error) throw new Error(error.message);
+  if (error && !canIgnoreWorkflowStorageError(error)) throw new Error(error.message);
 }

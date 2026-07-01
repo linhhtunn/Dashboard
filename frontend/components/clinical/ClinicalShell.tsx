@@ -108,12 +108,13 @@ function ClinicalNavbar() {
   const router = useRouter();
   const { locale, setLocale } = useLocale();
   const ui = useClinicalUi();
-  const { persona, setPersona, isAdmin, roleLocked, profile } = useClinicalPersona();
+  const { persona, setPersona, isAdmin, roleLocked, profile, personaReady } = useClinicalPersona();
   const { sessionName } = useOperatorRole();
   const [openAlertCount, setOpenAlertCount] = useState<number | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
+    if (!personaReady || isAdmin) return;
     let cancelled = false;
     void clinicalSummaryRepository
       .get()
@@ -126,7 +127,7 @@ function ClinicalNavbar() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin, personaReady]);
 
   const clinicalNavItems: Array<{
     href: string;

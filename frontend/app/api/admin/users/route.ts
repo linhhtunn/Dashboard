@@ -64,10 +64,12 @@ async function listAuthUsers(): Promise<AdminUserRecord[]> {
     throw new Error("Supabase admin API is not configured.");
   }
 
-  const profiles = await listUserProfiles();
+  const [profiles, authUsers] = await Promise.all([
+    listUserProfiles(),
+    admin.auth.admin.listUsers({ perPage: 200 }),
+  ]);
   const profileMap = new Map(profiles.map((profile) => [profile.userId, profile]));
-
-  const { data, error } = await admin.auth.admin.listUsers({ perPage: 200 });
+  const { data, error } = authUsers;
   if (error) {
     throw new Error(error.message);
   }

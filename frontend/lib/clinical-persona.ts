@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { isSupabaseAuthConfigured } from "@/lib/auth/config";
 import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+import { dedupedFetch } from "@/lib/api/request-cache";
 import type { ClinicalPersona, RolePermissions, UserClinicalProfile } from "@/types";
 
 const STORAGE_KEY = "caresignal-clinical-persona";
@@ -56,20 +57,23 @@ export function useClinicalPersona() {
 
     setLoadingProfile(true);
     try {
-      const response = await fetchWithTimeout("/api/me/profile", {
-        cache: "no-store",
+      const payload = await dedupedFetch("clinical-persona-profile", async () => {
+        const response = await fetchWithTimeout("/api/me/profile", {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Unable to load clinical profile.");
+        return (await response.json()) as {
+          profile?: {
+            user_id: string;
+            role_code: ClinicalPersona;
+            display_name: string | null;
+            email: string | null;
+            permissions: RolePermissions;
+            role_label_vi: string;
+            role_label_en: string;
+          } | null;
+        };
       });
-      const payload = (await response.json()) as {
-        profile?: {
-          user_id: string;
-          role_code: ClinicalPersona;
-          display_name: string | null;
-          email: string | null;
-          permissions: RolePermissions;
-          role_label_vi: string;
-          role_label_en: string;
-        } | null;
-      };
 
       if (payload.profile?.role_code) {
         const mapped: UserClinicalProfile = {

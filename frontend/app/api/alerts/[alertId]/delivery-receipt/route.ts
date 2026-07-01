@@ -6,6 +6,7 @@ import { appendClinicalAuditEvent } from "@/lib/server/clinical-audit";
 import { requireAuthenticatedProfile } from "@/lib/server/authz";
 import { beginIdempotentRequest, completeIdempotentRequest } from "@/lib/server/idempotency";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { canIgnoreWorkflowStorageError } from "@/lib/supabase/errors";
 
 export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ alertId: string }> };
@@ -41,7 +42,7 @@ export async function POST(request: Request, context: RouteContext) {
       },
       { onConflict: "alert_id,recipient,channel", ignoreDuplicates: true },
     );
-    if (error) throw new Error(error.message);
+    if (error && !canIgnoreWorkflowStorageError(error)) throw new Error(error.message);
     await appendClinicalAuditEvent({
       eventType: "alert.ui_delivered",
       aggregateType: "alert",

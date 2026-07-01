@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { canIgnoreWorkflowStorageError } from "@/lib/supabase/errors";
 import type { ClinicalPersona } from "@/types";
 
 export async function appendClinicalAuditEvent(input: {
@@ -23,5 +24,5 @@ export async function appendClinicalAuditEvent(input: {
     idempotency_key: input.idempotencyKey ?? null,
     payload: input.payload ?? {},
   });
-  if (error) throw new Error(error.message);
+  if (error && !canIgnoreWorkflowStorageError(error)) throw new Error(error.message);
 }

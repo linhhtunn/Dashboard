@@ -22,6 +22,10 @@ export async function updateSession(request: NextRequest) {
     !pathname.startsWith("/api/me/") &&
     !pathname.startsWith("/api/roles") &&
     !pathname.startsWith("/api/simulator/");
+  const isSelfAuthorizingApiRoute =
+    pathname === "/api/me/profile" ||
+    pathname.startsWith("/api/admin/") ||
+    pathname.startsWith("/api/simulator/");
 
   if (!isSupabaseAuthConfigured()) {
     if (!canUseDemoAuthentication()) {
@@ -72,6 +76,10 @@ export async function updateSession(request: NextRequest) {
       },
     },
   );
+
+  // These handlers perform their own role check. Avoid repeating the same
+  // remote auth lookup in both proxy and route handler on the critical path.
+  if (isSelfAuthorizingApiRoute) return supabaseResponse;
 
   const {
     data: { user },

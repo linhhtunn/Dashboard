@@ -7,7 +7,11 @@ import { ClinicalShell } from "@/components/clinical/ClinicalShell";
 import { PersonaGuard } from "@/components/clinical/PersonaGuard";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { AdminUserRecord } from "@/app/api/admin/users/route";
-import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+import {
+  fetchWithTimeout,
+  MUTATION_REQUEST_TIMEOUT_MS,
+} from "@/lib/api/fetch-with-timeout";
+import { useClinicalPersona } from "@/lib/clinical-persona";
 import { useClinicalUi } from "@/lib/i18n/use-clinical-ui";
 import type { ClinicalPersona } from "@/types";
 
@@ -28,6 +32,7 @@ const emptyForm: FormState = {
 export default function AdminUsersPage() {
   const { locale } = useLocale();
   const ui = useClinicalUi();
+  const { isAdmin, personaReady } = useClinicalPersona();
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,20 +58,25 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
+    if (!personaReady || !isAdmin) return;
     const timeout = window.setTimeout(() => void loadUsers(), 0);
     return () => window.clearTimeout(timeout);
-  }, [loadUsers]);
+  }, [isAdmin, loadUsers, personaReady]);
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetchWithTimeout("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const response = await fetchWithTimeout(
+        "/api/admin/users",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        },
+        MUTATION_REQUEST_TIMEOUT_MS,
+      );
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to create user.");
@@ -84,15 +94,19 @@ export default function AdminUsersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetchWithTimeout("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: user.id,
-          displayName: user.displayName,
-          role: user.role,
-        }),
-      });
+      const response = await fetchWithTimeout(
+        "/api/admin/users",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: user.id,
+            displayName: user.displayName,
+            role: user.role,
+          }),
+        },
+        MUTATION_REQUEST_TIMEOUT_MS,
+      );
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to update user.");
@@ -113,9 +127,11 @@ export default function AdminUsersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetchWithTimeout(`/api/admin/users?id=${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
+      const response = await fetchWithTimeout(
+        `/api/admin/users?id=${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+        MUTATION_REQUEST_TIMEOUT_MS,
+      );
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to delete user.");
