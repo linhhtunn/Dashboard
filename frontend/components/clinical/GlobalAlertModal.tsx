@@ -28,6 +28,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Alert, AlertSeverity, Patient, ShiftStaffMember } from "@/types";
 
 const POLL_INTERVAL_MS = 30_000;
+const DELIVERY_RECEIPT_STORAGE_PREFIX = "caresignal-alert-delivery:";
 
 const severityStyles: Record<
   AlertSeverity,
@@ -56,7 +57,7 @@ const severityStyles: Record<
 export function GlobalAlertModal() {
   const { locale } = useLocale();
   const ui = useClinicalUi();
-  const { operatorRole, isAdmin } = useClinicalPersona();
+  const { operatorRole, isAdmin, personaReady, profile } = useClinicalPersona();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [popupTick, setPopupTick] = useState(0);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -68,23 +69,18 @@ export function GlobalAlertModal() {
 
   const refreshAlerts = useCallback(async () => {
     const items = await alertRepository.listOpen();
-    await Promise.allSettled(
-      items
-        .filter((item) => item.severity === "critical" && !item.acknowledged)
-        .map((item) => alertRepository.recordDeliveryReceipt(item.id)),
-    );
     ensureAlertPopupBaseline(items);
     setAlerts(items);
     setPopupTick(Date.now());
   }, []);
 
   useVisibilityPolling(refreshAlerts, {
-    enabled: !isAdmin,
+    enabled: personaReady && !isAdmin,
     intervalMs: POLL_INTERVAL_MS,
   });
 
   useEffect(() => {
-    if (isAdmin) return;
+    if (!personaReady || isAdmin) return;
     const supabase = createSupabaseBrowserClient();
     if (!supabase) return;
     const channel = supabase
@@ -99,29 +95,48 @@ export function GlobalAlertModal() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [isAdmin, refreshAlerts]);
+  }, [isAdmin, personaReady, refreshAlerts]);
 
   useEffect(() => {
-    if (isAdmin) return;
+    if (!personaReady || isAdmin) return;
     void shiftRepository
       .listStaff()
       .then((staff) => {
         setFloorNurses(staff.filter((member) => member.role === "floor_nurse"));
       })
       .catch(() => undefined);
-  }, [isAdmin]);
+  }, [isAdmin, personaReady]);
 
   useEffect(() => {
-    if (isAdmin || operatorRole !== "coordinator") return;
+    if (!personaReady || isAdmin || operatorRole !== "coordinator") return;
     void doctorRepository.list().then(setDoctors).catch(() => setDoctors([]));
-  }, [isAdmin, operatorRole]);
+  }, [isAdmin, operatorRole, personaReady]);
 
   const alert = useMemo(() => {
-    if (isAdmin) return null;
+    if (!personaReady || isAdmin) return null;
     void popupTick;
     const state = readAlertPopupState();
     return pickAlertForPopup(alerts, state);
-  }, [alerts, isAdmin, popupTick]);
+  }, [alerts, isAdmin, personaReady, popupTick]);
+
+  useEffect(() => {
+    if (!alert || alert.severity !== "critical" || alert.acknowledged) return;
+
+    const recipient = profile?.userId ?? `demo-${operatorRole}`;
+    const storageKey = `${DELIVERY_RECEIPT_STORAGE_PREFIX}${recipient}:${alert.id}`;
+    const deliveryState = window.sessionStorage.getItem(storageKey);
+    if (deliveryState === "pending" || deliveryState === "delivered") return;
+
+    window.sessionStorage.setItem(storageKey, "pending");
+    void alertRepository
+      .recordDeliveryReceipt(alert.id)
+      .then(() => window.sessionStorage.setItem(storageKey, "delivered"))
+      .catch(() => {
+        if (window.sessionStorage.getItem(storageKey) === "pending") {
+          window.sessionStorage.removeItem(storageKey);
+        }
+      });
+  }, [alert, operatorRole, profile?.userId]);
 
   useEffect(() => {
     if (!alert) return;
